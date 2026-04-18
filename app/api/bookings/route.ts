@@ -135,10 +135,6 @@ export async function POST(request: NextRequest) {
       status: status || 'confirmed',
     }
 
-    const recipientLineUserId = normalizedLineId.startsWith('U')
-      ? normalizedLineId
-      : null
-
     const confirmationMessage = generateConfirmationMessage({
       customerName: bookingPayload.customer_name,
       branchName: branch.name,
@@ -148,14 +144,36 @@ export async function POST(request: NextRequest) {
     })
 
     const notifyLine = async () => {
-      if (!recipientLineUserId) {
+      // Try to send to customer's entered LINE ID first
+      try {
+        await sendLinePushMessage(normalizedLineId, confirmationMessage)
+        console.log(`LINE push sent to customer ID: ${normalizedLineId}`)
+        return true
+      } catch (customerError) {
         console.warn(
-          'Skipping LINE push: line_id is not a LINE userId (U...).'
+          `Failed to send to customer ID ${normalizedLineId}:`,
+          customerError
         )
-        return false
+
+        // Fall back to admin account if configured
+        const fallbackId = process.env.LINE_DEMO_USER_ID
+        if (!fallbackId) {
+          console.warn('No fallback LINE_DEMO_USER_ID configured')
+          return false
+        }
+
+        try {
+          await sendLinePushMessage(fallbackId, confirmationMessage)
+          console.log(`LINE push sent to fallback admin ID: ${fallbackId}`)
+          return true
+        } catch (fallbackError) {
+          console.error(
+            'Failed to send LINE push to both customer and admin IDs:',
+            fallbackError
+          )
+          return false
+        }
       }
-      await sendLinePushMessage(recipientLineUserId, confirmationMessage)
-      return true
     }
 
     if (!hasSupabaseConfig || !supabase) {

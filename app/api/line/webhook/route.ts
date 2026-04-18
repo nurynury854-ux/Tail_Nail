@@ -12,6 +12,30 @@ function verifyLineSignature(body: string, signature: string | null, channelSecr
   return timingSafeEqual(signatureBuffer, computedBuffer)
 }
 
+async function sendLineReply(replyToken: string, message: string): Promise<void> {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN
+  if (!token) {
+    throw new Error('LINE_CHANNEL_ACCESS_TOKEN is not configured')
+  }
+
+  const response = await fetch('https://api.line.me/v2/bot/message/reply', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      replyToken,
+      messages: [{ type: 'text', text: message }],
+    }),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text()
+    throw new Error(`LINE reply failed (${response.status}): ${errorBody}`)
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const channelSecret = process.env.LINE_CHANNEL_SECRET
@@ -33,12 +57,12 @@ export async function POST(request: NextRequest) {
         type?: string
         mode?: string
         timestamp?: number
+        replyToken?: string
         source?: { type?: string; userId?: string }
         message?: { id?: string; type?: string; text?: string }
       }>
     }
 
-    // For showcase/demo visibility in Vercel logs.
     console.log('[LINE webhook] destination:', body.destination ?? 'unknown')
     for (const event of body.events ?? []) {
       console.log('[LINE webhook] event:', {
@@ -50,6 +74,22 @@ export async function POST(request: NextRequest) {
         messageType: event.message?.type,
         text: event.message?.text,
       })
+
+      // If message event from user, send booking link
+      if (event.type === 'message' && event.message?.type === 'text' && event.source?.userId && event.replyToken) {
+        const userId = event.source.userId
+        const bookingUrl = `${process.env.NEXT_PUBLIC_BOOKING_URL || 'https://tail-nail.vercel.app/booking'}?userId=${encodeURIComponent(userId)}`
+
+        try {
+          await sendLineReply(
+            event.replyToken,
+            `Thanks for reaching out! 💅\n\nClick here to book your appointment:\n${bookingUrl}`
+          )
+          console.log(`[LINE webhook] Sent booking link to userId: ${userId}`)
+        } catch (replyError) {
+          console.error('[LINE webhook] Failed to send reply:', replyError)
+        }
+      }
     }
 
     return NextResponse.json({ message: 'Webhook received' }, { status: 200 })
