@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     const recipientLineUserId = normalizedLineId.startsWith('U')
       ? normalizedLineId
-      : process.env.LINE_DEMO_USER_ID
+      : null
 
     const confirmationMessage = generateConfirmationMessage({
       customerName: bookingPayload.customer_name,
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     const notifyLine = async () => {
       if (!recipientLineUserId) {
         console.warn(
-          'Skipping LINE push: no LINE userId provided. Use a U... value or set LINE_DEMO_USER_ID.'
+          'Skipping LINE push: line_id is not a LINE userId (U...).'
         )
         return false
       }
