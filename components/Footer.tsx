@@ -81,13 +81,10 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h3 className="font-playfair text-white text-lg mb-4">Quick Links</h3>
+            <h3 className="font-playfair text-white text-lg mb-4">Booking</h3>
             <ul className="space-y-2 text-sm">
               {[
-                { href: '/services', label: 'Services & Pricing' },
-                { href: '/branches', label: 'Our Branches' },
                 { href: '/booking', label: 'Book an Appointment' },
-                { href: '/contact', label: 'Contact Us' },
                 { href: '/admin', label: 'Staff Dashboard' },
               ].map((link) => (
                 <li key={link.href}>

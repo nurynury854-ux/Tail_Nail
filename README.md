@@ -1,6 +1,6 @@
 # 💅 Lumière Nails — Booking System
 
-A full-featured nail salon booking website built with **Next.js 14**, **Tailwind CSS**, and **Supabase**.
+A booking-focused nail salon demo built with **Next.js 14**, **Tailwind CSS**, and **Supabase**.
 
 ![Preview](https://images.unsplash.com/photo-1604654894610-df63bc536371?w=1200&h=400&auto=format&fit=crop)
 
@@ -8,7 +8,7 @@ A full-featured nail salon booking website built with **Next.js 14**, **Tailwind
 
 ## ✨ Features
 
-- **Beautiful Landing Page** — Hero section, services, branches, testimonials, gallery
+- **Booking-First Experience** — Root route redirects directly to booking flow
 - **Multi-Step Booking Flow** — Branch → Service → Date → Time → Details → Confirmation
 - **Real-Time Slot Availability** — Checks existing bookings and respects staff capacity
 - **Multi-Staff Logic** — Allows concurrent bookings up to staff count per branch
@@ -26,11 +26,8 @@ A full-featured nail salon booking website built with **Next.js 14**, **Tailwind
 nail-salon/
 ├── app/
 │   ├── layout.tsx          # Root layout (Navbar + Footer)
-│   ├── page.tsx            # Home page
-│   ├── branches/page.tsx   # Branch listing
+│   ├── page.tsx            # Redirects to /booking
 │   ├── booking/page.tsx    # Multi-step booking flow ⭐
-│   ├── services/page.tsx   # Services & pricing
-│   ├── contact/page.tsx    # Contact info
 │   ├── admin/page.tsx      # Admin dashboard
 │   └── api/
 │       ├── bookings/route.ts         # GET all, POST new booking
@@ -173,11 +170,8 @@ await fetch('https://api.line.me/v2/bot/message/push', {
 
 | Route | Description |
 |-------|-------------|
-| `/` | Landing page with hero, services, gallery, testimonials |
-| `/services` | Full services listing with pricing |
-| `/branches` | Branch cards with booking links |
+| `/` | Redirects to `/booking` |
 | `/booking` | Multi-step booking flow |
-| `/contact` | Contact info for all branches |
 | `/admin` | Staff dashboard (no auth — demo only) |
 
 ---

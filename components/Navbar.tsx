@@ -6,10 +6,8 @@ import { usePathname } from 'next/navigation'
 import { Menu, X, Sparkles } from 'lucide-react'
 
 const navLinks = [
-  { href: '/', label: 'Home' },
-  { href: '/services', label: 'Services' },
-  { href: '/branches', label: 'Branches' },
-  { href: '/contact', label: 'Contact' },
+  { href: '/booking', label: 'Booking' },
+  { href: '/admin', label: 'Admin' },
 ]
 
 export default function Navbar() {
@@ -27,12 +25,12 @@ export default function Navbar() {
     setOpen(false)
   }, [pathname])
 
-  const isHome = pathname === '/'
+  const isBookingHome = pathname === '/booking' || pathname === '/'
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled || !isHome || open
+        scrolled || !isBookingHome || open
           ? 'nav-blur bg-cream/90 shadow-soft border-b border-rose-light/30'
           : 'bg-transparent'
       }`}
@@ -47,14 +45,14 @@ export default function Navbar() {
             <div>
               <span
                 className={`font-playfair text-xl font-semibold tracking-wide transition-colors ${
-                  !scrolled && isHome && !open ? 'text-white' : 'text-charcoal'
+                  !scrolled && isBookingHome && !open ? 'text-white' : 'text-charcoal'
                 }`}
               >
                 Lumière
               </span>
               <span
                 className={`font-playfair text-xl font-light italic ml-1 transition-colors ${
-                  !scrolled && isHome && !open ? 'text-rose-light' : 'text-rose'
+                  !scrolled && isBookingHome && !open ? 'text-rose-light' : 'text-rose'
                 }`}
               >
                 Nails
@@ -69,10 +67,10 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 className={`text-sm font-medium tracking-wide transition-all duration-200 relative group ${
-                  !scrolled && isHome
+                  !scrolled && isBookingHome
                     ? 'text-white/90 hover:text-white'
                     : 'text-warmgray hover:text-charcoal'
-                } ${pathname === link.href ? (!scrolled && isHome ? 'text-white' : 'text-charcoal') : ''}`}
+                } ${pathname === link.href ? (!scrolled && isBookingHome ? 'text-white' : 'text-charcoal') : ''}`}
               >
                 {link.label}
                 <span
@@ -94,7 +92,7 @@ export default function Navbar() {
           <button
             onClick={() => setOpen(!open)}
             className={`md:hidden p-2 rounded-lg transition-colors ${
-              !scrolled && isHome && !open
+              !scrolled && isBookingHome && !open
                 ? 'text-white hover:bg-white/10'
                 : 'text-charcoal hover:bg-blush'
             }`}
