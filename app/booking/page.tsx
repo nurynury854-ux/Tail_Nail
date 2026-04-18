@@ -1,21 +1,18 @@
 'use client'
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { DayPicker } from 'react-day-picker'
-import { format, addDays, isBefore, startOfToday } from 'date-fns'
+import { format, addDays, startOfToday } from 'date-fns'
 import toast from 'react-hot-toast'
 import { ChevronRight, ChevronLeft, Check, Clock, MapPin, Sparkles, Phone, User, MessageCircle, Loader2 } from 'lucide-react'
 import { BRANCHES, SERVICES, Branch, Service, TimeSlot } from '@/lib/types'
 import {
   formatPrice,
   formatDuration,
-  generateTimeSlots,
   calculateEndTime,
   formatDisplayDate,
   formatDate,
-  sendLineMessage,
-  generateConfirmationMessage,
   isDateClosed,
 } from '@/lib/bookingUtils'
 
@@ -35,7 +32,6 @@ interface BookingState {
 
 function BookingContent() {
   const searchParams = useSearchParams()
-  const router = useRouter()
 
   const [step, setStep] = useState<Step>(1)
   const [state, setState] = useState<BookingState>({
@@ -88,14 +84,13 @@ function BookingContent() {
         const data = await res.json()
         setTimeSlots(data.slots)
       } else {
-        // Fallback: generate slots client-side with no existing bookings
-        const slots = generateTimeSlots(state.date, state.branch, state.service, [])
-        setTimeSlots(slots)
+        const err = await res.json().catch(() => ({ error: 'Failed to load availability' }))
+        toast.error(err.error || 'Failed to load availability. Please retry.')
+        setTimeSlots([])
       }
     } catch {
-      // Fallback to client-side generation
-      const slots = generateTimeSlots(state.date, state.branch, state.service, [])
-      setTimeSlots(slots)
+      toast.error('Failed to load availability. Please check your connection and retry.')
+      setTimeSlots([])
     } finally {
       setLoadingSlots(false)
     }
@@ -120,6 +115,26 @@ function BookingContent() {
       const dateStr = formatDate(state.date)
       const endTime = calculateEndTime(state.timeSlot, state.service.duration_minutes)
 
+      // Re-check latest slot availability right before creating the booking.
+      const slotsRes = await fetch(
+        `/api/slots?branch_id=${state.branch.id}&date=${dateStr}&service_id=${state.service.id}`
+      )
+      if (!slotsRes.ok) {
+        const err = await slotsRes.json().catch(() => ({ error: 'Failed to verify latest availability' }))
+        toast.error(err.error || 'Failed to verify latest availability. Please retry.')
+        return
+      }
+
+      const slotsData = await slotsRes.json()
+      const latestSlot = (slotsData.slots as TimeSlot[]).find((slot) => slot.time === state.timeSlot)
+      if (!latestSlot?.available) {
+        toast.error('That time was just taken. Please pick another slot.')
+        setStep(4)
+        setState((s) => ({ ...s, timeSlot: null }))
+        await fetchSlots()
+        return
+      }
+
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -140,28 +155,19 @@ function BookingContent() {
         const data = await res.json()
         setBookingId(data.id || 'DEMO-' + Date.now())
 
-        // Simulate LINE notification
-        const msg = generateConfirmationMessage({
-          customerName: state.name,
-          branchName: state.branch.name,
-          serviceName: state.service.name,
-          date: dateStr,
-          startTime: state.timeSlot,
-        })
-        sendLineMessage(state.lineId, msg)
-
         toast.success('Booking confirmed! ✨')
         setStep(6)
       } else {
         const err = await res.json()
         toast.error(err.error || 'Booking failed. Please try again.')
+        if (res.status === 409) {
+          setStep(4)
+          setState((s) => ({ ...s, timeSlot: null }))
+          await fetchSlots()
+        }
       }
-    } catch (e) {
-      // Demo mode - show success anyway
-      const fakeId = 'DEMO-' + Math.random().toString(36).slice(2, 8).toUpperCase()
-      setBookingId(fakeId)
-      toast.success('Booking confirmed! ✨ (Demo Mode)')
-      setStep(6)
+    } catch {
+      toast.error('Booking failed due to a network/server issue. Please retry.')
     } finally {
       setSubmitting(false)
     }

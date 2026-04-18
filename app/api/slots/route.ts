@@ -40,17 +40,13 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Supabase error:', error)
-      // Fallback: generate slots with no existing bookings
-      const slots = generateTimeSlots(dateObj, branch, service, [])
-      return NextResponse.json({ slots, source: 'fallback' })
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     const slots = generateTimeSlots(dateObj, branch, service, (existingBookings || []) as Booking[])
     return NextResponse.json({ slots, source: 'database' })
   } catch (err) {
     console.error('Slots API error:', err)
-    // Fallback
-    const slots = generateTimeSlots(dateObj, branch, service, [])
-    return NextResponse.json({ slots, source: 'fallback' })
+    return NextResponse.json({ error: 'Failed to fetch availability' }, { status: 500 })
   }
 }
