@@ -151,6 +151,18 @@ await fetch('https://api.line.me/v2/bot/message/push', {
 })
 ```
 
+### Webhook endpoint (for showcase)
+
+This project now includes:
+
+- `POST /api/line/webhook`
+
+It verifies `x-line-signature` using `LINE_CHANNEL_SECRET`, then logs incoming events to server logs.
+
+Set your LINE Developers webhook URL to:
+
+`https://<your-domain>/api/line/webhook`
+
 ---
 
 ## 🎨 Design System
