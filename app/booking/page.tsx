@@ -28,6 +28,7 @@ interface BookingState {
   name: string
   lineId: string
   phone: string
+  lineNotificationSent?: boolean
 }
 
 function BookingContent() {
@@ -47,6 +48,7 @@ function BookingContent() {
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [bookingId, setBookingId] = useState<string | null>(null)
+  const [slotCheckTime, setSlotCheckTime] = useState<Date | null>(null)
 
   // Pre-fill from URL params
   useEffect(() => {
@@ -71,6 +73,16 @@ function BookingContent() {
     setStep(nextStep)
   }, [searchParams])
 
+  // If selected slot becomes unavailable, deselect it and notify user
+  useEffect(() => {
+    if (!state.timeSlot || !state.date) return
+    const selectedSlot = timeSlots.find((s) => s.time === state.timeSlot)
+    if (selectedSlot && !selectedSlot.available) {
+      setState((s) => ({ ...s, timeSlot: null }))
+      toast.error('Your selected time slot just became unavailable. Please choose another.')
+    }
+  }, [timeSlots, state.timeSlot, state.date])
+
   // Fetch time slots when branch, service, and date are selected
   const fetchSlots = useCallback(async () => {
     if (!state.branch || !state.service || !state.date) return
@@ -83,6 +95,7 @@ function BookingContent() {
       if (res.ok) {
         const data = await res.json()
         setTimeSlots(data.slots)
+        setSlotCheckTime(new Date())
       } else {
         const err = await res.json().catch(() => ({ error: 'Failed to load availability' }))
         toast.error(err.error || 'Failed to load availability. Please retry.')
@@ -100,13 +113,27 @@ function BookingContent() {
     if (step === 4) fetchSlots()
   }, [step, fetchSlots])
 
+  // Poll for slot availability updates every 15 seconds while on step 4
+  useEffect(() => {
+    if (step !== 4) return
+
+    const pollInterval = setInterval(fetchSlots, 15000)
+    return () => clearInterval(pollInterval)
+  }, [step, fetchSlots])
+
   const goNext = () => setStep((s) => Math.min(s + 1, 6) as Step)
   const goBack = () => setStep((s) => Math.max(s - 1, 1) as Step)
 
   const handleSubmit = async () => {
     if (!state.branch || !state.service || !state.date || !state.timeSlot) return
     if (!state.name.trim() || !state.lineId.trim()) {
-      toast.error('Please fill in your name and LINE ID.')
+      toast.error('Please fill in your name and LINE User ID.')
+      return
+    }
+
+    // Validate LINE User ID format
+    if (!state.lineId.match(/^U[a-zA-Z0-9]{32}$/)) {
+      toast.error('Invalid LINE User ID format. Must start with U followed by 32 characters.')
       return
     }
 
@@ -154,6 +181,7 @@ function BookingContent() {
       if (res.ok) {
         const data = await res.json()
         setBookingId(data.id || 'DEMO-' + Date.now())
+        setState((s) => ({ ...s, lineNotificationSent: data.line_notification_sent }))
 
         toast.success('Booking confirmed! ✨')
         setStep(6)
@@ -404,26 +432,40 @@ function BookingContent() {
               </div>
             ) : (
               <>
-                <div className="flex gap-4 text-xs mb-4">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-rose" />
-                    <span className="text-warmgray">Selected</span>
+                <div className="flex gap-4 text-xs mb-4 flex-wrap justify-between items-center">
+                  <div className="flex gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-rose" />
+                      <span className="text-warmgray">Selected</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-blush border border-rose-light" />
+                      <span className="text-warmgray">Available</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-gray-200" />
+                      <span className="text-warmgray">Booked</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-blush border border-rose-light" />
-                    <span className="text-warmgray">Available</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-gray-200" />
-                    <span className="text-warmgray">Booked</span>
-                  </div>
+                  {slotCheckTime && (
+                    <div className="text-warmgray text-xs">
+                      ✓ Updated: {slotCheckTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  )}
                 </div>
                 <div className="slot-grid">
                   {timeSlots.map((slot) => (
                     <button
                       key={slot.time}
                       disabled={!slot.available}
-                      onClick={() => setState((s) => ({ ...s, timeSlot: slot.time }))}
+                      onClick={() => {
+                        if (slot.available) {
+                          setState((s) => ({ ...s, timeSlot: slot.time }))
+                        } else {
+                          toast.error('This slot just became unavailable. Please select another time.')
+                          setState((s) => ({ ...s, timeSlot: null }))
+                        }
+                      }}
                       className={`py-3 px-2 rounded-xl text-sm font-semibold transition-all duration-150 ${
                         !slot.available
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed line-through'
@@ -507,18 +549,26 @@ function BookingContent() {
               <div>
                 <label className="block text-sm font-semibold text-charcoal mb-2">
                   <MessageCircle className="w-4 h-4 inline mr-1 text-rose" />
-                  LINE ID <span className="text-rose">*</span>
+                  LINE User ID <span className="text-rose">*</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="Your LINE ID (e.g., @username)"
+                  placeholder="Your LINE User ID (U followed by 32 characters)"
                   value={state.lineId}
                   onChange={(e) => setState((s) => ({ ...s, lineId: e.target.value }))}
                   className="w-full px-4 py-3 rounded-xl border-2 border-blush bg-white text-charcoal placeholder-warmgray/50 focus:outline-none focus:border-rose transition-colors"
                 />
-                <p className="text-xs text-warmgray mt-1.5">
-                  We&apos;ll send your confirmation via LINE.
-                </p>
+                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-900 font-medium mb-1">📍 How to find your LINE User ID:</p>
+                  <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
+                    <li>Open LINE app & add our official account as a friend</li>
+                    <li>Send any message to our official account</li>
+                    <li>Your User ID will be displayed in our bot chat</li>
+                  </ol>
+                </div>
+                {state.lineId && !state.lineId.match(/^U[a-zA-Z0-9]{32}$/) && (
+                  <p className="text-xs text-red-600 mt-2">❌ Invalid format. LINE User ID must start with &apos;U&apos; followed by 32 characters.</p>
+                )}
               </div>
 
               <div>
@@ -604,8 +654,16 @@ function BookingContent() {
                 </div>
               </div>
 
-              <div className="bg-rose/5 border border-rose/20 rounded-xl p-4 text-sm text-warmgray mb-8">
-                <p>📱 A confirmation message has been sent to your LINE account.</p>
+              <div className={`border rounded-xl p-4 text-sm mb-8 ${
+                state.lineNotificationSent
+                  ? 'bg-rose/5 border-rose/20'
+                  : 'bg-amber-50 border-amber-200'
+              }`}>
+                {state.lineNotificationSent ? (
+                  <p>📱 Confirmation message sent to your LINE account.</p>
+                ) : (
+                  <p>⚠️ LINE confirmation could not be sent. Please contact support or call us to confirm.</p>
+                )}
                 <p className="mt-1">Please arrive 5 minutes before your appointment time.</p>
               </div>
 
