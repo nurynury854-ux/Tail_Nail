@@ -27,6 +27,24 @@ async function sendLinePushMessage(userId: string, message: string): Promise<voi
   }
 }
 
+function normalizeSupabaseError(errorMessage: string): string {
+  if (errorMessage.includes('<!DOCTYPE html>')) {
+    return 'Supabase configuration looks invalid. Use NEXT_PUBLIC_SUPABASE_URL like https://<project-ref>.supabase.co (not dashboard URL).'
+  }
+  return errorMessage
+}
+
+function validateSupabaseUrl(): string | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!url) return null
+
+  if (url.includes('supabase.com') && url.includes('/dashboard')) {
+    return 'NEXT_PUBLIC_SUPABASE_URL is set to a Supabase dashboard URL. Use https://<project-ref>.supabase.co'
+  }
+
+  return null
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const branchId = searchParams.get('branch_id')
@@ -35,6 +53,11 @@ export async function GET(request: NextRequest) {
 
   if (!hasSupabaseConfig || !supabase) {
     return NextResponse.json([])
+  }
+
+  const configError = validateSupabaseUrl()
+  if (configError) {
+    return NextResponse.json({ error: configError }, { status: 500 })
   }
 
   try {
@@ -56,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Supabase GET bookings error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: normalizeSupabaseError(error.message) }, { status: 500 })
     }
 
     return NextResponse.json(data || [])
@@ -151,6 +174,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ...demoData, line_notification_sent: lineNotificationSent }, { status: 201 })
     }
 
+    const configError = validateSupabaseUrl()
+    if (configError) {
+      return NextResponse.json({ error: configError }, { status: 500 })
+    }
+
     // Check concurrent booking count (staff capacity check)
     const { data: overlapping, error: overlapError } = await supabase
       .from('bookings')
@@ -182,7 +210,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Insert booking error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: normalizeSupabaseError(error.message) }, { status: 500 })
     }
 
     let lineNotificationSent = false
