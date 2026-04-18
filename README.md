@@ -163,6 +163,13 @@ Set your LINE Developers webhook URL to:
 
 `https://<your-domain>/api/line/webhook`
 
+### Booking confirmation push message
+
+`POST /api/bookings` now attempts to send a LINE push message.
+
+- If `line_id` is a real LINE userId (`U...`), it sends to that userId.
+- Otherwise it falls back to `LINE_DEMO_USER_ID` (if set) for demos.
+
 ---
 
 ## 🎨 Design System

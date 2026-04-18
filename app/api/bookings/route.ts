@@ -1,7 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, hasSupabaseConfig } from '@/lib/supabase'
 import { BRANCHES, SERVICES } from '@/lib/types'
-import { timeToMinutes, getWorkingHours } from '@/lib/bookingUtils'
+import { timeToMinutes, getWorkingHours, generateConfirmationMessage } from '@/lib/bookingUtils'
+
+async function sendLinePushMessage(userId: string, message: string): Promise<void> {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN
+  if (!token) {
+    throw new Error('LINE_CHANNEL_ACCESS_TOKEN is not configured')
+  }
+
+  const response = await fetch('https://api.line.me/v2/bot/message/push', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      to: userId,
+      messages: [{ type: 'text', text: message }],
+    }),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text()
+    throw new Error(`LINE push failed (${response.status}): ${errorBody}`)
+  }
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -75,22 +99,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Selected time is outside working hours.' }, { status: 400 })
     }
 
+    const normalizedLineId = line_id.trim()
+    const bookingPayload = {
+      branch_id,
+      service_id,
+      customer_name: customer_name.trim(),
+      line_id: normalizedLineId,
+      phone: phone?.trim() || null,
+      date,
+      start_time,
+      end_time,
+      status: status || 'confirmed',
+    }
+
+    const recipientLineUserId = normalizedLineId.startsWith('U')
+      ? normalizedLineId
+      : process.env.LINE_DEMO_USER_ID
+
+    const confirmationMessage = generateConfirmationMessage({
+      customerName: bookingPayload.customer_name,
+      branchName: branch.name,
+      serviceName: service.name,
+      date,
+      startTime: start_time,
+    })
+
+    const notifyLine = async () => {
+      if (!recipientLineUserId) {
+        console.warn(
+          'Skipping LINE push: no LINE userId provided. Use a U... value or set LINE_DEMO_USER_ID.'
+        )
+        return false
+      }
+      await sendLinePushMessage(recipientLineUserId, confirmationMessage)
+      return true
+    }
+
     if (!hasSupabaseConfig || !supabase) {
-      return NextResponse.json(
-        {
-          id: `DEMO-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
-          branch_id,
-          service_id,
-          customer_name: customer_name.trim(),
-          line_id: line_id.trim(),
-          phone: phone?.trim() || null,
-          date,
-          start_time,
-          end_time,
-          status: status || 'confirmed',
-        },
-        { status: 201 }
-      )
+      const demoData = {
+        id: `DEMO-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+        ...bookingPayload,
+      }
+
+      let lineNotificationSent = false
+      try {
+        lineNotificationSent = await notifyLine()
+      } catch (lineError) {
+        console.error('LINE notification error (demo mode):', lineError)
+      }
+
+      return NextResponse.json({ ...demoData, line_notification_sent: lineNotificationSent }, { status: 201 })
     }
 
     // Check concurrent booking count (staff capacity check)
@@ -118,17 +176,7 @@ export async function POST(request: NextRequest) {
     // Create the booking
     const { data, error } = await supabase
       .from('bookings')
-      .insert({
-        branch_id,
-        service_id,
-        customer_name: customer_name.trim(),
-        line_id: line_id.trim(),
-        phone: phone?.trim() || null,
-        date,
-        start_time,
-        end_time,
-        status: status || 'confirmed',
-      })
+      .insert(bookingPayload)
       .select()
       .single()
 
@@ -137,7 +185,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(data, { status: 201 })
+    let lineNotificationSent = false
+    try {
+      lineNotificationSent = await notifyLine()
+    } catch (lineError) {
+      console.error('LINE notification error:', lineError)
+    }
+
+    return NextResponse.json({ ...data, line_notification_sent: lineNotificationSent }, { status: 201 })
   } catch (err) {
     console.error('POST booking error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
