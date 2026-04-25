@@ -1,5 +1,5 @@
 -- ============================================================
--- Lumière Nails — Supabase Database Schema
+-- Ttail Nail — Supabase Database Schema
 -- Run this in Supabase SQL Editor to create the tables
 -- ============================================================
 

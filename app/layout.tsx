@@ -13,7 +13,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-Hant" className="scroll-smooth">
-      <body className="font-nunito bg-cream text-charcoal antialiased">
+      <body className="font-nunito bg-cream text-charcoal antialiased relative overflow-x-hidden">
+        <div aria-hidden="true" className="site-edge-top" />
+        <div aria-hidden="true" className="site-edge-bottom" />
         <Toaster
           position="top-center"
           toastOptions={{
@@ -34,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <Navbar />
-        <main className="min-h-screen">{children}</main>
+        <main className="site-shell min-h-screen">{children}</main>
         <Footer />
       </body>
     </html>

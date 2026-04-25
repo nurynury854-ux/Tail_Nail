@@ -23,6 +23,8 @@ body {
   background-color: #F5F0E8;
   color: #3D2E26;
   line-height: 1.8;
+  position: relative;
+  overflow-x: hidden;
   background-image:
     radial-gradient(circle at 1px 1px, rgba(184, 169, 154, 0.17) 1px, transparent 1.6px),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 260' fill='none'%3E%3Cg stroke='%238C7B6E' stroke-opacity='.24' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 196C58 150 83 109 109 75C133 42 165 22 214 18'/%3E%3Cpath d='M64 164C72 159 81 155 94 154'/%3E%3Cpath d='M83 133C91 128 102 125 114 124'/%3E%3Cpath d='M120 95C129 91 142 88 154 89'/%3E%3Cpath d='M163 60C172 57 184 56 198 58'/%3E%3C/g%3E%3Cg fill='%23C8B8A8' fill-opacity='.38'%3E%3Cellipse cx='68' cy='162' rx='10' ry='4.2' transform='rotate(-26 68 162)'/%3E%3Cellipse cx='92' cy='128' rx='10' ry='4.2' transform='rotate(-18 92 128)'/%3E%3Cellipse cx='132' cy='92' rx='10' ry='4.2' transform='rotate(-14 132 92)'/%3E%3Cellipse cx='176' cy='56' rx='10' ry='4.2' transform='rotate(-10 176 56)'/%3E%3C/g%3E%3C/svg%3E"),
@@ -50,6 +52,83 @@ body {
   background-attachment: fixed;
 }
 
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::before {
+  inset: 18px auto auto 18px;
+  width: 260px;
+  height: 260px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 260' fill='none'%3E%3Cg stroke='%238C7B6E' stroke-opacity='.24' stroke-width='1.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 212C58 172 78 132 101 94C122 59 157 30 219 22'/%3E%3Cpath d='M66 178C74 170 82 164 94 160'/%3E%3Cpath d='M88 144C96 138 107 133 121 130'/%3E%3Cpath d='M126 104C135 99 146 96 160 95'/%3E%3Cpath d='M164 66C175 61 189 60 203 62'/%3E%3C/g%3E%3Cg fill='%23C8B8A8' fill-opacity='.38'%3E%3Cellipse cx='69' cy='175' rx='9' ry='4' transform='rotate(-24 69 175)'/%3E%3Cellipse cx='91' cy='142' rx='9' ry='4' transform='rotate(-18 91 142)'/%3E%3Cellipse cx='130' cy='104' rx='9' ry='4' transform='rotate(-12 130 104)'/%3E%3Cellipse cx='171' cy='66' rx='9' ry='4' transform='rotate(-10 171 66)'/%3E%3C/g%3E%3C/svg%3E") no-repeat center/contain;
+  opacity: 0.95;
+}
+
+body::after {
+  right: 18px;
+  bottom: 18px;
+  width: 260px;
+  height: 260px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 260' fill='none'%3E%3Cg transform='translate(260 260) scale(-1 -1)' stroke='%238C7B6E' stroke-opacity='.24' stroke-width='1.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 212C58 172 78 132 101 94C122 59 157 30 219 22'/%3E%3Cpath d='M66 178C74 170 82 164 94 160'/%3E%3Cpath d='M88 144C96 138 107 133 121 130'/%3E%3Cpath d='M126 104C135 99 146 96 160 95'/%3E%3Cpath d='M164 66C175 61 189 60 203 62'/%3E%3C/g%3E%3Cg fill='%23C8B8A8' fill-opacity='.38'%3E%3Cellipse cx='69' cy='175' rx='9' ry='4' transform='rotate(-24 69 175)'/%3E%3Cellipse cx='91' cy='142' rx='9' ry='4' transform='rotate(-18 91 142)'/%3E%3Cellipse cx='130' cy='104' rx='9' ry='4' transform='rotate(-12 130 104)'/%3E%3Cellipse cx='171' cy='66' rx='9' ry='4' transform='rotate(-10 171 66)'/%3E%3C/g%3E%3C/svg%3E") no-repeat center/contain;
+  opacity: 0.95;
+}
+
+.site-edge-top,
+.site-edge-bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(212, 184, 160, 0.5);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.site-edge-top {
+  top: 0;
+}
+
+.site-edge-bottom {
+  bottom: 0;
+}
+
+.site-shell {
+  position: relative;
+  z-index: 2;
+}
+
+.intro-ribbon {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #9C8B7E;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+.intro-ribbon::before,
+.intro-ribbon::after {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 1px;
+  background: #C8B8A0;
+  box-shadow: 0 4px 0 #C8B8A0;
+}
+
+.intro-ribbon span {
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  background: #C8A898;
+  display: inline-block;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -65,6 +144,8 @@ body {
 /* Serif / sans font utilities */
 .font-playfair {
   font-family: var(--font-serif);
+  letter-spacing: 0.08em;
+  font-weight: 400;
 }
 
 .font-serif-tc {
@@ -97,17 +178,30 @@ body {
   overflow: hidden;
   background: #FAF7F2;
   border: 0.8px solid #DDD5C8;
+  border-radius: 16px;
   box-shadow: 0 8px 24px rgba(61, 46, 38, 0.08);
 }
 
 .shadow-card::before {
   content: '';
   position: absolute;
-  inset: 0.5px 0 0 auto;
+  left: 18px;
+  right: 18px;
   top: 0;
   height: 0.5px;
-  width: calc(100% - 1px);
   background: #D9D0C4;
+  pointer-events: none;
+}
+
+.shadow-card::after {
+  content: '';
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 0;
+  height: 10px;
+  border-bottom: 1px solid rgba(217, 208, 196, 0.45);
+  border-radius: 0 0 16px 16px;
   pointer-events: none;
 }
 
@@ -124,7 +218,7 @@ body {
 button.bg-rose.text-white,
 a.bg-rose.text-white {
   border-radius: 9999px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
 }
@@ -146,6 +240,20 @@ a.bg-rose.text-white:hover {
 .btn-secondary:hover {
   background: rgba(250, 247, 242, 0.9);
   border-color: #C8B8A0;
+}
+
+.section-title {
+  font-family: var(--font-serif);
+  letter-spacing: 0.08em;
+  font-weight: 400;
+  color: #3D2E26;
+}
+
+.section-kicker {
+  color: #9C8B7E;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
 }
 
 /* Form / selection surfaces */

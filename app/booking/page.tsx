@@ -284,18 +284,21 @@ function BookingContent() {
   }
 
   return (
-    <div className="min-h-screen bg-cream pt-16 pb-16">
-      <div className="max-w-3xl mx-auto px-4 py-10">
-        <h1 className="font-playfair text-4xl text-charcoal font-bold">線上預約</h1>
-        <p className="text-warmgray mt-2">小尾巴美甲 Ttail Nail</p>
+    <div className="min-h-screen bg-cream pt-16 pb-16 relative">
+      <div className="max-w-4xl mx-auto px-4 py-10 sm:py-14">
+        <div className="text-center mb-8 sm:mb-10">
+          <div className="intro-ribbon mb-4 justify-center"><span /></div>
+          <h1 className="font-playfair text-4xl sm:text-5xl text-charcoal font-normal">線上預約</h1>
+          <p className="text-warmgray mt-3 tracking-[0.18em] text-sm sm:text-base">Ttail Nail · 桃園三店預約</p>
+        </div>
 
         {step < 6 && (
-          <div className="mt-6 grid grid-cols-5 gap-2">
+          <div className="mt-6 grid grid-cols-5 gap-2 sm:gap-3 max-w-3xl mx-auto">
             {['分店', '服務', '美甲師', '時間', '資料'].map((label, index) => {
               const current = index + 1
               return (
                 <div key={label} className="text-center">
-                  <div className={`h-8 rounded-full text-sm flex items-center justify-center ${step >= current ? 'bg-rose text-white' : 'bg-blush text-warmgray'}`}>
+                  <div className={`h-9 rounded-full text-sm flex items-center justify-center shadow-sm ${step >= current ? 'bg-rose text-white' : 'bg-white/75 text-warmgray border border-[#DDD5C8]'}`}>
                     {step > current ? <Check className="w-4 h-4" /> : current}
                   </div>
                   <p className="text-xs mt-1 text-warmgray">{label}</p>
@@ -305,11 +308,12 @@ function BookingContent() {
           </div>
         )}
 
-        <div className="bg-white shadow-card rounded-2xl p-6 mt-6 border border-blush">
+        <div className="shadow-card rounded-2xl p-6 sm:p-8 mt-8 bg-blush/80 backdrop-blur-[2px]">
           {step === 1 && (
             <div>
-              <h2 className="text-xl font-semibold text-charcoal">1. 選擇分店</h2>
-              <div className="space-y-3 mt-4">
+              <p className="section-kicker mb-2">Select a branch</p>
+              <h2 className="section-title text-2xl sm:text-3xl">1. 選擇分店</h2>
+              <div className="space-y-4 mt-5">
                 {branches.map((branch) => (
                   <button
                     key={branch.id}
@@ -317,7 +321,7 @@ function BookingContent() {
                       setState((prev) => ({ ...prev, branch, stylist: null, noPreference: true, date: null, timeSlot: null }))
                       goNext()
                     }}
-                    className="w-full text-left border border-blush rounded-xl p-4 hover:border-rose hover:bg-blush/50 transition-colors"
+                    className="w-full text-left border border-[#DDD5C8] bg-[#FAF7F2] rounded-2xl p-5 hover:border-rose transition-colors shadow-sm hover:shadow-card"
                   >
                     <p className="font-semibold text-charcoal">{branch.name}</p>
                     <p className="text-sm text-warmgray mt-1">{branch.address}</p>
@@ -329,45 +333,46 @@ function BookingContent() {
 
           {step === 2 && (
             <div>
-              <button onClick={goBack} className="text-sm text-warmgray hover:text-charcoal inline-flex items-center gap-1">
+              <button onClick={goBack} className="btn-secondary px-4 py-2 text-sm inline-flex items-center gap-1">
                 <ChevronLeft className="w-4 h-4" /> 返回
               </button>
-              <h2 className="text-xl font-semibold text-charcoal mt-3">2. 選擇服務項目</h2>
+              <p className="section-kicker mt-4 mb-2">Choose services</p>
+              <h2 className="section-title text-2xl sm:text-3xl">2. 選擇服務項目</h2>
 
-              <div className="mt-4 inline-flex p-1 rounded-xl bg-blush">
+              <div className="mt-5 inline-flex p-1 rounded-full bg-white/70 border border-[#DDD5C8] shadow-sm">
                 <button
                   onClick={() => setState((prev) => ({ ...prev, category: 'hand' }))}
-                  className={`px-4 py-2 rounded-lg text-sm ${state.category === 'hand' ? 'bg-rose text-white' : 'text-charcoal'}`}
+                  className={`px-5 py-2.5 rounded-full text-sm ${state.category === 'hand' ? 'bg-rose text-white' : 'text-charcoal'}`}
                 >
                   手部
                 </button>
                 <button
                   onClick={() => setState((prev) => ({ ...prev, category: 'foot' }))}
-                  className={`px-4 py-2 rounded-lg text-sm ${state.category === 'foot' ? 'bg-rose text-white' : 'text-charcoal'}`}
+                  className={`px-5 py-2.5 rounded-full text-sm ${state.category === 'foot' ? 'bg-rose text-white' : 'text-charcoal'}`}
                 >
                   足部
                 </button>
               </div>
 
-              <h3 className="text-sm font-semibold text-charcoal mt-6 mb-2">主項目（單選）</h3>
+              <h3 className="section-title text-lg mt-6 mb-2">主項目（單選）</h3>
               <div className="grid sm:grid-cols-2 gap-2">
                 {mainServices.map((service) => (
                   <button
                     key={service.id}
                     onClick={() => setState((prev) => ({ ...prev, mainServiceId: service.id, timeSlot: null }))}
-                    className={`border rounded-lg p-3 text-left ${state.mainServiceId === service.id ? 'border-rose bg-blush' : 'border-blush'}`}
+                    className={`border rounded-2xl p-4 text-left transition-colors ${state.mainServiceId === service.id ? 'border-rose bg-white shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2]'}`}
                   >
                     <p className="font-medium text-charcoal">{service.name}</p>
                   </button>
                 ))}
               </div>
 
-              <h3 className="text-sm font-semibold text-charcoal mt-6 mb-2">附加項目（可複選，也可單獨預約）</h3>
+              <h3 className="section-title text-lg mt-6 mb-2">附加項目（可複選，也可單獨預約）</h3>
               <div className="grid sm:grid-cols-2 gap-2">
                 {addonServices.map((service) => {
                   const checked = state.addonServiceIds.includes(service.id)
                   return (
-                    <label key={service.id} className="border border-blush rounded-lg p-3 flex items-start gap-2 cursor-pointer">
+                    <label key={service.id} className={`border rounded-2xl p-4 flex items-start gap-2 cursor-pointer transition-colors ${checked ? 'border-rose bg-white shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2]'}`}>
                       <input
                         type="checkbox"
                         checked={checked}
@@ -388,7 +393,7 @@ function BookingContent() {
                 })}
               </div>
 
-              <div className="mt-5 p-3 rounded-lg bg-cream border border-blush text-sm">
+              <div className="mt-5 p-4 rounded-2xl bg-white/80 border border-[#DDD5C8] text-sm shadow-sm">
                 <p className="text-charcoal">已選服務：{selectedServicesLabel}</p>
                 <p className="text-warmgray mt-1">預估總時間：{totalDuration || 0} 分鐘</p>
               </div>
@@ -401,7 +406,7 @@ function BookingContent() {
                   }
                   goNext()
                 }}
-                className="mt-5 bg-rose text-white px-5 py-2.5 rounded-lg text-sm font-semibold"
+                className="btn-primary mt-5 bg-rose text-white px-6 py-3 rounded-full text-sm font-semibold"
               >
                 下一步
               </button>
@@ -410,17 +415,18 @@ function BookingContent() {
 
           {step === 3 && (
             <div>
-              <button onClick={goBack} className="text-sm text-warmgray hover:text-charcoal inline-flex items-center gap-1">
+              <button onClick={goBack} className="btn-secondary px-4 py-2 text-sm inline-flex items-center gap-1">
                 <ChevronLeft className="w-4 h-4" /> 返回
               </button>
-              <h2 className="text-xl font-semibold text-charcoal mt-3">3. 選擇美甲師</h2>
+              <p className="section-kicker mt-4 mb-2">Choose stylist</p>
+              <h2 className="section-title text-2xl sm:text-3xl">3. 選擇美甲師</h2>
 
               <button
                 onClick={() => {
                   setState((prev) => ({ ...prev, noPreference: true, stylist: null, date: null, timeSlot: null }))
                   goNext()
                 }}
-                className={`mt-4 w-full text-left border rounded-lg p-4 ${state.noPreference ? 'border-rose bg-blush' : 'border-blush'}`}
+                className={`mt-4 w-full text-left border rounded-2xl p-4 transition-colors ${state.noPreference ? 'border-rose bg-white shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2]'}`}
               >
                 <p className="font-medium text-charcoal">不指定（系統自動分配）</p>
               </button>
@@ -450,12 +456,13 @@ function BookingContent() {
 
           {step === 4 && (
             <div>
-              <button onClick={goBack} className="text-sm text-warmgray hover:text-charcoal inline-flex items-center gap-1">
+              <button onClick={goBack} className="btn-secondary px-4 py-2 text-sm inline-flex items-center gap-1">
                 <ChevronLeft className="w-4 h-4" /> 返回
               </button>
-              <h2 className="text-xl font-semibold text-charcoal mt-3">4. 選擇日期與時間</h2>
+              <p className="section-kicker mt-4 mb-2">Choose time</p>
+              <h2 className="section-title text-2xl sm:text-3xl">4. 選擇日期與時間</h2>
 
-              <div className="mt-4 border border-blush rounded-lg p-3">
+              <div className="mt-4 bg-[#FAF7F2] border border-[#DDD5C8] rounded-2xl p-4 shadow-sm">
                 <DayPicker
                   mode="single"
                   selected={state.date || undefined}
@@ -503,7 +510,7 @@ function BookingContent() {
                   }
                   goNext()
                 }}
-                className="mt-5 bg-rose text-white px-5 py-2.5 rounded-lg text-sm font-semibold"
+                className="btn-primary mt-5 bg-rose text-white px-6 py-3 rounded-full text-sm font-semibold"
               >
                 下一步
               </button>
@@ -512,10 +519,11 @@ function BookingContent() {
 
           {step === 5 && (
             <div>
-              <button onClick={goBack} className="text-sm text-warmgray hover:text-charcoal inline-flex items-center gap-1">
+              <button onClick={goBack} className="btn-secondary px-4 py-2 text-sm inline-flex items-center gap-1">
                 <ChevronLeft className="w-4 h-4" /> 返回
               </button>
-              <h2 className="text-xl font-semibold text-charcoal mt-3">5. 填寫資料與確認</h2>
+              <p className="section-kicker mt-4 mb-2">Details & confirm</p>
+              <h2 className="section-title text-2xl sm:text-3xl">5. 填寫資料與確認</h2>
 
               <div className="space-y-3 mt-4">
                 <input
@@ -544,7 +552,7 @@ function BookingContent() {
                 />
               </div>
 
-              <div className="mt-5 p-3 rounded-lg bg-cream border border-blush text-sm">
+              <div className="mt-5 p-4 rounded-2xl bg-white/80 border border-[#DDD5C8] text-sm shadow-sm space-y-1">
                 <p>分店：{state.branch?.name}</p>
                 <p>服務：{selectedServicesLabel}</p>
                 <p>美甲師：{state.noPreference ? '不指定' : state.stylist?.name}</p>
@@ -558,7 +566,7 @@ function BookingContent() {
               <button
                 onClick={submitBooking}
                 disabled={submitting}
-                className="mt-5 bg-rose text-white px-5 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-60 inline-flex items-center"
+                className="btn-primary mt-5 bg-rose text-white px-6 py-3 rounded-full text-sm font-semibold disabled:opacity-60 inline-flex items-center"
               >
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 送出預約
@@ -570,7 +578,7 @@ function BookingContent() {
             <div>
               <h2 className="text-2xl font-semibold text-charcoal">預約完成</h2>
               <p className="text-warmgray mt-2">謝謝您的預約，我們已收到您的資料。</p>
-              <div className="mt-4 text-sm bg-cream border border-blush rounded-lg p-4 space-y-1">
+              <div className="mt-4 text-sm bg-white/80 border border-[#DDD5C8] rounded-2xl p-4 space-y-1 shadow-sm">
                 <p>預約編號：{state.bookingId || '-'}</p>
                 <p>分店：{state.branch?.name}</p>
                 <p>服務：{selectedServicesLabel}</p>

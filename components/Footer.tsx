@@ -13,7 +13,7 @@ export default function Footer() {
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <span className="font-playfair text-xl text-white">
-                Lumière <span className="italic text-rose-light font-light">Nails</span>
+                Ttail <span className="italic text-rose-light font-light">Nail</span>
               </span>
             </div>
             <p className="text-sm leading-relaxed text-white/60 mb-6">
@@ -101,7 +101,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-white/40">
-          <p>© {new Date().getFullYear()} Lumière Nails. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Ttail Nail. All rights reserved.</p>
           <p>Built with ♡ for beautiful nails</p>
         </div>
       </div>

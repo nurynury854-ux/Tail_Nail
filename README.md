@@ -1,4 +1,4 @@
-# 💅 Lumière Nails — Booking System
+# 💅 Ttail Nail — Booking System
 
 A booking-focused nail salon demo built with **Next.js 14**, **Tailwind CSS**, and **Supabase**.
 

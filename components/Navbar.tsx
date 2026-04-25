@@ -48,14 +48,14 @@ export default function Navbar() {
                   !scrolled && isBookingHome && !open ? 'text-white' : 'text-charcoal'
                 }`}
               >
-                Lumière
+                Ttail
               </span>
               <span
                 className={`font-playfair text-xl font-light italic ml-1 transition-colors ${
                   !scrolled && isBookingHome && !open ? 'text-rose-light' : 'text-rose'
                 }`}
               >
-                Nails
+                Nail
               </span>
             </div>
           </Link>
