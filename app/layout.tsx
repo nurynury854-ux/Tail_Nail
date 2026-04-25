@@ -18,17 +18,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           position="top-center"
           toastOptions={{
             style: {
-              fontFamily: 'Nunito, sans-serif',
-              background: '#FEFAF8',
-              color: '#2D1F25',
-              border: '1px solid #E8B4B8',
-              borderRadius: '12px',
-              boxShadow: '0 4px 24px rgba(192,115,122,0.15)',
+              fontFamily: 'Noto Sans TC, sans-serif',
+              background: '#FAF7F2',
+              color: '#3D2E26',
+              border: '1px solid #DDD5C8',
+              borderRadius: '16px',
+              boxShadow: '0 8px 24px rgba(61,46,38,0.08)',
             },
             success: {
               iconTheme: {
-                primary: '#C0737A',
-                secondary: '#FEFAF8',
+                primary: '#C8849A',
+                secondary: '#FAF7F2',
               },
             },
           }}
