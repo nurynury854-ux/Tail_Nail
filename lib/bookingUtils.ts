@@ -1,4 +1,4 @@
-import { Booking, Branch, Service, TimeSlot } from './types'
+import { Booking, Branch, SelectedServiceItem, Service, TimeSlot } from './types'
 
 // Convert "HH:MM" to minutes since midnight
 export function timeToMinutes(time: string): number {
@@ -28,6 +28,12 @@ export function getWorkingHours(date: Date): { open: number; close: number } | n
   return { open: 10 * 60, close: 20 * 60 }
 }
 
+export function defaultWorkingHoursByDay(day: number): { open: number; close: number } | null {
+  if (day === 0) return null
+  if (day === 6) return { open: 10 * 60, close: 18 * 60 }
+  return { open: 10 * 60, close: 20 * 60 }
+}
+
 export function isDateClosed(date: Date): boolean {
   return date.getDay() === 0
 }
@@ -45,13 +51,14 @@ export function generateTimeSlots(
   const { open, close } = hours
   const slots: TimeSlot[] = []
   const BUFFER = 5 // 5-minute buffer between bookings
+  const duration = service.duration_minutes || 120
 
   // Generate hourly slots
   for (let start = open; start < close; start += 60) {
-    const end = start + service.duration_minutes + BUFFER
+    const end = start + duration + BUFFER
 
     // Slot must end within working hours (ignoring buffer for close time check)
-    if (start + service.duration_minutes > close) continue
+    if (start + duration > close) continue
 
     // Count how many existing bookings overlap with this slot window
     const overlapping = existingBookings.filter((booking) => {
@@ -89,12 +96,26 @@ export function formatDate(date: Date): string {
 export function formatDisplayDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number)
   const date = new Date(year, month - 1, day)
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString('zh-TW', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   })
+}
+
+export function isValidTaiwanMobile(phone: string): boolean {
+  return /^09\d{8}$/.test(phone)
+}
+
+export function calculateSelectedServicesDuration(services: SelectedServiceItem[]): number {
+  return services.reduce((sum, item) => sum + item.duration_minutes, 0)
+}
+
+export function formatSelectedServicesLine(services: SelectedServiceItem[]): string {
+  return services
+    .map((item) => `${item.service_name || item.service_id}${item.is_pending ? '（暫估）' : ''}`)
+    .join(' + ')
 }
 
 // Simulate LINE message notification
@@ -106,17 +127,42 @@ export function sendLineMessage(lineId: string, message: string): void {
 export function generateConfirmationMessage(booking: {
   customerName: string
   branchName: string
-  serviceName: string
+  serviceLine: string
+  date: string
+  startTime: string
+  endTime: string
+  phone?: string
+  stylistName?: string
+}): string {
+  const stylistLine = booking.stylistName ? booking.stylistName : '不指定'
+
+  return (
+    `✅ 預約確認通知 | 小尾巴美甲\n\n` +
+    `親愛的 ${booking.customerName}，您的預約已成功建立！\n\n` +
+    `📍 分店：${booking.branchName}\n` +
+    `💅 服務項目：${booking.serviceLine}\n` +
+    `👩‍🎨 美甲師：${stylistLine}\n` +
+    `📅 日期：${formatDisplayDate(booking.date)}\n` +
+    `⏰ 時間：${booking.startTime} – ${booking.endTime}\n` +
+    `📞 聯絡電話：${booking.phone || '未填寫'}\n\n` +
+    `如需更改或取消，請直接聯繫我們 🙏\n` +
+    `小尾巴美甲 Ttail Nail`
+  )
+}
+
+export function generateCancellationMessage(booking: {
+  customerName: string
+  branchName: string
   date: string
   startTime: string
 }): string {
   return (
-    `Hello ${booking.customerName}! ✨ Your appointment at Lumière Nails (${booking.branchName}) ` +
-    `has been confirmed.\n\n` +
-    `📅 Date: ${formatDisplayDate(booking.date)}\n` +
-    `⏰ Time: ${booking.startTime}\n` +
-    `💅 Service: ${booking.serviceName}\n\n` +
-    `We look forward to seeing you! Please arrive 5 minutes early. 🌸`
+    `❌ 預約取消通知 | 小尾巴美甲\n\n` +
+    `親愛的 ${booking.customerName}，\n\n` +
+    `您原定於 ${formatDisplayDate(booking.date)} ${booking.startTime} 在 ${booking.branchName} 的預約已由店家取消。\n\n` +
+    `如有疑問或需重新預約，歡迎再次聯繫我們！\n` +
+    `對您造成不便，深感抱歉 🙇\n\n` +
+    `小尾巴美甲 Ttail Nail`
   )
 }
 

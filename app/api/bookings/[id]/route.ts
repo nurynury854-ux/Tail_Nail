@@ -1,5 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, hasSupabaseConfig } from '@/lib/supabase'
+import { generateCancellationMessage } from '@/lib/bookingUtils'
+
+async function sendLinePushMessage(userId: string, message: string): Promise<void> {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN
+  if (!token) return
+
+  const response = await fetch('https://api.line.me/v2/bot/message/push', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      to: userId,
+      messages: [{ type: 'text', text: message }],
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`LINE push failed with status ${response.status}`)
+  }
+}
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params
@@ -17,6 +39,16 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ id, status, source: 'fallback' })
     }
 
+    const { data: currentBooking, error: currentError } = await supabase
+      .from('bookings')
+      .select('id, customer_name, line_id, date, start_time, branches(name)')
+      .eq('id', id)
+      .single()
+
+    if (currentError || !currentBooking) {
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+    }
+
     const { data, error } = await supabase
       .from('bookings')
       .update({ status })
@@ -31,6 +63,21 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     if (!data) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+    }
+
+    if (status === 'cancelled' && currentBooking.line_id) {
+      try {
+        const branchName = (currentBooking.branches as { name?: string } | null)?.name || '小尾巴美甲'
+        const message = generateCancellationMessage({
+          customerName: currentBooking.customer_name,
+          branchName,
+          date: currentBooking.date,
+          startTime: currentBooking.start_time,
+        })
+        await sendLinePushMessage(currentBooking.line_id, message)
+      } catch (lineError) {
+        console.warn('Failed to send cancellation LINE message:', lineError)
+      }
     }
 
     return NextResponse.json(data)

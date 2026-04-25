@@ -36,6 +36,10 @@ async function sendLineReply(replyToken: string, message: string): Promise<void>
   }
 }
 
+function shouldAutoReply(): boolean {
+  return process.env.LINE_WEBHOOK_AUTO_REPLY === 'true'
+}
+
 export async function POST(request: NextRequest) {
   try {
     const channelSecret = process.env.LINE_CHANNEL_SECRET
@@ -63,7 +67,10 @@ export async function POST(request: NextRequest) {
       }>
     }
 
+    const autoReplyEnabled = shouldAutoReply()
+
     console.log('[LINE webhook] destination:', body.destination ?? 'unknown')
+    console.log('[LINE webhook] auto-reply enabled:', autoReplyEnabled)
     for (const event of body.events ?? []) {
       console.log('[LINE webhook] event:', {
         type: event.type,
@@ -75,8 +82,14 @@ export async function POST(request: NextRequest) {
         text: event.message?.text,
       })
 
-      // If message event from user, send booking link
-      if (event.type === 'message' && event.message?.type === 'text' && event.source?.userId && event.replyToken) {
+      // Silent mode is the default so existing LINE OA auto responses are not duplicated.
+      if (
+        autoReplyEnabled &&
+        event.type === 'message' &&
+        event.message?.type === 'text' &&
+        event.source?.userId &&
+        event.replyToken
+      ) {
         const userId = event.source.userId
         const bookingUrl = `${process.env.NEXT_PUBLIC_BOOKING_URL || 'https://tail-nail.vercel.app/booking'}?userId=${encodeURIComponent(userId)}`
 

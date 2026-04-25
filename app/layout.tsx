@@ -5,15 +5,14 @@ import Footer from '@/components/Footer'
 import { Toaster } from 'react-hot-toast'
 
 export const metadata: Metadata = {
-  title: 'Lumière Nails | Premium Nail Salon in Taoyuan',
-  description:
-    'Book your nail appointment at Lumière Nails. Three branches in Neili, Zhongli, and CYCU. Expert nail technicians, premium services.',
-  keywords: 'nail salon, manicure, gel nails, nail art, Taoyuan, Neili, Zhongli, CYCU',
+  title: '小尾巴美甲 Ttail Nail | 桃園美甲線上預約',
+  description: '小尾巴美甲線上預約系統，支援內壢店、中壢店、中原店分店預約與 LINE 通知。',
+  keywords: '小尾巴美甲, Ttail Nail, 桃園美甲, 內壢店, 中壢店, 中原店, 線上預約',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="zh-Hant" className="scroll-smooth">
       <body className="font-nunito bg-cream text-charcoal antialiased">
         <Toaster
           position="top-center"
