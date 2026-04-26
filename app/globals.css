@@ -20,35 +20,14 @@ html {
 body {
   min-height: 100vh;
   font-family: var(--font-sans);
-  background-color: #F5F0E8;
   color: #3D2E26;
   line-height: 1.8;
   position: relative;
   overflow-x: hidden;
-  background-image:
-    linear-gradient(rgba(245, 240, 232, 0.18), rgba(245, 240, 232, 0.18)),
-    url('/Gemini_Generated_Image_2pf88e2pf88e2pf8.png'),
-    radial-gradient(circle at 1px 1px, rgba(184, 169, 154, 0.09) 1px, transparent 1.6px),
-    linear-gradient(to right, rgba(212, 184, 160, 0.5), rgba(212, 184, 160, 0.5)),
-    linear-gradient(to right, rgba(212, 184, 160, 0.5), rgba(212, 184, 160, 0.5));
-  background-size:
-    100% 100%,
-    cover,
-    80px 80px,
-    100% 3px,
-    100% 3px;
-  background-position:
-    0 0,
-    center,
-    0 0,
-    0 0,
-    0 100%;
-  background-repeat:
-    no-repeat,
-    no-repeat,
-    no-repeat,
-    no-repeat,
-    no-repeat;
+  background-image: url('/Gemini_Generated_Image_2pf88e2pf88e2pf8.png');
+  background-size: cover;
+  background-position: top center;
+  background-repeat: no-repeat;
   background-attachment: fixed;
 }
 
