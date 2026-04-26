@@ -187,4 +187,5 @@ export const SERVICES: Service[] = [
   { id: 'svc-addon-care', name: '保養＊', service_type: 'addon', is_addon: true, is_active: true, price: 0 },
   { id: 'svc-addon-shape', name: '純修甲＊', service_type: 'addon', is_addon: true, is_active: true, price: 0 },
   { id: 'svc-addon-thicken', name: '加厚', service_type: 'addon', is_addon: true, is_active: true, price: 0 },
+  { id: 'svc-addon-repair', name: '補甲', service_type: 'addon', is_addon: true, is_active: true, duration_minutes: 40, price: 0 },
 ]

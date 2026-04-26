@@ -31,7 +31,8 @@ INSERT INTO services (id, name, service_type, is_addon, is_active, duration_minu
   ('svc-addon-remove', '卸甲', 'addon', true, true, NULL, 0, '附加項目：可疊加/可單選'),
   ('svc-addon-care', '保養＊', 'addon', true, true, NULL, 0, '附加項目：可疊加/可單選'),
   ('svc-addon-shape', '純修甲＊', 'addon', true, true, NULL, 0, '附加項目：可疊加/可單選'),
-  ('svc-addon-thicken', '加厚', 'addon', true, true, NULL, 0, '附加項目：加算時間')
+  ('svc-addon-thicken', '加厚', 'addon', true, true, NULL, 0, '附加項目：加算時間'),
+  ('svc-addon-repair', '補甲', 'addon', true, true, 40, 0, '附加項目：可疊加/可單獨預約')
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   service_type = EXCLUDED.service_type,
