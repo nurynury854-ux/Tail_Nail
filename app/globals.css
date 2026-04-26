@@ -24,12 +24,27 @@ body {
   line-height: 1.8;
   position: relative;
   overflow-x: hidden;
-  background-image: url('/Gemini_Generated_Image_2pf88e2pf88e2pf8.png');
-  background-size: cover;
-  background-position: top center;
+  /* Watercolor blobs (image-derived colors) fill corners at any screen size */
+  background-color: #FAF4EE;
+  background-image:
+    radial-gradient(ellipse 95% 55% at -10% -8%,  rgba(238, 168, 138, 0.72) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 110% -5%,  rgba(170, 212, 188, 0.60) 0%, transparent 55%),
+    radial-gradient(ellipse 75% 50% at -8%  108%, rgba(148, 200, 172, 0.68) 0%, transparent 55%),
+    radial-gradient(ellipse 65% 48% at 108% 106%, rgba(180, 170, 215, 0.60) 0%, transparent 55%),
+    url('/Gemini_Generated_Image_2pf88e2pf88e2pf8.png');
+  /* Mobile: stretch image to fill so blobs at all corners are visible */
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  background-position: 0 0, 0 0, 0 0, 0 0, center;
   background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-attachment: scroll; /* fixed breaks on iOS Safari */
 }
+
+@media (min-width: 768px) {
+  body {
+    background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, cover;
+    background-position: 0 0, 0 0, 0 0, 0 0, top center;
+    background-attachment: fixed;
+  }
 
 body::before,
 body::after {
