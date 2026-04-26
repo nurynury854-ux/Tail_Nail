@@ -37,6 +37,7 @@ function BookingContent() {
   const [services, setServices] = useState<Service[]>(SERVICES)
   const [stylists, setStylists] = useState<Stylist[]>([])
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
+  const [stylistDurations, setStylistDurations] = useState<Record<string, number>>({})
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [loadingStylists, setLoadingStylists] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -57,7 +58,13 @@ function BookingContent() {
   })
 
   const goNext = () => setStep((s) => Math.min(6, s + 1) as Step)
-  const goBack = () => setStep((s) => Math.max(1, s - 1) as Step)
+  const goBack = () => {
+    setStep((s) => {
+      const prev = Math.max(1, s - 1) as Step
+      if (prev <= 2) setStylistDurations({})
+      return prev
+    })
+  }
 
   useEffect(() => {
     const userId = searchParams.get('userId')
@@ -102,29 +109,31 @@ function BookingContent() {
   const selectedServices = useMemo<SelectedServiceItem[]>(() => {
     const result: SelectedServiceItem[] = []
     if (selectedMain) {
+      const dur = stylistDurations[selectedMain.id] ?? selectedMain.duration_minutes ?? null
       result.push({
         service_id: selectedMain.id,
         service_name: selectedMain.name,
         service_type: 'main',
         category: state.category,
-        duration_minutes: selectedMain.duration_minutes || 120,
-        is_pending: !selectedMain.duration_minutes,
+        duration_minutes: dur ?? 0,
+        is_pending: dur === null,
       })
     }
 
     for (const addon of selectedAddons) {
+      const dur = stylistDurations[addon.id] ?? addon.duration_minutes ?? null
       result.push({
         service_id: addon.id,
         service_name: addon.name,
         service_type: 'addon',
         category: state.category,
-        duration_minutes: addon.duration_minutes || 120,
-        is_pending: !addon.duration_minutes,
+        duration_minutes: dur ?? 0,
+        is_pending: dur === null,
       })
     }
 
     return result
-  }, [selectedMain, selectedAddons, state.category])
+  }, [selectedMain, selectedAddons, state.category, stylistDurations])
 
   const totalDuration = useMemo(
     () => selectedServices.reduce((sum, item) => sum + item.duration_minutes, 0),
@@ -135,6 +144,20 @@ function BookingContent() {
     if (selectedServices.length === 0) return '尚未選擇服務'
     return selectedServices.map((s) => s.service_name || s.service_id).join(' + ')
   }, [selectedServices])
+
+  const fetchStylistDurations = useCallback(async (
+    stylistId: string | null,
+    branchId: string,
+    category: 'hand' | 'foot'
+  ) => {
+    const params = new URLSearchParams({ category })
+    if (stylistId) params.set('stylist_id', stylistId)
+    else params.set('branch_id', branchId)
+    try {
+      const res = await fetch(`/api/service-durations?${params}`)
+      if (res.ok) setStylistDurations(await res.json())
+    } catch { /* non-fatal */ }
+  }, [])
 
   const fetchStylists = useCallback(async (branchId: string) => {
     setLoadingStylists(true)
@@ -395,7 +418,9 @@ function BookingContent() {
 
               <div className="mt-5 p-4 rounded-2xl bg-white/80 border border-[#DDD5C8] text-sm shadow-sm">
                 <p className="text-charcoal">已選服務：{selectedServicesLabel}</p>
-                <p className="text-warmgray mt-1">預估總時間：{totalDuration || 0} 分鐘</p>
+                <p className="text-warmgray mt-1">
+                  預估總時間：{Object.keys(stylistDurations).length > 0 ? `${totalDuration} 分鐘` : '依美甲師而定'}
+                </p>
               </div>
 
               <button
@@ -422,8 +447,9 @@ function BookingContent() {
               <h2 className="section-title text-2xl sm:text-3xl">3. 選擇美甲師</h2>
 
               <button
-                onClick={() => {
+                onClick={async () => {
                   setState((prev) => ({ ...prev, noPreference: true, stylist: null, date: null, timeSlot: null }))
+                  if (state.branch) await fetchStylistDurations(null, state.branch.id, state.category)
                   goNext()
                 }}
                 className={`mt-4 w-full text-left border rounded-2xl p-4 transition-colors ${state.noPreference ? 'border-rose bg-white shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2]'}`}
@@ -440,8 +466,9 @@ function BookingContent() {
                   {stylists.map((stylist) => (
                     <button
                       key={stylist.id}
-                      onClick={() => {
+                      onClick={async () => {
                         setState((prev) => ({ ...prev, noPreference: false, stylist, date: null, timeSlot: null }))
+                        if (state.branch) await fetchStylistDurations(stylist.id, state.branch.id, state.category)
                         goNext()
                       }}
                       className="border border-blush rounded-lg p-3 text-left hover:border-rose"
