@@ -12,29 +12,14 @@ const navLinks = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
   const pathname = usePathname()
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
 
   useEffect(() => {
     setOpen(false)
   }, [pathname])
 
-  const isBookingHome = pathname === '/booking' || pathname === '/'
-
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled || !isBookingHome || open
-          ? 'nav-blur bg-cream/90 shadow-soft border-b border-rose-light/30'
-          : 'bg-transparent'
-      }`}
-    >
+    <header className="fixed top-0 left-0 right-0 z-50 nav-blur bg-cream/95 shadow-soft border-b border-rose-light/30">
       <nav className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-18">
           {/* Logo */}
@@ -44,16 +29,12 @@ export default function Navbar() {
             </div>
             <div>
               <span
-                className={`font-playfair text-xl font-semibold tracking-wide transition-colors ${
-                  !scrolled && isBookingHome && !open ? 'text-white' : 'text-charcoal'
-                }`}
+                className="font-playfair text-xl font-semibold tracking-wide text-charcoal"
               >
                 Ttail
               </span>
               <span
-                className={`font-playfair text-xl font-light italic ml-1 transition-colors ${
-                  !scrolled && isBookingHome && !open ? 'text-rose-light' : 'text-rose'
-                }`}
+                className="font-playfair text-xl font-light italic ml-1 text-rose"
               >
                 Nail
               </span>
@@ -66,11 +47,7 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`text-sm font-medium tracking-wide transition-all duration-200 relative group ${
-                  !scrolled && isBookingHome
-                    ? 'text-white/90 hover:text-white'
-                    : 'text-warmgray hover:text-charcoal'
-                } ${pathname === link.href ? (!scrolled && isBookingHome ? 'text-white' : 'text-charcoal') : ''}`}
+                className={`text-sm font-medium tracking-wide transition-all duration-200 relative group text-warmgray hover:text-charcoal ${pathname === link.href ? 'text-charcoal' : ''}`}
               >
                 {link.label}
                 <span
@@ -91,11 +68,7 @@ export default function Navbar() {
           {/* Mobile menu button */}
           <button
             onClick={() => setOpen(!open)}
-            className={`md:hidden p-2 rounded-lg transition-colors ${
-              !scrolled && isBookingHome && !open
-                ? 'text-white hover:bg-white/10'
-                : 'text-charcoal hover:bg-blush'
-            }`}
+            className="md:hidden p-2 rounded-lg transition-colors text-charcoal hover:bg-blush"
           >
             {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>

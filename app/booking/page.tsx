@@ -379,15 +379,19 @@ function BookingContent() {
 
               <h3 className="section-title text-lg mt-6 mb-2">主項目（單選）</h3>
               <div className="grid sm:grid-cols-2 gap-2">
-                {mainServices.map((service) => (
-                  <button
-                    key={service.id}
-                    onClick={() => setState((prev) => ({ ...prev, mainServiceId: service.id, timeSlot: null }))}
-                    className={`border rounded-2xl p-4 text-left transition-colors ${state.mainServiceId === service.id ? 'border-rose bg-white shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2]'}`}
-                  >
-                    <p className="font-medium text-charcoal">{service.name}</p>
-                  </button>
-                ))}
+                {mainServices.map((service) => {
+                  const active = state.mainServiceId === service.id
+                  return (
+                    <button
+                      key={service.id}
+                      onClick={() => setState((prev) => ({ ...prev, mainServiceId: service.id, timeSlot: null }))}
+                      className={`border-2 rounded-2xl p-4 text-left transition-all relative ${active ? 'border-rose bg-rose text-white shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2] text-charcoal hover:border-rose/60'}`}
+                    >
+                      <p className="font-medium">{service.name}</p>
+                      {active && <span className="absolute top-3 right-3 text-white text-base leading-none">✓</span>}
+                    </button>
+                  )
+                })}
               </div>
 
               <h3 className="section-title text-lg mt-6 mb-2">附加項目（可複選，也可單獨預約）</h3>
@@ -395,7 +399,10 @@ function BookingContent() {
                 {addonServices.map((service) => {
                   const checked = state.addonServiceIds.includes(service.id)
                   return (
-                    <label key={service.id} className={`border rounded-2xl p-4 flex items-start gap-2 cursor-pointer transition-colors ${checked ? 'border-rose bg-white shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2]'}`}>
+                    <label key={service.id} className={`border-2 rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all ${checked ? 'border-rose bg-rose text-white shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2] text-charcoal hover:border-rose/60'}`}>
+                      <span className={`w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center text-xs font-bold transition-all ${checked ? 'bg-white border-white text-rose' : 'border-[#C0B4A8] bg-white'}`}>
+                        {checked && '✓'}
+                      </span>
                       <input
                         type="checkbox"
                         checked={checked}
@@ -408,9 +415,9 @@ function BookingContent() {
                             timeSlot: null,
                           }))
                         }}
-                        className="mt-0.5"
+                        className="sr-only"
                       />
-                      <span className="text-sm text-charcoal">{service.name}</span>
+                      <span className="text-sm font-medium">{service.name}</span>
                     </label>
                   )
                 })}

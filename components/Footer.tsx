@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { MapPin, Clock, Instagram, Sparkles } from 'lucide-react'
+import { Clock, Instagram, Sparkles } from 'lucide-react'
 
 export default function Footer() {
   return (
@@ -35,17 +35,10 @@ export default function Footer() {
           <div>
             <h3 className="font-playfair text-white text-lg mb-4">分店資訊</h3>
             <div className="space-y-3 text-sm">
-              {[
-                { name: '內壢店', addr: '桃園市內壢區' },
-                { name: '中壢店', addr: '桃園市中壢區' },
-                { name: '中原店', addr: '桃園市中壢區中原大學周邊' },
-              ].map((b) => (
-                <div key={b.name} className="group">
-                  <p className="font-semibold text-white/90 group-hover:text-rose-light transition-colors text-xs tracking-wide mb-0.5">
-                    {b.name}
-                  </p>
-                  <p className="text-white/50 text-xs flex items-center gap-1">
-                    <MapPin className="w-3 h-3 flex-shrink-0" /> {b.addr}
+              {['內壢店', '中壢店', '中原店'].map((name) => (
+                <div key={name} className="group">
+                  <p className="font-semibold text-white/90 group-hover:text-rose-light transition-colors text-xs tracking-wide">
+                    {name}
                   </p>
                 </div>
               ))}
