@@ -385,10 +385,10 @@ function BookingContent() {
                     <button
                       key={service.id}
                       onClick={() => setState((prev) => ({ ...prev, mainServiceId: service.id, timeSlot: null }))}
-                      className={`border-2 rounded-2xl p-4 text-left transition-all relative ${active ? 'border-rose bg-rose text-white shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2] text-charcoal hover:border-rose/60'}`}
+                      className={`border-2 rounded-2xl p-4 text-left transition-all relative ${active ? 'border-rose bg-rose/10 text-charcoal shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2] text-charcoal hover:border-rose/60'}`}
                     >
                       <p className="font-medium">{service.name}</p>
-                      {active && <span className="absolute top-3 right-3 text-white text-base leading-none">✓</span>}
+                      {active && <span className="absolute top-3 right-3 text-rose text-base leading-none font-bold">✓</span>}
                     </button>
                   )
                 })}
@@ -399,8 +399,8 @@ function BookingContent() {
                 {addonServices.map((service) => {
                   const checked = state.addonServiceIds.includes(service.id)
                   return (
-                    <label key={service.id} className={`border-2 rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all ${checked ? 'border-rose bg-rose text-white shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2] text-charcoal hover:border-rose/60'}`}>
-                      <span className={`w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center text-xs font-bold transition-all ${checked ? 'bg-white border-white text-rose' : 'border-[#C0B4A8] bg-white'}`}>
+                    <label key={service.id} className={`border-2 rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all ${checked ? 'border-rose bg-rose/10 text-charcoal shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2] text-charcoal hover:border-rose/60'}`}>
+                      <span className={`w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center text-xs font-bold transition-all ${checked ? 'bg-rose border-rose text-white' : 'border-[#C0B4A8] bg-white'}`}>
                         {checked && '✓'}
                       </span>
                       <input
