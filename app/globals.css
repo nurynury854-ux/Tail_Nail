@@ -13,25 +13,18 @@
   box-sizing: border-box;
 }
 
+/* html IS the canvas — background here is always the bottom layer */
 html {
   scroll-behavior: smooth;
-}
-
-/* Fixed background layer — sits behind every element, nothing can override it */
-html::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
   background-image: url('/For_Phone.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  background-attachment: scroll;
 }
 
 @media (min-width: 768px) {
-  html::before {
+  html {
     background-image:
       radial-gradient(ellipse 95% 55% at -10% -8%,  rgba(238, 168, 138, 0.72) 0%, transparent 55%),
       radial-gradient(ellipse 70% 50% at 110% -5%,  rgba(170, 212, 188, 0.60) 0%, transparent 55%),
