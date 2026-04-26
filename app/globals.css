@@ -26,25 +26,25 @@ body {
   position: relative;
   overflow-x: hidden;
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(184, 169, 154, 0.17) 1px, transparent 1.6px),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 260' fill='none'%3E%3Cg stroke='%238C7B6E' stroke-opacity='.24' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 196C58 150 83 109 109 75C133 42 165 22 214 18'/%3E%3Cpath d='M64 164C72 159 81 155 94 154'/%3E%3Cpath d='M83 133C91 128 102 125 114 124'/%3E%3Cpath d='M120 95C129 91 142 88 154 89'/%3E%3Cpath d='M163 60C172 57 184 56 198 58'/%3E%3C/g%3E%3Cg fill='%23C8B8A8' fill-opacity='.38'%3E%3Cellipse cx='68' cy='162' rx='10' ry='4.2' transform='rotate(-26 68 162)'/%3E%3Cellipse cx='92' cy='128' rx='10' ry='4.2' transform='rotate(-18 92 128)'/%3E%3Cellipse cx='132' cy='92' rx='10' ry='4.2' transform='rotate(-14 132 92)'/%3E%3Cellipse cx='176' cy='56' rx='10' ry='4.2' transform='rotate(-10 176 56)'/%3E%3C/g%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 260' fill='none'%3E%3Cg transform='translate(260 260) scale(-1 -1)' stroke='%238C7B6E' stroke-opacity='.24' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 196C58 150 83 109 109 75C133 42 165 22 214 18'/%3E%3Cpath d='M64 164C72 159 81 155 94 154'/%3E%3Cpath d='M83 133C91 128 102 125 114 124'/%3E%3Cpath d='M120 95C129 91 142 88 154 89'/%3E%3Cpath d='M163 60C172 57 184 56 198 58'/%3E%3C/g%3E%3Cg fill='%23C8B8A8' fill-opacity='.38'%3E%3Cellipse cx='68' cy='162' rx='10' ry='4.2' transform='rotate(-26 68 162)'/%3E%3Cellipse cx='92' cy='128' rx='10' ry='4.2' transform='rotate(-18 92 128)'/%3E%3Cellipse cx='132' cy='92' rx='10' ry='4.2' transform='rotate(-14 132 92)'/%3E%3Cellipse cx='176' cy='56' rx='10' ry='4.2' transform='rotate(-10 176 56)'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(rgba(245, 240, 232, 0.84), rgba(245, 240, 232, 0.84)),
+    url('/Gemini_Generated_Image_2pf88e2pf88e2pf8.png'),
+    radial-gradient(circle at 1px 1px, rgba(184, 169, 154, 0.14) 1px, transparent 1.6px),
     linear-gradient(to right, rgba(212, 184, 160, 0.5), rgba(212, 184, 160, 0.5)),
     linear-gradient(to right, rgba(212, 184, 160, 0.5), rgba(212, 184, 160, 0.5));
   background-size:
+    100% 100%,
+    cover,
     80px 80px,
-    220px 220px,
-    220px 220px,
     100% 3px,
     100% 3px;
   background-position:
     0 0,
+    center,
     0 0,
-    100% 100%,
     0 0,
     0 100%;
   background-repeat:
-    repeat,
+    no-repeat,
     no-repeat,
     no-repeat,
     no-repeat,
