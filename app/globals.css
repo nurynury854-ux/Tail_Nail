@@ -26,7 +26,7 @@ body {
   position: relative;
   overflow-x: hidden;
   background-image:
-    linear-gradient(rgba(245, 240, 232, 0.48), rgba(245, 240, 232, 0.48)),
+    linear-gradient(rgba(245, 240, 232, 0.18), rgba(245, 240, 232, 0.18)),
     url('/Gemini_Generated_Image_2pf88e2pf88e2pf8.png'),
     radial-gradient(circle at 1px 1px, rgba(184, 169, 154, 0.09) 1px, transparent 1.6px),
     linear-gradient(to right, rgba(212, 184, 160, 0.5), rgba(212, 184, 160, 0.5)),
