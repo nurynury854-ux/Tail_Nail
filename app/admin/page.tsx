@@ -147,14 +147,14 @@ export default function AdminPage() {
   const [weeklyForm, setWeeklyForm] = useState<WeeklyForm>({
     dayKey: 'monday',
     dayOfWeek: 1,
-    startTime: '10:00',
-    endTime: '20:00',
+    startTime: '11:00',
+    endTime: '21:00',
     isWorking: true,
   })
   const [overrideForm, setOverrideForm] = useState<OverrideForm>({
     date: '',
-    startTime: '10:00',
-    endTime: '20:00',
+    startTime: '11:00',
+    endTime: '21:00',
     isOffOrClosed: false,
     reason: '',
   })

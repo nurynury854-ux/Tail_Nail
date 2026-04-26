@@ -13,29 +13,17 @@ export function minutesToTime(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-// Get working hours for a given date
-export function getWorkingHours(date: Date): { open: number; close: number } | null {
-  const day = date.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
-
-  if (day === 0) return null // Sunday - closed
-
-  if (day === 6) {
-    // Saturday
-    return { open: 10 * 60, close: 18 * 60 }
-  }
-
-  // Monday–Friday
-  return { open: 10 * 60, close: 20 * 60 }
+// Get working hours for a given date — open every day 11:00–21:00 by default
+export function getWorkingHours(_date: Date): { open: number; close: number } | null {
+  return { open: 11 * 60, close: 21 * 60 }
 }
 
-export function defaultWorkingHoursByDay(day: number): { open: number; close: number } | null {
-  if (day === 0) return null
-  if (day === 6) return { open: 10 * 60, close: 18 * 60 }
-  return { open: 10 * 60, close: 20 * 60 }
+export function defaultWorkingHoursByDay(_day: number): { open: number; close: number } | null {
+  return { open: 11 * 60, close: 21 * 60 }
 }
 
-export function isDateClosed(date: Date): boolean {
-  return date.getDay() === 0
+export function isDateClosed(_date: Date): boolean {
+  return false
 }
 
 // Generate available time slots for a branch/service/date combination

@@ -63,7 +63,7 @@ ON CONFLICT (id) DO UPDATE SET
   is_active = EXCLUDED.is_active;
 
 -- ────────────────────────────────────────────────────────────
--- BRANCH WEEKLY HOURS (預設：週一到週六 10:00-19:00，週日公休)
+-- BRANCH WEEKLY HOURS (預設：每天 11:00-21:00，週日也營業)
 -- ────────────────────────────────────────────────────────────
 INSERT INTO branch_working_hours (
   branch_id,
@@ -75,9 +75,9 @@ INSERT INTO branch_working_hours (
   saturday_open, saturday_close,
   sunday_open, sunday_close
 ) VALUES
-  ('1', '10:00', '19:00', '10:00', '19:00', '10:00', '19:00', '10:00', '19:00', '10:00', '19:00', '10:00', '19:00', NULL, NULL),
-  ('2', '10:00', '19:00', '10:00', '19:00', '10:00', '19:00', '10:00', '19:00', '10:00', '19:00', '10:00', '19:00', NULL, NULL),
-  ('3', '10:00', '19:00', '10:00', '19:00', '10:00', '19:00', '10:00', '19:00', '10:00', '19:00', '10:00', '19:00', NULL, NULL)
+  ('1', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00'),
+  ('2', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00'),
+  ('3', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00', '11:00', '21:00')
 ON CONFLICT (branch_id) DO UPDATE SET
   monday_open = EXCLUDED.monday_open,
   monday_close = EXCLUDED.monday_close,
@@ -96,13 +96,13 @@ ON CONFLICT (branch_id) DO UPDATE SET
   updated_at = NOW();
 
 -- ────────────────────────────────────────────────────────────
--- STYLIST WEEKLY HOURS (預設：週一到週六 10:00-19:00，週日休)
+-- STYLIST WEEKLY HOURS (預設：每天 11:00-21:00，週日也營業)
 -- ────────────────────────────────────────────────────────────
 INSERT INTO stylist_weekly_hours (stylist_id, day_of_week, start_time, end_time, is_working)
 SELECT s.id, d.day_of_week,
-  CASE WHEN d.day_of_week = 0 THEN NULL ELSE '10:00'::TIME END,
-  CASE WHEN d.day_of_week = 0 THEN NULL ELSE '19:00'::TIME END,
-  CASE WHEN d.day_of_week = 0 THEN false ELSE true END
+  '11:00'::TIME,
+  '21:00'::TIME,
+  true
 FROM stylists s
 CROSS JOIN (
   SELECT 0 AS day_of_week UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6

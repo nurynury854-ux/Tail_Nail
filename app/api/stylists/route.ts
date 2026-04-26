@@ -52,9 +52,9 @@ export async function POST(request: NextRequest) {
   const weeklyDefaults = Array.from({ length: 7 }, (_, day) => ({
     stylist_id: data.id,
     day_of_week: day,
-    start_time: day === 0 ? null : '10:00',
-    end_time: day === 0 ? null : day === 6 ? '18:00' : '20:00',
-    is_working: day !== 0,
+    start_time: '11:00',
+    end_time: '21:00',
+    is_working: true,
   }))
 
   const { error: scheduleError } = await supabase.from('stylist_weekly_hours').insert(weeklyDefaults)

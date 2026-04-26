@@ -64,9 +64,7 @@ export default function Footer() {
             <h3 className="font-playfair text-white text-lg mb-4">Hours</h3>
             <div className="space-y-2 text-sm">
               {[
-                { day: 'Mon – Fri', hours: '10:00 – 20:00' },
-                { day: 'Saturday', hours: '10:00 – 18:00' },
-                { day: 'Sunday', hours: 'Closed' },
+                { day: 'Every Day', hours: '11:00 – 21:00' },
               ].map((h) => (
                 <div key={h.day} className="flex items-start gap-2">
                   <Clock className="w-3.5 h-3.5 mt-0.5 text-rose-light flex-shrink-0" />
