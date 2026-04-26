@@ -45,6 +45,7 @@ body {
     background-position: 0 0, 0 0, 0 0, 0 0, top center;
     background-attachment: fixed;
   }
+}
 
 body::before,
 body::after {
