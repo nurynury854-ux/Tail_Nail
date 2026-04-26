@@ -17,7 +17,7 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-sm leading-relaxed text-white/60 mb-6">
-              Premium nail care with artistic excellence. Where beauty meets precision.
+              專業美甲服務，精緻呈現每一個細節。
             </p>
             <div className="flex gap-3">
               <a
@@ -37,15 +37,15 @@ export default function Footer() {
 
           {/* Branches */}
           <div>
-            <h3 className="font-playfair text-white text-lg mb-4">Our Branches</h3>
+            <h3 className="font-playfair text-white text-lg mb-4">分店資訊</h3>
             <div className="space-y-3 text-sm">
               {[
-                { name: 'Neili Branch', addr: 'Neili District, Taoyuan', phone: '03-123-4567' },
-                { name: 'Zhongli Branch', addr: 'Zhongli District, Taoyuan', phone: '03-234-5678' },
-                { name: 'CYCU Branch', addr: 'Near CYCU, Taoyuan', phone: '03-345-6789' },
+                { name: '內壢店', addr: '桃園市內壢區', phone: '03-123-4567' },
+                { name: '中壢店', addr: '桃園市中壢區', phone: '03-234-5678' },
+                { name: '中原店', addr: '桃園市中壢區中原大學周邊', phone: '03-345-6789' },
               ].map((b) => (
                 <div key={b.name} className="group">
-                  <p className="font-semibold text-white/90 group-hover:text-rose-light transition-colors text-xs uppercase tracking-wide mb-0.5">
+                  <p className="font-semibold text-white/90 group-hover:text-rose-light transition-colors text-xs tracking-wide mb-0.5">
                     {b.name}
                   </p>
                   <p className="text-white/50 text-xs flex items-center gap-1">
@@ -61,10 +61,10 @@ export default function Footer() {
 
           {/* Hours */}
           <div>
-            <h3 className="font-playfair text-white text-lg mb-4">Hours</h3>
+            <h3 className="font-playfair text-white text-lg mb-4">營業時間</h3>
             <div className="space-y-2 text-sm">
               {[
-                { day: 'Every Day', hours: '11:00 – 21:00' },
+                { day: '每日', hours: '11:00 – 21:00' },
               ].map((h) => (
                 <div key={h.day} className="flex items-start gap-2">
                   <Clock className="w-3.5 h-3.5 mt-0.5 text-rose-light flex-shrink-0" />
@@ -79,11 +79,11 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h3 className="font-playfair text-white text-lg mb-4">Booking</h3>
+            <h3 className="font-playfair text-white text-lg mb-4">線上預約</h3>
             <ul className="space-y-2 text-sm">
               {[
-                { href: '/booking', label: 'Book an Appointment' },
-                { href: '/admin', label: 'Staff Dashboard' },
+                { href: '/booking', label: '立即預約' },
+                { href: '/admin', label: '店員後台' },
               ].map((link) => (
                 <li key={link.href}>
                   <Link
@@ -99,8 +99,8 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-white/40">
-          <p>© {new Date().getFullYear()} Ttail Nail. All rights reserved.</p>
-          <p>Built with ♡ for beautiful nails</p>
+          <p>© {new Date().getFullYear()} Ttail Nail. 版權所有。</p>
+          <p>為美麗而生 ♡</p>
         </div>
       </div>
     </footer>
