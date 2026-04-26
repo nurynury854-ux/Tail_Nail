@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { MapPin, Phone, Clock, Instagram, Facebook, Sparkles } from 'lucide-react'
+import { MapPin, Clock, Instagram, Sparkles } from 'lucide-react'
 
 export default function Footer() {
   return (
@@ -21,16 +21,12 @@ export default function Footer() {
             </p>
             <div className="flex gap-3">
               <a
-                href="#"
+                href="https://www.instagram.com/ttail_nail?igsh=MW5pYzBhdTF5ZHc5ZA%3D%3D"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-9 h-9 rounded-full bg-white/10 hover:bg-rose transition-colors flex items-center justify-center"
               >
                 <Instagram className="w-4 h-4" />
-              </a>
-              <a
-                href="#"
-                className="w-9 h-9 rounded-full bg-white/10 hover:bg-rose transition-colors flex items-center justify-center"
-              >
-                <Facebook className="w-4 h-4" />
               </a>
             </div>
           </div>
@@ -40,9 +36,9 @@ export default function Footer() {
             <h3 className="font-playfair text-white text-lg mb-4">分店資訊</h3>
             <div className="space-y-3 text-sm">
               {[
-                { name: '內壢店', addr: '桃園市內壢區', phone: '03-123-4567' },
-                { name: '中壢店', addr: '桃園市中壢區', phone: '03-234-5678' },
-                { name: '中原店', addr: '桃園市中壢區中原大學周邊', phone: '03-345-6789' },
+                { name: '內壢店', addr: '桃園市內壢區' },
+                { name: '中壢店', addr: '桃園市中壢區' },
+                { name: '中原店', addr: '桃園市中壢區中原大學周邊' },
               ].map((b) => (
                 <div key={b.name} className="group">
                   <p className="font-semibold text-white/90 group-hover:text-rose-light transition-colors text-xs tracking-wide mb-0.5">
@@ -50,9 +46,6 @@ export default function Footer() {
                   </p>
                   <p className="text-white/50 text-xs flex items-center gap-1">
                     <MapPin className="w-3 h-3 flex-shrink-0" /> {b.addr}
-                  </p>
-                  <p className="text-white/50 text-xs flex items-center gap-1">
-                    <Phone className="w-3 h-3 flex-shrink-0" /> {b.phone}
                   </p>
                 </div>
               ))}
