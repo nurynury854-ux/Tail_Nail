@@ -289,7 +289,7 @@ function BookingContent() {
         <div className="text-center mb-8 sm:mb-10">
           <div className="intro-ribbon mb-4 justify-center"><span /></div>
           <h1 className="font-playfair text-4xl sm:text-5xl text-charcoal font-normal">線上預約</h1>
-          <p className="text-warmgray mt-3 tracking-[0.18em] text-sm sm:text-base">Ttail Nail · 桃園三店預約</p>
+          <p className="text-warmgray mt-3 tracking-[0.18em] text-sm sm:text-base">Ttail Nail</p>
         </div>
 
         {step < 6 && (
