@@ -595,7 +595,7 @@ export default function AdminPage() {
   )
 
   return (
-    <div className="min-h-screen bg-cream pt-16">
+    <div className="min-h-screen pt-16">
       <div className="bg-charcoal py-10 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>

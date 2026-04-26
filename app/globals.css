@@ -26,9 +26,9 @@ body {
   position: relative;
   overflow-x: hidden;
   background-image:
-    linear-gradient(rgba(245, 240, 232, 0.84), rgba(245, 240, 232, 0.84)),
+    linear-gradient(rgba(245, 240, 232, 0.48), rgba(245, 240, 232, 0.48)),
     url('/Gemini_Generated_Image_2pf88e2pf88e2pf8.png'),
-    radial-gradient(circle at 1px 1px, rgba(184, 169, 154, 0.14) 1px, transparent 1.6px),
+    radial-gradient(circle at 1px 1px, rgba(184, 169, 154, 0.09) 1px, transparent 1.6px),
     linear-gradient(to right, rgba(212, 184, 160, 0.5), rgba(212, 184, 160, 0.5)),
     linear-gradient(to right, rgba(212, 184, 160, 0.5), rgba(212, 184, 160, 0.5));
   background-size:
@@ -176,7 +176,9 @@ body::after {
 .shadow-card {
   position: relative;
   overflow: hidden;
-  background: #FAF7F2;
+  background: rgba(250, 247, 242, 0.82);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   border: 0.8px solid #DDD5C8;
   border-radius: 16px;
   box-shadow: 0 8px 24px rgba(61, 46, 38, 0.08);

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-Hant" className="scroll-smooth">
-      <body className="font-nunito bg-cream text-charcoal antialiased relative overflow-x-hidden">
+      <body className="font-nunito text-charcoal antialiased relative overflow-x-hidden">
         <div aria-hidden="true" className="site-edge-top" />
         <div aria-hidden="true" className="site-edge-bottom" />
         <Toaster

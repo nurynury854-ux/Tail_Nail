@@ -38,7 +38,7 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-cream flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-card p-8 border border-blush">
         <h1 className="font-playfair text-3xl text-charcoal font-bold mb-2">管理員登入</h1>
         <p className="text-sm text-warmgray mb-6">請輸入店家後台帳號與密碼</p>

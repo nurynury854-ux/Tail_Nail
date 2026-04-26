@@ -284,7 +284,7 @@ function BookingContent() {
   }
 
   return (
-    <div className="min-h-screen bg-cream pt-16 pb-16 relative">
+    <div className="min-h-screen pt-16 pb-16 relative">
       <div className="max-w-4xl mx-auto px-4 py-10 sm:py-14">
         <div className="text-center mb-8 sm:mb-10">
           <div className="intro-ribbon mb-4 justify-center"><span /></div>
@@ -598,7 +598,7 @@ function BookingContent() {
 
 export default function BookingPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-cream pt-24 text-center text-warmgray">載入中...</div>}>
+    <Suspense fallback={<div className="min-h-screen pt-24 text-center text-warmgray">載入中...</div>}>
       <BookingContent />
     </Suspense>
   )
