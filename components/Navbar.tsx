@@ -26,7 +26,7 @@ export default function Navbar() {
           <Link href="/" className="flex items-center gap-1.5 group">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/images/cat_navbar.png"
+              src="/images/favicon.png"
               alt=""
               className="h-12 w-auto object-contain drop-shadow-sm transition-transform duration-300 group-hover:-translate-y-0.5 flex-shrink-0"
             />
