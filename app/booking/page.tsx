@@ -335,7 +335,7 @@ function BookingContent() {
               src="/images/cat_navbar_2x.png"
               alt=""
               aria-hidden="true"
-              className="pointer-events-none select-none absolute z-10 left-[66%] sm:left-[68%] -translate-x-1/2 -top-[84px] sm:-top-[98px] w-[180px] sm:w-[235px]"
+              className="pointer-events-none select-none absolute z-10 left-[69%] sm:left-[71%] -translate-x-1/2 -top-[92px] sm:-top-[108px] w-[180px] sm:w-[235px]"
             />
             <div className="pt-9 sm:pt-10 grid grid-cols-5 gap-2 sm:gap-3">
               {['分店', '服務', '美甲師', '時間', '資料'].map((label, index) => {
