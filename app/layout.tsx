@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: '小尾巴美甲 Ttail Nail | 桃園美甲線上預約',
   description: '小尾巴美甲線上預約系統，支援內壢店、中壢店、中原店分店預約與 LINE 通知。',
   keywords: '小尾巴美甲, Ttail Nail, 桃園美甲, 內壢店, 中壢店, 中原店, 線上預約',
+  icons: {
+    icon: '/images/favicon.png',
+    shortcut: '/images/favicon.png',
+    apple: '/images/favicon.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
