@@ -203,7 +203,7 @@ function BookingContent() {
         params.set('stylist_id', state.stylist.id)
       }
 
-      const res = await fetch(`/api/slots?${params.toString()}`)
+      const res = await fetch(`/api/slots?${params.toString()}`, { cache: 'no-store' })
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: '讀取可預約時段失敗' }))
         toast.error(err.error || '讀取可預約時段失敗')
@@ -263,7 +263,7 @@ function BookingContent() {
         date,
         total_duration: String(totalDuration),
         ...(state.noPreference || !state.stylist ? {} : { stylist_id: state.stylist.id }),
-      }).toString()}`)
+      }).toString()}`, { cache: 'no-store' })
 
       if (!recheck.ok) {
         toast.error('重新檢查時段失敗，請稍後再試')

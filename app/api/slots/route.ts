@@ -4,6 +4,17 @@ import { BRANCHES, SERVICES, Booking, Stylist, TimeSlot } from '@/lib/types'
 import { defaultWorkingHoursByDay, timeToMinutes, minutesToTime } from '@/lib/bookingUtils'
 import { getAvailableStylistsForSlot, resolveBranchWindow, resolveStylistWindow } from '@/lib/scheduleUtils'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+function jsonNoStore(body: unknown, init?: ResponseInit) {
+  const headers = new Headers(init?.headers)
+  headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
+  headers.set('Pragma', 'no-cache')
+  headers.set('Expires', '0')
+  return NextResponse.json(body, { ...init, headers })
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const branchId = searchParams.get('branch_id')
@@ -13,7 +24,7 @@ export async function GET(request: NextRequest) {
   const totalDurationParam = searchParams.get('total_duration')
 
   if (!branchId || !date) {
-    return NextResponse.json({ error: 'Missing required params: branch_id, date' }, { status: 400 })
+    return jsonNoStore({ error: 'Missing required params: branch_id, date' }, { status: 400 })
   }
 
   const branch = BRANCHES.find((b) => b.id === branchId)
@@ -21,7 +32,7 @@ export async function GET(request: NextRequest) {
   const totalDuration = Number(totalDurationParam || service?.duration_minutes || 0)
 
   if (!branch || Number.isNaN(totalDuration) || totalDuration <= 0) {
-    return NextResponse.json({ error: 'Invalid branch or duration' }, { status: 400 })
+    return jsonNoStore({ error: 'Invalid branch or duration' }, { status: 400 })
   }
 
   // Parse date
@@ -30,7 +41,7 @@ export async function GET(request: NextRequest) {
 
   if (!hasSupabaseConfig || !supabase) {
     const fallbackHours = defaultWorkingHoursByDay(dateObj.getDay())
-    if (!fallbackHours) return NextResponse.json({ slots: [], source: 'fallback' })
+    if (!fallbackHours) return jsonNoStore({ slots: [], source: 'fallback' })
 
     const safeOpen = Math.max(fallbackHours.open, 11 * 60)
     const slots: TimeSlot[] = []
@@ -44,7 +55,7 @@ export async function GET(request: NextRequest) {
         availableStylists: fitsInHours ? branch.staff_count : 0,
       })
     }
-    return NextResponse.json({ slots, source: 'fallback' })
+    return jsonNoStore({ slots, source: 'fallback' })
   }
 
   try {
@@ -57,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     if (bookingError) {
       console.error('Supabase bookings error:', bookingError)
-      return NextResponse.json({ error: bookingError.message }, { status: 500 })
+      return jsonNoStore({ error: bookingError.message }, { status: 500 })
     }
 
     let stylistQuery = supabase
@@ -79,17 +90,17 @@ export async function GET(request: NextRequest) {
     if (stylistsError || branchHoursError || branchOverrideError) {
       const firstError = stylistsError || branchHoursError || branchOverrideError
       console.error('Supabase schedule dependency error:', firstError)
-      return NextResponse.json({ error: firstError?.message || 'Failed to resolve schedule data' }, { status: 500 })
+      return jsonNoStore({ error: firstError?.message || 'Failed to resolve schedule data' }, { status: 500 })
     }
 
     const activeStylists = (stylists || []) as Stylist[]
     if (activeStylists.length === 0) {
-      return NextResponse.json({ slots: [], source: 'database' })
+      return jsonNoStore({ slots: [], source: 'database' })
     }
 
     const rawBranchWindow = resolveBranchWindow(dateObj, branchHours, branchOverride)
     if (!rawBranchWindow) {
-      return NextResponse.json({ slots: [], source: 'database' })
+      return jsonNoStore({ slots: [], source: 'database' })
     }
     const branchWindow = {
       open: Math.max(rawBranchWindow.open, 11 * 60),
@@ -105,7 +116,7 @@ export async function GET(request: NextRequest) {
     if (weeklyError || stylistOverrideError) {
       const firstError = weeklyError || stylistOverrideError
       console.error('Supabase stylist schedule error:', firstError)
-      return NextResponse.json({ error: firstError?.message || 'Failed to resolve stylist schedule' }, { status: 500 })
+      return jsonNoStore({ error: firstError?.message || 'Failed to resolve stylist schedule' }, { status: 500 })
     }
 
     const weeklyMap: Record<string, Array<{ day_of_week: number; start_time?: string | null; end_time?: string | null; is_working: boolean }>> = {}
@@ -168,9 +179,9 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ slots, source: 'database' })
+    return jsonNoStore({ slots, source: 'database' })
   } catch (err) {
     console.error('Slots API error:', err)
-    return NextResponse.json({ error: 'Failed to fetch availability' }, { status: 500 })
+    return jsonNoStore({ error: 'Failed to fetch availability' }, { status: 500 })
   }
 }
