@@ -32,15 +32,16 @@ export async function GET(request: NextRequest) {
     const fallbackHours = defaultWorkingHoursByDay(dateObj.getDay())
     if (!fallbackHours) return NextResponse.json({ slots: [], source: 'fallback' })
 
+    const safeOpen = Math.max(fallbackHours.open, 11 * 60)
     const slots: TimeSlot[] = []
-    for (let start = fallbackHours.open; start < fallbackHours.close; start += 60) {
+    for (let start = safeOpen; start < fallbackHours.close; start += 60) {
       const end = start + totalDuration
-      if (end > fallbackHours.close) continue
+      const fitsInHours = end <= fallbackHours.close
       slots.push({
         time: minutesToTime(start),
-        available: true,
+        available: fitsInHours,
         bookingsCount: 0,
-        availableStylists: branch.staff_count,
+        availableStylists: fitsInHours ? branch.staff_count : 0,
       })
     }
     return NextResponse.json({ slots, source: 'fallback' })
@@ -86,9 +87,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ slots: [], source: 'database' })
     }
 
-    const branchWindow = resolveBranchWindow(dateObj, branchHours, branchOverride)
-    if (!branchWindow) {
+    const rawBranchWindow = resolveBranchWindow(dateObj, branchHours, branchOverride)
+    if (!rawBranchWindow) {
       return NextResponse.json({ slots: [], source: 'database' })
+    }
+    const branchWindow = {
+      open: Math.max(rawBranchWindow.open, 11 * 60),
+      close: rawBranchWindow.close,
     }
 
     const stylistIds = activeStylists.map((stylist) => stylist.id)
@@ -130,7 +135,17 @@ export async function GET(request: NextRequest) {
     const slots: TimeSlot[] = []
     for (let start = branchWindow.open; start < branchWindow.close; start += 60) {
       const end = start + totalDuration
-      if (end > branchWindow.close) continue
+
+      if (end > branchWindow.close) {
+        // Service extends past closing — show slot as unavailable rather than hiding it
+        slots.push({
+          time: minutesToTime(start),
+          available: false,
+          bookingsCount: 0,
+          availableStylists: 0,
+        })
+        continue
+      }
 
       const availableStylistIds = getAvailableStylistsForSlot({
         stylists: activeStylists,
