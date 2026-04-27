@@ -67,6 +67,11 @@ function BookingContent() {
   }
 
   useEffect(() => {
+    // Keep each step transition anchored at page top instead of preserving prior scroll.
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [step])
+
+  useEffect(() => {
     const userId = searchParams.get('userId')
     if (userId) {
       setState((prev) => ({ ...prev, lineId: userId }))
