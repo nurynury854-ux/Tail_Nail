@@ -129,30 +129,28 @@ async function enrichServiceDurationsForStylist(args: {
   const ids = services.map((s) => s.service_id)
   const { data, error } = await supabase
     .from('service_durations')
-    .select('service_id, duration_minutes, is_pending')
+    .select('service_id, duration_minutes')
     .eq('stylist_id', stylistId)
     .eq('category', category)
+    .eq('is_pending', false)
     .in('service_id', ids)
 
   if (error) {
     throw new Error(normalizeSupabaseError(error.message))
   }
 
-  const durationMap = new Map<string, { duration_minutes: number; is_pending: boolean }>()
+  const durationMap = new Map<string, number>()
   for (const row of data || []) {
-    durationMap.set(row.service_id, {
-      duration_minutes: row.duration_minutes,
-      is_pending: Boolean(row.is_pending),
-    })
+    if (row.duration_minutes) durationMap.set(row.service_id, row.duration_minutes)
   }
 
   const items = services.map((item) => {
-    const duration = durationMap.get(item.service_id)
-    const minutes = duration?.duration_minutes || item.duration_minutes || 120
+    const confirmed = durationMap.get(item.service_id)
+    const minutes = confirmed ?? item.duration_minutes
     return {
       ...item,
       duration_minutes: minutes,
-      is_pending: duration ? duration.is_pending : true,
+      is_pending: confirmed === undefined,
     }
   })
 
