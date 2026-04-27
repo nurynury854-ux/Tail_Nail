@@ -222,6 +222,15 @@ function BookingContent() {
     }
   }, [step, fetchSlots])
 
+  useEffect(() => {
+    if (step !== 4 || !state.branch) return
+    void fetchStylistDurations(
+      state.noPreference ? null : state.stylist?.id ?? null,
+      state.branch.id,
+      state.category
+    )
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const submitBooking = async () => {
     if (!state.branch || !state.date || !state.timeSlot) return
 
@@ -454,9 +463,8 @@ function BookingContent() {
               <h2 className="section-title text-2xl sm:text-3xl">3. 選擇美甲師</h2>
 
               <button
-                onClick={async () => {
+                onClick={() => {
                   setState((prev) => ({ ...prev, noPreference: true, stylist: null, date: null, timeSlot: null }))
-                  if (state.branch) await fetchStylistDurations(null, state.branch.id, state.category)
                   goNext()
                 }}
                 className={`mt-4 w-full text-left border rounded-2xl p-4 transition-colors ${state.noPreference ? 'border-rose bg-white shadow-card' : 'border-[#DDD5C8] bg-[#FAF7F2]'}`}
@@ -473,9 +481,8 @@ function BookingContent() {
                   {stylists.map((stylist) => (
                     <button
                       key={stylist.id}
-                      onClick={async () => {
+                      onClick={() => {
                         setState((prev) => ({ ...prev, noPreference: false, stylist, date: null, timeSlot: null }))
-                        if (state.branch) await fetchStylistDurations(stylist.id, state.branch.id, state.category)
                         goNext()
                       }}
                       className="border border-blush rounded-lg p-3 text-left hover:border-rose"
