@@ -328,7 +328,7 @@ function BookingContent() {
             src="/images/cat_navbar_2x.png"
             alt=""
             aria-hidden="true"
-            className="pointer-events-none select-none absolute z-0 left-[70%] sm:left-[72%] -translate-x-1/2 top-[29px] sm:top-[5px] w-[180px] sm:w-[235px]"
+            className="pointer-events-none select-none absolute z-0 left-[71%] sm:left-[73%] -translate-x-1/2 top-[25px] sm:top-[1px] w-[180px] sm:w-[235px]"
           />
 
           <div className="relative z-20 text-center mb-8 sm:mb-10">
