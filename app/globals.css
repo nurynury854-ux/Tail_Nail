@@ -7,6 +7,8 @@
 :root {
   --font-serif: 'Noto Serif TC', Georgia, serif;
   --font-sans: 'Noto Sans TC', system-ui, sans-serif;
+  --bg-cream: #F5F0E5;
+  --bg-cream2: #FBF7EF;
 }
 
 * {
@@ -16,6 +18,8 @@
 /* html IS the canvas — background here is always the bottom layer */
 html {
   scroll-behavior: smooth;
+  background-color: var(--bg-cream);
+  /* mobile: full-bleed photo */
   background-image: url('/For_Phone.png');
   background-size: cover;
   background-position: center;
@@ -25,15 +29,9 @@ html {
 
 @media (min-width: 768px) {
   html {
-    background-image:
-      radial-gradient(ellipse 95% 55% at -10% -8%,  rgba(238, 168, 138, 0.72) 0%, transparent 55%),
-      radial-gradient(ellipse 70% 50% at 110% -5%,  rgba(170, 212, 188, 0.60) 0%, transparent 55%),
-      radial-gradient(ellipse 75% 50% at -8%  108%, rgba(148, 200, 172, 0.68) 0%, transparent 55%),
-      radial-gradient(ellipse 65% 48% at 108% 106%, rgba(180, 170, 215, 0.60) 0%, transparent 55%),
-      url('/Gemini_Generated_Image_2pf88e2pf88e2pf8.png');
-    background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, cover;
-    background-position: 0 0, 0 0, 0 0, 0 0, top center;
-    background-attachment: fixed;
+    /* desktop: plain cream — BackgroundBlobs SVG provides the decoration */
+    background-image: none;
+    background-attachment: scroll;
   }
 }
 

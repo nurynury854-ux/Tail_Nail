@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
+import BackgroundBlobs from '@/components/BackgroundBlobs'
 import { Toaster } from 'react-hot-toast'
 
 export const metadata: Metadata = {
@@ -14,6 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-Hant" className="scroll-smooth">
       <body className="font-nunito text-charcoal antialiased relative overflow-x-hidden">
+        <BackgroundBlobs />
         <div aria-hidden="true" className="site-edge-top" />
         <div aria-hidden="true" className="site-edge-bottom" />
         <Toaster

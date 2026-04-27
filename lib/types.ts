@@ -178,14 +178,15 @@ export const BRANCHES: Branch[] = [
 export const SERVICES: Service[] = [
   { id: 'svc-main-solid', name: '單色', service_type: 'main', is_addon: false, is_active: true, price: 0 },
   { id: 'svc-main-cat-eye', name: '貓眼', service_type: 'main', is_addon: false, is_active: true, price: 0 },
-  { id: 'svc-main-gradient', name: '漸層十指', service_type: 'main', is_addon: false, is_active: true, price: 0 },
-  { id: 'svc-main-french', name: '法式十指', service_type: 'main', is_addon: false, is_active: true, price: 0 },
-  { id: 'svc-main-mirror', name: '鏡面十指', service_type: 'main', is_addon: false, is_active: true, price: 0 },
+  { id: 'svc-main-gradient', name: '漸層', service_type: 'main', is_addon: false, is_active: true, price: 0 },
+  { id: 'svc-main-french', name: '法式', service_type: 'main', is_addon: false, is_active: true, price: 0 },
+  { id: 'svc-main-mirror', name: '鏡面', service_type: 'main', is_addon: false, is_active: true, price: 0 },
   { id: 'svc-main-store-style', name: '店內款式', service_type: 'main', is_addon: false, is_active: true, price: 0 },
   { id: 'svc-main-custom-style', name: '自帶圖款式', service_type: 'main', is_addon: false, is_active: true, price: 0 },
   { id: 'svc-addon-remove', name: '卸甲', service_type: 'addon', is_addon: true, is_active: true, price: 0 },
   { id: 'svc-addon-care', name: '保養＊', service_type: 'addon', is_addon: true, is_active: true, price: 0 },
   { id: 'svc-addon-shape', name: '純修甲＊', service_type: 'addon', is_addon: true, is_active: true, price: 0 },
   { id: 'svc-addon-thicken', name: '加厚', service_type: 'addon', is_addon: true, is_active: true, price: 0 },
+  { id: 'svc-addon-extension', name: '延甲', service_type: 'addon', is_addon: true, is_active: true, duration_minutes: 60, price: 0 },
   { id: 'svc-addon-repair', name: '補甲', service_type: 'addon', is_addon: true, is_active: true, duration_minutes: 40, price: 0 },
 ]

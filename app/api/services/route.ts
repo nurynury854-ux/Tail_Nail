@@ -18,7 +18,26 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data || [])
+  const records = Array.isArray(data) ? [...data] : []
+
+  const canonicalNameById: Record<string, string> = {
+    'svc-main-gradient': '漸層',
+    'svc-main-french': '法式',
+    'svc-main-mirror': '鏡面',
+  }
+
+  for (const service of records) {
+    const canonicalName = canonicalNameById[service.id]
+    if (canonicalName) service.name = canonicalName
+  }
+
+  const hasExtensionAddon = records.some((service) => service.id === 'svc-addon-extension')
+  if (!hasExtensionAddon) {
+    const extensionFallback = SERVICES.find((service) => service.id === 'svc-addon-extension')
+    if (extensionFallback) records.push(extensionFallback)
+  }
+
+  return NextResponse.json(records)
 }
 
 export async function POST(request: NextRequest) {

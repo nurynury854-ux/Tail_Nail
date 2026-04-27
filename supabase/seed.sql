@@ -23,15 +23,16 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO services (id, name, service_type, is_addon, is_active, duration_minutes, price, description) VALUES
   ('svc-main-solid', '單色', 'main', false, true, NULL, 0, '主項目：單色'),
   ('svc-main-cat-eye', '貓眼', 'main', false, true, NULL, 0, '主項目：貓眼'),
-  ('svc-main-gradient', '漸層十指', 'main', false, true, NULL, 0, '主項目：漸層十指'),
-  ('svc-main-french', '法式十指', 'main', false, true, NULL, 0, '主項目：法式十指'),
-  ('svc-main-mirror', '鏡面十指', 'main', false, true, NULL, 0, '主項目：鏡面十指'),
+  ('svc-main-gradient', '漸層', 'main', false, true, NULL, 0, '主項目：漸層'),
+  ('svc-main-french', '法式', 'main', false, true, NULL, 0, '主項目：法式'),
+  ('svc-main-mirror', '鏡面', 'main', false, true, NULL, 0, '主項目：鏡面'),
   ('svc-main-store-style', '店內款式', 'main', false, true, NULL, 0, '主項目：店內款式'),
   ('svc-main-custom-style', '自帶圖款式', 'main', false, true, NULL, 0, '主項目：自帶圖款式'),
   ('svc-addon-remove', '卸甲', 'addon', true, true, NULL, 0, '附加項目：可疊加/可單選'),
   ('svc-addon-care', '保養＊', 'addon', true, true, NULL, 0, '附加項目：可疊加/可單選'),
   ('svc-addon-shape', '純修甲＊', 'addon', true, true, NULL, 0, '附加項目：可疊加/可單選'),
   ('svc-addon-thicken', '加厚', 'addon', true, true, NULL, 0, '附加項目：加算時間'),
+  ('svc-addon-extension', '延甲', 'addon', true, true, 60, 0, '附加項目：可疊加/可單選'),
   ('svc-addon-repair', '補甲', 'addon', true, true, 40, 0, '附加項目：可疊加/可單獨預約')
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,

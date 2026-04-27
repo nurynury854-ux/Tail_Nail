@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Menu, X, Sparkles } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 
 const navLinks = [
   { href: '/booking', label: 'Booking' },
@@ -23,19 +24,22 @@ export default function Navbar() {
       <nav className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-18">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-full bg-rose flex items-center justify-center shadow-soft">
-              <Sparkles className="w-4 h-4 text-white" />
+          <Link href="/" className="flex items-center gap-1.5 group">
+            <div className="relative w-10 h-10 flex-shrink-0 overflow-visible">
+              <Image
+                src="/images/cat_navbar.png"
+                alt="小尾巴美甲 mascot"
+                width={52}
+                height={52}
+                className="absolute bottom-0 left-0 w-auto h-[52px] object-contain drop-shadow-sm transition-transform duration-300 group-hover:-translate-y-0.5"
+                unoptimized
+              />
             </div>
             <div>
-              <span
-                className="font-playfair text-xl font-semibold tracking-wide text-charcoal"
-              >
+              <span className="font-playfair text-xl font-semibold tracking-wide text-charcoal">
                 Ttail
               </span>
-              <span
-                className="font-playfair text-xl font-light italic ml-1 text-rose"
-              >
+              <span className="font-playfair text-xl font-light italic ml-1 text-rose">
                 Nail
               </span>
             </div>
