@@ -323,35 +323,38 @@ function BookingContent() {
   return (
     <div className="min-h-screen pt-16 pb-16 relative">
       <div className="max-w-4xl mx-auto px-4 py-10 sm:py-14">
-        <div className="text-center mb-8 sm:mb-10">
-          <div className="intro-ribbon mb-4 justify-center"><span /></div>
-          <h1 className="font-playfair text-4xl sm:text-5xl text-charcoal font-normal">線上預約</h1>
-          <p className="text-warmgray mt-3 tracking-[0.18em] text-sm sm:text-base">Ttail Nail</p>
-        </div>
+        <div className="relative">
+          <img
+            src="/images/cat_navbar_2x.png"
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none select-none absolute z-0 left-[69%] sm:left-[71%] -translate-x-1/2 -top-[128px] sm:-top-[144px] w-[180px] sm:w-[235px]"
+          />
 
-        {step < 6 && (
-          <div className="relative mt-6 max-w-3xl mx-auto">
-            <img
-              src="/images/cat_navbar_2x.png"
-              alt=""
-              aria-hidden="true"
-              className="pointer-events-none select-none absolute z-10 left-[69%] sm:left-[71%] -translate-x-1/2 -top-[92px] sm:-top-[108px] w-[180px] sm:w-[235px]"
-            />
-            <div className="pt-9 sm:pt-10 grid grid-cols-5 gap-2 sm:gap-3">
-              {['分店', '服務', '美甲師', '時間', '資料'].map((label, index) => {
-                const current = index + 1
-                return (
-                  <div key={label} className="text-center">
-                    <div className={`h-9 rounded-full text-sm flex items-center justify-center shadow-sm ${step >= current ? 'bg-rose text-white' : 'bg-white/75 text-warmgray border border-[#DDD5C8]'}`}>
-                      {step > current ? <Check className="w-4 h-4" /> : current}
-                    </div>
-                    <p className="text-xs mt-1 text-warmgray">{label}</p>
-                  </div>
-                )
-              })}
-            </div>
+          <div className="relative z-20 text-center mb-8 sm:mb-10">
+            <div className="intro-ribbon mb-4 justify-center"><span /></div>
+            <h1 className="font-playfair text-4xl sm:text-5xl text-charcoal font-normal">線上預約</h1>
+            <p className="text-warmgray mt-3 tracking-[0.18em] text-sm sm:text-base">Ttail Nail</p>
           </div>
-        )}
+
+          {step < 6 && (
+            <div className="relative z-10 mt-6 max-w-3xl mx-auto">
+              <div className="pt-9 sm:pt-10 grid grid-cols-5 gap-2 sm:gap-3">
+                {['分店', '服務', '美甲師', '時間', '資料'].map((label, index) => {
+                  const current = index + 1
+                  return (
+                    <div key={label} className="text-center">
+                      <div className={`h-9 rounded-full text-sm flex items-center justify-center shadow-sm ${step >= current ? 'bg-rose text-white' : 'bg-white/75 text-warmgray border border-[#DDD5C8]'}`}>
+                        {step > current ? <Check className="w-4 h-4" /> : current}
+                      </div>
+                      <p className="text-xs mt-1 text-warmgray">{label}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="shadow-card rounded-2xl p-6 sm:p-8 mt-8 bg-blush/80 backdrop-blur-[2px]">
           {step === 1 && (
