@@ -5,11 +5,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 
-const navLinks = [
-  { href: '/booking', label: 'Booking' },
-  { href: '/admin', label: 'Admin' },
-]
-
 export default function Navbar() {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
@@ -41,26 +36,12 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`text-sm font-medium tracking-wide transition-all duration-200 relative group text-warmgray hover:text-charcoal ${pathname === link.href ? 'text-charcoal' : ''}`}
-              >
-                {link.label}
-                <span
-                  className={`absolute -bottom-1 left-0 h-0.5 bg-rose transition-all duration-200 ${
-                    pathname === link.href ? 'w-full' : 'w-0 group-hover:w-full'
-                  }`}
-                />
-              </Link>
-            ))}
+          <div className="hidden md:flex items-center">
             <Link
               href="/booking"
               className="bg-rose text-white px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-rose-dark transition-all duration-200 shadow-soft hover:shadow-medium"
             >
-              Book Now
+              預約
             </Link>
           </div>
 
@@ -77,24 +58,11 @@ export default function Navbar() {
         {open && (
           <div className="md:hidden py-4 border-t border-rose-light/20">
             <div className="flex flex-col gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                    pathname === link.href
-                      ? 'bg-blush text-rose font-semibold'
-                      : 'text-warmgray hover:bg-blush hover:text-charcoal'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
               <Link
                 href="/booking"
                 className="mt-3 mx-4 bg-rose text-white px-5 py-3 rounded-full text-sm font-semibold text-center hover:bg-rose-dark transition-colors shadow-soft"
               >
-                ✨ Book Now
+                ✨ 預約
               </Link>
             </div>
           </div>
