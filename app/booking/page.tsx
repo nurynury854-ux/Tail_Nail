@@ -356,7 +356,7 @@ function BookingContent() {
           )}
         </div>
 
-        <div className="shadow-lg hover:shadow-xl transition-shadow duration-300 rounded-3xl p-8 sm:p-10 mt-8 bg-blush/80 backdrop-blur-[2px]">
+        <div className="shadow-lg hover:shadow-xl transition-shadow duration-300 rounded-3xl p-8 sm:p-10 mt-8 bg-blush/40 backdrop-blur-md">
           {step === 1 && (
             <div>
               <p className="section-kicker mb-2">Select a branch</p>
