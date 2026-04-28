@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
       : Promise.resolve({ data: [], error: null }),
     branchId
       ? supabase.from('branch_day_overrides').select('*').eq('branch_id', branchId).order('date', { ascending: false }).limit(30)
-      : Promise.resolve({ data: [], error: null }),
+      : supabase.from('branch_day_overrides').select('*').order('date', { ascending: false }).limit(30),
     stylistId
       ? supabase.from('stylist_day_overrides').select('*').eq('stylist_id', stylistId).order('date', { ascending: false }).limit(30)
-      : Promise.resolve({ data: [], error: null }),
+      : supabase.from('stylist_day_overrides').select('*').order('date', { ascending: false }).limit(30),
   ])
 
   const error = branchHoursResult.error || stylistWeeklyResult.error || branchOverridesResult.error || stylistOverridesResult.error

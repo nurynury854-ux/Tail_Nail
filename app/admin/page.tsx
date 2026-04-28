@@ -164,6 +164,10 @@ export default function AdminPage() {
     branchOverrides: [],
     stylistOverrides: [],
   })
+  const [allOverrides, setAllOverrides] = useState<{
+    branchOverrides: SchedulePayload['branchOverrides']
+    stylistOverrides: SchedulePayload['stylistOverrides']
+  }>({ branchOverrides: [], stylistOverrides: [] })
 
   const fetchMasterData = useCallback(async () => {
     try {
@@ -194,6 +198,15 @@ export default function AdminPage() {
     } catch {
       toast.error('Failed to load admin master data')
     }
+  }, [])
+
+  const fetchAllOverrides = useCallback(async () => {
+    try {
+      const res = await fetch('/api/schedules')
+      if (!res.ok) return
+      const data = (await res.json()) as SchedulePayload
+      setAllOverrides({ branchOverrides: data.branchOverrides, stylistOverrides: data.stylistOverrides })
+    } catch { /* non-fatal */ }
   }, [])
 
   const fetchBookings = useCallback(async () => {
@@ -232,7 +245,8 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchMasterData()
-  }, [fetchMasterData])
+    fetchAllOverrides()
+  }, [fetchMasterData, fetchAllOverrides])
 
   useEffect(() => {
     fetchBookings()
@@ -523,6 +537,7 @@ export default function AdminPage() {
 
       toast.success('Branch day override saved')
       fetchSchedules()
+      fetchAllOverrides()
       return
     }
 
@@ -553,6 +568,7 @@ export default function AdminPage() {
 
     toast.success('Stylist day override saved')
     fetchSchedules()
+    fetchAllOverrides()
   }
 
   const handleDeleteOverride = async (type: 'branch_override' | 'stylist_override', id: string) => {
@@ -565,6 +581,7 @@ export default function AdminPage() {
 
     toast.success('Override removed')
     fetchSchedules()
+    fetchAllOverrides()
   }
 
   const filteredBookings = bookings.filter((b) => {
@@ -612,6 +629,7 @@ export default function AdminPage() {
                 fetchBookings()
                 fetchMasterData()
                 fetchSchedules()
+                fetchAllOverrides()
               }}
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-xl text-sm transition-colors"
             >
@@ -898,7 +916,7 @@ export default function AdminPage() {
         <div className="bg-white rounded-2xl shadow-card p-5">
           <h3 className="font-playfair text-xl text-charcoal font-bold mb-3">Recent Overrides</h3>
           <div className="grid md:grid-cols-2 gap-3">
-            {scheduleData.branchOverrides.map((o) => (
+            {allOverrides.branchOverrides.map((o) => (
               <div key={o.id} className="border border-blush rounded-xl p-3 text-sm flex justify-between gap-2">
                 <div>
                   <p className="font-semibold text-charcoal">Branch · {o.date}</p>
@@ -912,7 +930,7 @@ export default function AdminPage() {
                 </button>
               </div>
             ))}
-            {scheduleData.stylistOverrides.map((o) => (
+            {allOverrides.stylistOverrides.map((o) => (
               <div key={o.id} className="border border-blush rounded-xl p-3 text-sm flex justify-between gap-2">
                 <div>
                   <p className="font-semibold text-charcoal">Stylist · {o.date}</p>
@@ -926,6 +944,9 @@ export default function AdminPage() {
                 </button>
               </div>
             ))}
+            {allOverrides.branchOverrides.length === 0 && allOverrides.stylistOverrides.length === 0 && (
+              <p className="text-sm text-warmgray col-span-2">No overrides on record.</p>
+            )}
           </div>
         </div>
 
