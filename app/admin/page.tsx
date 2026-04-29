@@ -99,14 +99,20 @@ type SchedulePayload = {
 }
 
 const DAY_OPTIONS = [
-  { key: 'sunday', label: 'Sunday', value: 0 },
-  { key: 'monday', label: 'Monday', value: 1 },
-  { key: 'tuesday', label: 'Tuesday', value: 2 },
-  { key: 'wednesday', label: 'Wednesday', value: 3 },
-  { key: 'thursday', label: 'Thursday', value: 4 },
-  { key: 'friday', label: 'Friday', value: 5 },
-  { key: 'saturday', label: 'Saturday', value: 6 },
+  { key: 'sunday', label: '週日', value: 0 },
+  { key: 'monday', label: '週一', value: 1 },
+  { key: 'tuesday', label: '週二', value: 2 },
+  { key: 'wednesday', label: '週三', value: 3 },
+  { key: 'thursday', label: '週四', value: 4 },
+  { key: 'friday', label: '週五', value: 5 },
+  { key: 'saturday', label: '週六', value: 6 },
 ] as const
+
+const STATUS_LABEL: Record<string, string> = {
+  confirmed: '已確認',
+  completed: '已完成',
+  cancelled: '已取消',
+}
 
 const statusBadge = (status: string) => {
   const map: Record<string, string> = {
@@ -196,7 +202,7 @@ export default function AdminPage() {
         setStylists(Array.isArray(stylistData) ? stylistData : [])
       }
     } catch {
-      toast.error('Failed to load admin master data')
+      toast.error('載入管理資料失敗')
     }
   }, [])
 
@@ -222,7 +228,7 @@ export default function AdminPage() {
         setBookings(Array.isArray(data) ? data : [])
       }
     } catch {
-      toast.error('Failed to load bookings')
+      toast.error('載入預約失敗')
     } finally {
       setLoading(false)
     }
@@ -239,7 +245,7 @@ export default function AdminPage() {
       const data = (await res.json()) as SchedulePayload
       setScheduleData(data)
     } catch {
-      toast.error('Failed to load schedules')
+      toast.error('載入排班失敗')
     }
   }, [scheduleTarget, scheduleBranchId, scheduleStylistId])
 
@@ -259,7 +265,7 @@ export default function AdminPage() {
   }, [scheduleTarget, scheduleBranchId, scheduleStylistId, fetchSchedules])
 
   const handleCancel = async (id: string) => {
-    if (!confirm('Cancel this booking?')) return
+    if (!confirm('確定取消此預約？')) return
     try {
       const res = await fetch(`/api/bookings/${id}`, {
         method: 'PATCH',
@@ -267,11 +273,11 @@ export default function AdminPage() {
         body: JSON.stringify({ status: 'cancelled' }),
       })
       if (res.ok) {
-        toast.success('Booking cancelled')
+        toast.success('預約已取消')
         fetchBookings()
       }
     } catch {
-      toast.error('Error cancelling booking')
+      toast.error('取消預約失敗')
     }
   }
 
@@ -283,24 +289,24 @@ export default function AdminPage() {
         body: JSON.stringify({ status: 'completed' }),
       })
       if (res.ok) {
-        toast.success('Marked as completed')
+        toast.success('已標記為完成')
         fetchBookings()
       }
     } catch {
-      toast.error('Error updating booking')
+      toast.error('更新預約失敗')
     }
   }
 
   const handleAddBooking = async () => {
     const { branch_id, service_id, date, start_time, customer_name, line_id } = addForm
     if (!branch_id || !service_id || !date || !start_time || !customer_name || !line_id) {
-      toast.error('Please fill required booking fields')
+      toast.error('請填寫必填的預約欄位')
       return
     }
 
     const service = services.find((s) => s.id === service_id)
     if (!service) {
-      toast.error('Invalid service selected')
+      toast.error('所選服務無效')
       return
     }
 
@@ -319,12 +325,12 @@ export default function AdminPage() {
       })
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Failed to add booking' }))
-        toast.error(err.error || 'Failed to add booking')
+        const err = await res.json().catch(() => ({ error: '新增預約失敗' }))
+        toast.error(err.error || '新增預約失敗')
         return
       }
 
-      toast.success('Booking added successfully')
+      toast.success('預約新增成功')
       setShowAddModal(false)
       setAddForm({
         branch_id: '',
@@ -338,7 +344,7 @@ export default function AdminPage() {
       })
       fetchBookings()
     } catch {
-      toast.error('Error adding booking')
+      toast.error('新增預約時發生錯誤')
     } finally {
       setAddLoading(false)
     }
@@ -346,7 +352,7 @@ export default function AdminPage() {
 
   const handleAddBranch = async () => {
     if (!branchForm.name.trim() || !branchForm.address.trim()) {
-      toast.error('Branch name and address are required')
+      toast.error('分店名稱與地址為必填')
       return
     }
 
@@ -362,34 +368,34 @@ export default function AdminPage() {
     })
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to add branch' }))
-      toast.error(err.error || 'Failed to add branch')
+      const err = await res.json().catch(() => ({ error: '新增分店失敗' }))
+      toast.error(err.error || '新增分店失敗')
       return
     }
 
-    toast.success('Branch added')
+    toast.success('分店已新增')
     setBranchForm({ name: '', address: '', staff_count: '2', phone: '' })
     fetchMasterData()
   }
 
   const handleDeleteBranch = async (id: string) => {
-    if (!confirm('Delete this branch? This removes related schedules and stylists.')) return
+    if (!confirm('確定刪除此分店？將同時移除相關排班與設計師。')) return
 
     const res = await fetch(`/api/branches/${id}`, { method: 'DELETE' })
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to delete branch' }))
-      toast.error(err.error || 'Failed to delete branch')
+      const err = await res.json().catch(() => ({ error: '刪除分店失敗' }))
+      toast.error(err.error || '刪除分店失敗')
       return
     }
 
-    toast.success('Branch deleted')
+    toast.success('分店已刪除')
     fetchMasterData()
     fetchBookings()
   }
 
   const handleAddStylist = async () => {
     if (!stylistForm.branch_id || !stylistForm.name.trim()) {
-      toast.error('Select branch and enter stylist name')
+      toast.error('請選擇分店並輸入設計師姓名')
       return
     }
 
@@ -404,12 +410,12 @@ export default function AdminPage() {
     })
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to add stylist' }))
-      toast.error(err.error || 'Failed to add stylist')
+      const err = await res.json().catch(() => ({ error: '新增設計師失敗' }))
+      toast.error(err.error || '新增設計師失敗')
       return
     }
 
-    toast.success('Stylist added')
+    toast.success('設計師已新增')
     setStylistForm({ branch_id: '', name: '', bio: '' })
     fetchMasterData()
   }
@@ -422,33 +428,33 @@ export default function AdminPage() {
     })
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to update stylist status' }))
-      toast.error(err.error || 'Failed to update stylist status')
+      const err = await res.json().catch(() => ({ error: '更新設計師狀態失敗' }))
+      toast.error(err.error || '更新設計師狀態失敗')
       return
     }
 
-    toast.success(stylist.is_active ? 'Stylist deactivated' : 'Stylist activated')
+    toast.success(stylist.is_active ? '設計師已停用' : '設計師已啟用')
     fetchMasterData()
   }
 
   const handleDeleteStylist = async (id: string) => {
-    if (!confirm('Delete this stylist?')) return
+    if (!confirm('確定刪除此設計師？')) return
 
     const res = await fetch(`/api/stylists/${id}`, { method: 'DELETE' })
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to delete stylist' }))
-      toast.error(err.error || 'Failed to delete stylist')
+      const err = await res.json().catch(() => ({ error: '刪除設計師失敗' }))
+      toast.error(err.error || '刪除設計師失敗')
       return
     }
 
-    toast.success('Stylist removed')
+    toast.success('設計師已移除')
     fetchMasterData()
   }
 
   const handleSaveWeekly = async () => {
     if (scheduleTarget === 'branch') {
       if (!scheduleBranchId) {
-        toast.error('Select a branch first')
+        toast.error('請先選擇分店')
         return
       }
 
@@ -465,18 +471,18 @@ export default function AdminPage() {
       })
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Failed to update branch hours' }))
-        toast.error(err.error || 'Failed to update branch hours')
+        const err = await res.json().catch(() => ({ error: '更新分店時段失敗' }))
+        toast.error(err.error || '更新分店時段失敗')
         return
       }
 
-      toast.success('Branch weekly hours updated')
+      toast.success('分店每週時段已更新')
       fetchSchedules()
       return
     }
 
     if (!scheduleStylistId) {
-      toast.error('Select a stylist first')
+      toast.error('請先選擇設計師')
       return
     }
 
@@ -494,24 +500,24 @@ export default function AdminPage() {
     })
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to update stylist weekly hours' }))
-      toast.error(err.error || 'Failed to update stylist weekly hours')
+      const err = await res.json().catch(() => ({ error: '更新設計師每週時段失敗' }))
+      toast.error(err.error || '更新設計師每週時段失敗')
       return
     }
 
-    toast.success('Stylist weekly hours updated')
+    toast.success('設計師每週時段已更新')
     fetchSchedules()
   }
 
   const handleAddOverride = async () => {
     if (!overrideForm.date) {
-      toast.error('Please choose a date')
+      toast.error('請選擇日期')
       return
     }
 
     if (scheduleTarget === 'branch') {
       if (!scheduleBranchId) {
-        toast.error('Select branch first')
+        toast.error('請先選擇分店')
         return
       }
 
@@ -530,19 +536,19 @@ export default function AdminPage() {
       })
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Failed to add branch override' }))
-        toast.error(err.error || 'Failed to add branch override')
+        const err = await res.json().catch(() => ({ error: '新增分店覆蓋設定失敗' }))
+        toast.error(err.error || '新增分店覆蓋設定失敗')
         return
       }
 
-      toast.success('Branch day override saved')
+      toast.success('分店特定日設定已儲存')
       fetchSchedules()
       fetchAllOverrides()
       return
     }
 
     if (!scheduleStylistId) {
-      toast.error('Select stylist first')
+      toast.error('請先選擇設計師')
       return
     }
 
@@ -561,12 +567,12 @@ export default function AdminPage() {
     })
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to add stylist override' }))
-      toast.error(err.error || 'Failed to add stylist override')
+      const err = await res.json().catch(() => ({ error: '新增設計師覆蓋設定失敗' }))
+      toast.error(err.error || '新增設計師覆蓋設定失敗')
       return
     }
 
-    toast.success('Stylist day override saved')
+    toast.success('設計師特定日設定已儲存')
     fetchSchedules()
     fetchAllOverrides()
   }
@@ -574,12 +580,12 @@ export default function AdminPage() {
   const handleDeleteOverride = async (type: 'branch_override' | 'stylist_override', id: string) => {
     const res = await fetch(`/api/schedules?type=${type}&id=${id}`, { method: 'DELETE' })
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to delete override' }))
-      toast.error(err.error || 'Failed to delete override')
+      const err = await res.json().catch(() => ({ error: '刪除覆蓋設定失敗' }))
+      toast.error(err.error || '刪除覆蓋設定失敗')
       return
     }
 
-    toast.success('Override removed')
+    toast.success('覆蓋設定已刪除')
     fetchSchedules()
     fetchAllOverrides()
   }
@@ -618,10 +624,10 @@ export default function AdminPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Sparkles className="w-5 h-5 text-rose-light" />
-              <span className="text-rose-light text-sm font-semibold uppercase tracking-widest">Staff Area</span>
+              <span className="text-rose-light text-sm font-semibold uppercase tracking-widest">員工專區</span>
             </div>
-            <h1 className="font-playfair text-3xl md:text-4xl text-white font-bold">Admin Dashboard</h1>
-            <p className="text-white/50 text-sm mt-1">Booking + Branch + Stylist + Schedule Management</p>
+            <h1 className="font-playfair text-3xl md:text-4xl text-white font-bold">管理後台</h1>
+            <p className="text-white/50 text-sm mt-1">預約・分店・設計師・排班管理</p>
           </div>
           <div className="flex gap-3">
             <button
@@ -633,13 +639,13 @@ export default function AdminPage() {
               }}
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-xl text-sm transition-colors"
             >
-              <RefreshCw className="w-4 h-4" /> Refresh
+              <RefreshCw className="w-4 h-4" /> 重新整理
             </button>
             <button
               onClick={() => setShowAddModal(true)}
               className="flex items-center gap-2 bg-rose text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-rose-dark transition-colors shadow-soft"
             >
-              <Plus className="w-4 h-4" /> Add Booking
+              <Plus className="w-4 h-4" /> 新增預約
             </button>
           </div>
         </div>
@@ -648,10 +654,10 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total', value: stats.total, icon: Calendar, color: 'text-charcoal', bg: 'bg-white' },
-            { label: 'Confirmed', value: stats.confirmed, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
-            { label: 'Completed', value: stats.completed, icon: CheckCircle, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Cancelled', value: stats.cancelled, icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
+            { label: '總計', value: stats.total, icon: Calendar, color: 'text-charcoal', bg: 'bg-white' },
+            { label: '已確認', value: stats.confirmed, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
+            { label: '已完成', value: stats.completed, icon: CheckCircle, color: 'text-blue-600', bg: 'bg-blue-50' },
+            { label: '已取消', value: stats.cancelled, icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
           ].map((stat) => (
             <div key={stat.label} className={`${stat.bg} rounded-2xl p-5 shadow-card`}>
               <div className="flex items-center gap-3">
@@ -666,7 +672,7 @@ export default function AdminPage() {
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="bg-white rounded-2xl shadow-card p-5 lg:col-span-1">
             <h2 className="font-playfair text-xl text-charcoal font-bold mb-4 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-rose" /> Branches
+              <Building2 className="w-5 h-5 text-rose" /> 分店管理
             </h2>
 
             <div className="space-y-2 mb-4 max-h-56 overflow-auto pr-1">
@@ -685,40 +691,40 @@ export default function AdminPage() {
 
             <div className="space-y-2">
               <input
-                placeholder="Branch name"
+                placeholder="分店名稱"
                 value={branchForm.name}
                 onChange={(e) => setBranchForm((f) => ({ ...f, name: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
               />
               <input
-                placeholder="Address"
+                placeholder="地址"
                 value={branchForm.address}
                 onChange={(e) => setBranchForm((f) => ({ ...f, address: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
-                  placeholder="Staff"
+                  placeholder="員工數"
                   value={branchForm.staff_count}
                   onChange={(e) => setBranchForm((f) => ({ ...f, staff_count: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
                 />
                 <input
-                  placeholder="Phone"
+                  placeholder="電話"
                   value={branchForm.phone}
                   onChange={(e) => setBranchForm((f) => ({ ...f, phone: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
                 />
               </div>
               <button onClick={handleAddBranch} className="w-full bg-charcoal text-white py-2 rounded-lg text-sm font-semibold">
-                Add Branch
+                新增分店
               </button>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl shadow-card p-5 lg:col-span-1">
             <h2 className="font-playfair text-xl text-charcoal font-bold mb-4 flex items-center gap-2">
-              <Scissors className="w-5 h-5 text-rose" /> Stylists
+              <Scissors className="w-5 h-5 text-rose" /> 設計師管理
             </h2>
 
             <div className="space-y-2 mb-4 max-h-56 overflow-auto pr-1">
@@ -728,14 +734,14 @@ export default function AdminPage() {
                   <div key={s.id} className="border border-blush rounded-xl p-3 flex items-start justify-between gap-2">
                     <div>
                       <p className="font-semibold text-sm text-charcoal">{s.name}</p>
-                      <p className="text-xs text-warmgray">{branch?.name || 'Unknown branch'}</p>
+                      <p className="text-xs text-warmgray">{branch?.name || '未知分店'}</p>
                       <p className={`text-[11px] mt-0.5 ${s.is_active ? 'text-green-600' : 'text-gray-500'}`}>
-                        {s.is_active ? 'Active' : 'Inactive'}
+                        {s.is_active ? '上班中' : '停用'}
                       </p>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleToggleStylist(s)} className="text-xs px-2 py-1 rounded bg-blush text-charcoal">
-                        {s.is_active ? 'Disable' : 'Enable'}
+                        {s.is_active ? '停用' : '啟用'}
                       </button>
                       <button onClick={() => handleDeleteStylist(s.id)} className="text-red-500 hover:text-red-700">
                         <Trash2 className="w-4 h-4" />
@@ -752,32 +758,32 @@ export default function AdminPage() {
                 onChange={(e) => setStylistForm((f) => ({ ...f, branch_id: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
               >
-                <option value="">Select branch...</option>
+                <option value="">選擇分店...</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
               <input
-                placeholder="Stylist name"
+                placeholder="設計師姓名"
                 value={stylistForm.name}
                 onChange={(e) => setStylistForm((f) => ({ ...f, name: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
               />
               <input
-                placeholder="Short bio (optional)"
+                placeholder="簡介（選填）"
                 value={stylistForm.bio}
                 onChange={(e) => setStylistForm((f) => ({ ...f, bio: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
               />
               <button onClick={handleAddStylist} className="w-full bg-charcoal text-white py-2 rounded-lg text-sm font-semibold">
-                Add Stylist
+                新增設計師
               </button>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl shadow-card p-5 lg:col-span-1">
             <h2 className="font-playfair text-xl text-charcoal font-bold mb-4 flex items-center gap-2">
-              <Settings className="w-5 h-5 text-rose" /> Schedule Manager
+              <Settings className="w-5 h-5 text-rose" /> 排班管理
             </h2>
 
             <div className="grid grid-cols-2 gap-2 mb-3">
@@ -785,13 +791,13 @@ export default function AdminPage() {
                 onClick={() => setScheduleTarget('branch')}
                 className={`py-2 rounded-lg text-sm font-semibold ${scheduleTarget === 'branch' ? 'bg-rose text-white' : 'bg-blush text-charcoal'}`}
               >
-                Branch
+                分店
               </button>
               <button
                 onClick={() => setScheduleTarget('stylist')}
                 className={`py-2 rounded-lg text-sm font-semibold ${scheduleTarget === 'stylist' ? 'bg-rose text-white' : 'bg-blush text-charcoal'}`}
               >
-                Stylist
+                設計師
               </button>
             </div>
 
@@ -804,7 +810,7 @@ export default function AdminPage() {
                 }}
                 className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
               >
-                <option value="">Select branch...</option>
+                <option value="">選擇分店...</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
@@ -816,7 +822,7 @@ export default function AdminPage() {
                   onChange={(e) => setScheduleStylistId(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
                 >
-                  <option value="">Select stylist...</option>
+                  <option value="">選擇設計師...</option>
                   {scheduleStylists.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -825,7 +831,7 @@ export default function AdminPage() {
             </div>
 
             <div className="space-y-2 border border-blush rounded-xl p-3 mb-3">
-              <p className="text-xs font-semibold text-charcoal uppercase tracking-wide">Weekly hours</p>
+              <p className="text-xs font-semibold text-charcoal uppercase tracking-wide">每週時段</p>
               <select
                 value={weeklyForm.dayOfWeek}
                 onChange={(e) => {
@@ -863,15 +869,15 @@ export default function AdminPage() {
                   checked={weeklyForm.isWorking}
                   onChange={(e) => setWeeklyForm((f) => ({ ...f, isWorking: e.target.checked }))}
                 />
-                Working on this day
+                此日有上班
               </label>
               <button onClick={handleSaveWeekly} className="w-full bg-charcoal text-white py-2 rounded-lg text-sm font-semibold">
-                Save Weekly Rule
+                儲存每週規則
               </button>
             </div>
 
             <div className="space-y-2 border border-blush rounded-xl p-3">
-              <p className="text-xs font-semibold text-charcoal uppercase tracking-wide">Day override</p>
+              <p className="text-xs font-semibold text-charcoal uppercase tracking-wide">特定日覆蓋</p>
               <input
                 type="date"
                 value={overrideForm.date}
@@ -898,30 +904,30 @@ export default function AdminPage() {
                   checked={overrideForm.isOffOrClosed}
                   onChange={(e) => setOverrideForm((f) => ({ ...f, isOffOrClosed: e.target.checked }))}
                 />
-                {scheduleTarget === 'branch' ? 'Closed all day' : 'Stylist off all day'}
+                {scheduleTarget === 'branch' ? '全天公休' : '設計師全天休假'}
               </label>
               <input
-                placeholder="Reason (optional)"
+                placeholder="原因（選填）"
                 value={overrideForm.reason}
                 onChange={(e) => setOverrideForm((f) => ({ ...f, reason: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
               />
               <button onClick={handleAddOverride} className="w-full bg-charcoal text-white py-2 rounded-lg text-sm font-semibold">
-                Save Day Override
+                儲存特定日設定
               </button>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-card p-5">
-          <h3 className="font-playfair text-xl text-charcoal font-bold mb-3">Recent Overrides</h3>
+          <h3 className="font-playfair text-xl text-charcoal font-bold mb-3">近期覆蓋設定</h3>
           <div className="grid md:grid-cols-2 gap-3">
             {allOverrides.branchOverrides.map((o) => (
               <div key={o.id} className="border border-blush rounded-xl p-3 text-sm flex justify-between gap-2">
                 <div>
-                  <p className="font-semibold text-charcoal">Branch · {o.date}</p>
+                  <p className="font-semibold text-charcoal">分店 · {o.date}</p>
                   <p className="text-warmgray text-xs">
-                    {o.is_closed ? 'Closed all day' : `${o.open_time || '--'} - ${o.close_time || '--'}`}
+                    {o.is_closed ? '全天公休' : `${o.open_time || '--'} - ${o.close_time || '--'}`}
                   </p>
                   {o.reason && <p className="text-xs text-warmgray mt-1">{o.reason}</p>}
                 </div>
@@ -933,9 +939,9 @@ export default function AdminPage() {
             {allOverrides.stylistOverrides.map((o) => (
               <div key={o.id} className="border border-blush rounded-xl p-3 text-sm flex justify-between gap-2">
                 <div>
-                  <p className="font-semibold text-charcoal">Stylist · {o.date}</p>
+                  <p className="font-semibold text-charcoal">設計師 · {o.date}</p>
                   <p className="text-warmgray text-xs">
-                    {o.is_off ? 'Off all day' : `${o.start_time || '--'} - ${o.end_time || '--'}`}
+                    {o.is_off ? '全天休假' : `${o.start_time || '--'} - ${o.end_time || '--'}`}
                   </p>
                   {o.reason && <p className="text-xs text-warmgray mt-1">{o.reason}</p>}
                 </div>
@@ -945,7 +951,7 @@ export default function AdminPage() {
               </div>
             ))}
             {allOverrides.branchOverrides.length === 0 && allOverrides.stylistOverrides.length === 0 && (
-              <p className="text-sm text-warmgray col-span-2">No overrides on record.</p>
+              <p className="text-sm text-warmgray col-span-2">目前無覆蓋設定。</p>
             )}
           </div>
         </div>
@@ -956,7 +962,7 @@ export default function AdminPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warmgray" />
               <input
                 type="text"
-                placeholder="Search name, LINE ID..."
+                placeholder="搜尋姓名、LINE ID..."
                 value={filters.search}
                 onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-blush text-sm focus:outline-none focus:border-rose bg-cream"
@@ -968,7 +974,7 @@ export default function AdminPage() {
                 onChange={(e) => setFilters((f) => ({ ...f, branch_id: e.target.value }))}
                 className="w-full px-4 py-2.5 rounded-xl border-2 border-blush text-sm focus:outline-none focus:border-rose bg-cream appearance-none cursor-pointer"
               >
-                <option value="">All Branches</option>
+                <option value="">所有分店</option>
                 {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warmgray pointer-events-none" />
@@ -985,10 +991,10 @@ export default function AdminPage() {
                 onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
                 className="w-full px-4 py-2.5 rounded-xl border-2 border-blush text-sm focus:outline-none focus:border-rose bg-cream appearance-none cursor-pointer"
               >
-                <option value="">All Statuses</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="">所有狀態</option>
+                <option value="confirmed">已確認</option>
+                <option value="completed">已完成</option>
+                <option value="cancelled">已取消</option>
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warmgray pointer-events-none" />
             </div>
@@ -997,25 +1003,25 @@ export default function AdminPage() {
           {loading ? (
             <div className="flex items-center justify-center py-24">
               <Loader2 className="w-8 h-8 text-rose animate-spin" />
-              <span className="ml-3 text-warmgray">Loading bookings...</span>
+              <span className="ml-3 text-warmgray">載入預約中...</span>
             </div>
           ) : filteredBookings.length === 0 ? (
             <div className="text-center py-16">
               <Calendar className="w-12 h-12 text-rose-light mx-auto mb-4" />
-              <p className="font-playfair text-xl text-charcoal font-semibold mb-2">No bookings found</p>
+              <p className="font-playfair text-xl text-charcoal font-semibold mb-2">找不到預約記錄</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full admin-table">
                 <thead>
                   <tr className="border-b border-blush">
-                    <th className="text-left px-6 py-4">Customer</th>
-                    <th className="text-left px-6 py-4">Branch</th>
-                    <th className="text-left px-6 py-4">Service</th>
-                    <th className="text-left px-6 py-4">Stylist</th>
-                    <th className="text-left px-6 py-4">Date & Time</th>
-                    <th className="text-left px-6 py-4">Status</th>
-                    <th className="text-right px-6 py-4">Actions</th>
+                    <th className="text-left px-6 py-4">顧客</th>
+                    <th className="text-left px-6 py-4">分店</th>
+                    <th className="text-left px-6 py-4">服務</th>
+                    <th className="text-left px-6 py-4">設計師</th>
+                    <th className="text-left px-6 py-4">日期 & 時間</th>
+                    <th className="text-left px-6 py-4">狀態</th>
+                    <th className="text-right px-6 py-4">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-blush/50">
@@ -1050,7 +1056,7 @@ export default function AdminPage() {
                             </p>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-charcoal">{stylist?.name || 'Auto-assigned'}</td>
+                        <td className="px-6 py-4 text-sm text-charcoal">{stylist?.name || '系統自動指派'}</td>
                         <td className="px-6 py-4">
                           <p className="text-sm text-charcoal font-medium">{booking.date}</p>
                           <p className="text-xs text-warmgray mt-0.5 flex items-center gap-1">
@@ -1060,7 +1066,7 @@ export default function AdminPage() {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${statusBadge(booking.status)}`}>
-                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            {STATUS_LABEL[booking.status] ?? booking.status}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -1071,17 +1077,17 @@ export default function AdminPage() {
                                   onClick={() => handleComplete(booking.id)}
                                   className="text-xs text-blue-600 hover:text-blue-700 font-medium px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
                                 >
-                                  Complete
+                                  完成
                                 </button>
                                 <button
                                   onClick={() => handleCancel(booking.id)}
                                   className="text-xs text-red-500 hover:text-red-700 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
                                 >
-                                  Cancel
+                                  取消
                                 </button>
                               </>
                             ) : (
-                              <span className="text-xs text-warmgray italic">No actions</span>
+                              <span className="text-xs text-warmgray italic">無可操作</span>
                             )}
                           </div>
                         </td>
@@ -1101,7 +1107,7 @@ export default function AdminPage() {
           <div className="relative bg-white rounded-3xl shadow-medium w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-7">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-playfair text-2xl text-charcoal font-bold">Add Booking</h2>
+                <h2 className="font-playfair text-2xl text-charcoal font-bold">新增預約</h2>
                 <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-blush rounded-full transition-colors">
                   <X className="w-5 h-5 text-warmgray" />
                 </button>
@@ -1109,25 +1115,25 @@ export default function AdminPage() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-charcoal mb-1.5 uppercase tracking-wide">Branch *</label>
+                  <label className="block text-xs font-semibold text-charcoal mb-1.5 uppercase tracking-wide">分店 *</label>
                   <select
                     value={addForm.branch_id}
                     onChange={(e) => setAddForm((f) => ({ ...f, branch_id: e.target.value, stylist_id: '' }))}
                     className="w-full px-4 py-2.5 rounded-xl border-2 border-blush focus:outline-none focus:border-rose text-sm bg-cream"
                   >
-                    <option value="">Select branch...</option>
+                    <option value="">選擇分店...</option>
                     {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-charcoal mb-1.5 uppercase tracking-wide">Service *</label>
+                  <label className="block text-xs font-semibold text-charcoal mb-1.5 uppercase tracking-wide">服務 *</label>
                   <select
                     value={addForm.service_id}
                     onChange={(e) => setAddForm((f) => ({ ...f, service_id: e.target.value }))}
                     className="w-full px-4 py-2.5 rounded-xl border-2 border-blush focus:outline-none focus:border-rose text-sm bg-cream"
                   >
-                    <option value="">Select service...</option>
+                    <option value="">選擇服務...</option>
                     {services.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name} - {formatPrice(s.price)} ({formatDuration(s.duration_minutes || 120)})
@@ -1137,13 +1143,13 @@ export default function AdminPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-charcoal mb-1.5 uppercase tracking-wide">Stylist (optional)</label>
+                  <label className="block text-xs font-semibold text-charcoal mb-1.5 uppercase tracking-wide">設計師（選填）</label>
                   <select
                     value={addForm.stylist_id}
                     onChange={(e) => setAddForm((f) => ({ ...f, stylist_id: e.target.value }))}
                     className="w-full px-4 py-2.5 rounded-xl border-2 border-blush focus:outline-none focus:border-rose text-sm bg-cream"
                   >
-                    <option value="">No preference (auto-assign)</option>
+                    <option value="">不指定（系統自動分配）</option>
                     {stylistsBySelectedBranch.map((s) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
@@ -1152,7 +1158,7 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-charcoal mb-1.5 uppercase tracking-wide">Date *</label>
+                    <label className="block text-xs font-semibold text-charcoal mb-1.5 uppercase tracking-wide">日期 *</label>
                     <input
                       type="date"
                       value={addForm.date}
@@ -1161,7 +1167,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-charcoal mb-1.5 uppercase tracking-wide">Start Time *</label>
+                    <label className="block text-xs font-semibold text-charcoal mb-1.5 uppercase tracking-wide">開始時間 *</label>
                     <input
                       type="time"
                       value={addForm.start_time}
@@ -1173,7 +1179,7 @@ export default function AdminPage() {
 
                 <input
                   type="text"
-                  placeholder="Customer name *"
+                  placeholder="顧客姓名 *"
                   value={addForm.customer_name}
                   onChange={(e) => setAddForm((f) => ({ ...f, customer_name: e.target.value }))}
                   className="w-full px-4 py-2.5 rounded-xl border-2 border-blush focus:outline-none focus:border-rose text-sm bg-cream"
@@ -1189,7 +1195,7 @@ export default function AdminPage() {
 
                 <input
                   type="tel"
-                  placeholder="Phone (optional)"
+                  placeholder="電話（選填）"
                   value={addForm.phone}
                   onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))}
                   className="w-full px-4 py-2.5 rounded-xl border-2 border-blush focus:outline-none focus:border-rose text-sm bg-cream"
@@ -1201,7 +1207,7 @@ export default function AdminPage() {
                   onClick={() => setShowAddModal(false)}
                   className="flex-1 py-3 rounded-xl border-2 border-blush text-warmgray font-semibold hover:bg-blush transition-colors text-sm"
                 >
-                  Cancel
+                  取消
                 </button>
                 <button
                   onClick={handleAddBooking}
@@ -1209,7 +1215,7 @@ export default function AdminPage() {
                   className="flex-1 py-3 rounded-xl bg-rose text-white font-semibold hover:bg-rose-dark transition-colors text-sm disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {addLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  Add Booking
+                  新增預約
                 </button>
               </div>
             </div>
