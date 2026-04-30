@@ -1,11 +1,10 @@
-import Link from 'next/link'
 import { Clock, Instagram, Sparkles } from 'lucide-react'
 
 export default function Footer() {
   return (
     <footer className="bg-charcoal text-white/80">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
@@ -63,25 +62,6 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h3 className="font-playfair text-white text-lg mb-4">線上預約</h3>
-            <ul className="space-y-2 text-sm">
-              {[
-                { href: '/booking', label: '立即預約' },
-                { href: '/admin', label: '店員後台' },
-              ].map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-white/60 hover:text-rose-light transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
         </div>
 
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-white/40">
