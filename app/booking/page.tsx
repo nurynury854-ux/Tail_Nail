@@ -533,8 +533,8 @@ function BookingContent() {
                   mode="single"
                   selected={state.date || undefined}
                   onSelect={(date) => setState((prev) => ({ ...prev, date: date || null, timeSlot: null }))}
-                  disabled={{ before: startOfToday() }}
-                  fromDate={startOfToday()}
+                  disabled={{ before: addDays(startOfToday(), 1) }}
+                  fromDate={addDays(startOfToday(), 1)}
                   toDate={addDays(startOfToday(), 60)}
                 />
               </div>

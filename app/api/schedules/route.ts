@@ -55,13 +55,36 @@ export async function POST(request: NextRequest) {
 
     const openColumn = `${day_key}_open`
     const closeColumn = `${day_key}_close`
-    const upsertPayload: Record<string, string | null> = {
-      branch_id,
+    const colUpdate: Record<string, string | null> = {
       [openColumn]: open_time || null,
       [closeColumn]: close_time || null,
     }
 
-    const { data, error } = await admin.from('branch_working_hours').upsert(upsertPayload).select().single()
+    // Use SELECT + UPDATE/INSERT to avoid duplicate rows from upsert on auto-PK
+    const { data: existing, error: fetchError } = await admin
+      .from('branch_working_hours')
+      .select('id')
+      .eq('branch_id', branch_id)
+      .maybeSingle()
+
+    if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+
+    let data, error
+    if (existing) {
+      ;({ data, error } = await admin
+        .from('branch_working_hours')
+        .update(colUpdate)
+        .eq('id', existing.id)
+        .select()
+        .single())
+    } else {
+      ;({ data, error } = await admin
+        .from('branch_working_hours')
+        .insert({ branch_id, ...colUpdate })
+        .select()
+        .single())
+    }
+
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json(data)
   }
