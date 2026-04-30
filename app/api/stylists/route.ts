@@ -63,5 +63,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: scheduleError.message }, { status: 500 })
   }
 
+  // Inherit max durations from existing stylists in the same branch
+  const { data: siblingStylists } = await admin
+    .from('stylists')
+    .select('id')
+    .eq('branch_id', branch_id)
+    .neq('id', data.id)
+
+  const siblingIds = (siblingStylists || []).map((s: { id: string }) => s.id)
+
+  if (siblingIds.length > 0) {
+    const { data: existingDurations } = await admin
+      .from('service_durations')
+      .select('service_id, category, duration_minutes')
+      .in('stylist_id', siblingIds)
+      .eq('is_pending', false)
+
+    // Build max duration per (service_id, category)
+    const maxMap: Record<string, { service_id: string; category: string; duration_minutes: number }> = {}
+    for (const row of existingDurations || []) {
+      const key = `${row.service_id}::${row.category}`
+      if (!maxMap[key] || row.duration_minutes > maxMap[key].duration_minutes) {
+        maxMap[key] = { service_id: row.service_id, category: row.category, duration_minutes: row.duration_minutes }
+      }
+    }
+
+    const durationDefaults = Object.values(maxMap).map((row) => ({
+      stylist_id: data.id,
+      service_id: row.service_id,
+      category: row.category,
+      duration_minutes: row.duration_minutes,
+      is_pending: false,
+    }))
+
+    if (durationDefaults.length > 0) {
+      await admin.from('service_durations').insert(durationDefaults)
+      // Non-fatal: if this fails the stylist is still created
+    }
+  }
+
   return NextResponse.json(data, { status: 201 })
 }
