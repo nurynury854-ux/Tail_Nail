@@ -120,7 +120,7 @@ function BookingContent() {
         service_name: selectedMain.name,
         service_type: 'main',
         category: state.category,
-        duration_minutes: dur ?? 0,
+        duration_minutes: dur || 120,
         is_pending: dur === null,
       })
     }
@@ -132,7 +132,7 @@ function BookingContent() {
         service_name: addon.name,
         service_type: 'addon',
         category: state.category,
-        duration_minutes: dur ?? 0,
+        duration_minutes: dur || 120,
         is_pending: dur === null,
       })
     }

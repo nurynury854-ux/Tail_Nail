@@ -27,11 +27,10 @@ export async function GET(request: NextRequest) {
     return jsonNoStore({ error: 'Missing required params: branch_id, date' }, { status: 400 })
   }
 
-  const branch = BRANCHES.find((b) => b.id === branchId)
   const service = serviceId ? SERVICES.find((s) => s.id === serviceId) : null
   const totalDuration = Number(totalDurationParam || service?.duration_minutes || 0)
 
-  if (!branch || Number.isNaN(totalDuration) || totalDuration <= 0) {
+  if (Number.isNaN(totalDuration) || totalDuration <= 0) {
     return jsonNoStore({ error: 'Invalid branch or duration' }, { status: 400 })
   }
 
@@ -40,6 +39,9 @@ export async function GET(request: NextRequest) {
   const dateObj = new Date(year, month - 1, day)
 
   if (!hasSupabaseConfig || !supabase) {
+    // Fallback path requires branch from the static list for staff_count
+    const branch = BRANCHES.find((b) => b.id === branchId)
+    if (!branch) return jsonNoStore({ error: 'Invalid branch' }, { status: 400 })
     const fallbackHours = defaultWorkingHoursByDay(dateObj.getDay())
     if (!fallbackHours) return jsonNoStore({ slots: [], source: 'fallback' })
 
