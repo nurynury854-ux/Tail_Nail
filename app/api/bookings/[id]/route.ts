@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, hasSupabaseConfig } from '@/lib/supabase'
+import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { generateCancellationMessage } from '@/lib/bookingUtils'
 
 async function sendLinePushMessage(userId: string, message: string): Promise<void> {
@@ -49,7 +49,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
     }
 
-    const { data, error } = await supabase
+    const admin = createAdminClient() ?? supabase!
+    const { data, error } = await admin
       .from('bookings')
       .update({ status })
       .eq('id', id)
@@ -95,7 +96,8 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
       return NextResponse.json({ success: true, id, source: 'fallback' })
     }
 
-    const { error } = await supabase.from('bookings').delete().eq('id', id)
+    const admin = createAdminClient() ?? supabase!
+    const { error } = await admin.from('bookings').delete().eq('id', id)
 
     if (error) {
       console.error('DELETE booking error:', error)

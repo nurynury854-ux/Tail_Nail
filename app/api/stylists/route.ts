@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasSupabaseConfig, supabase } from '@/lib/supabase'
+import { hasSupabaseConfig, supabase, createAdminClient } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!hasSupabaseConfig || !supabase) {
+  const admin = createAdminClient()
+  if (!hasSupabaseConfig || !admin) {
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })
   }
 
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'name and branch_id are required' }, { status: 400 })
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from('stylists')
     .insert({
       name: name.trim(),
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     is_working: true,
   }))
 
-  const { error: scheduleError } = await supabase.from('stylist_weekly_hours').insert(weeklyDefaults)
+  const { error: scheduleError } = await admin.from('stylist_weekly_hours').insert(weeklyDefaults)
   if (scheduleError) {
     return NextResponse.json({ error: scheduleError.message }, { status: 500 })
   }

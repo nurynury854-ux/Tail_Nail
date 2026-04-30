@@ -536,6 +536,8 @@ function BookingContent() {
                     <p className="text-sm text-warmgray inline-flex items-center">
                       <Loader2 className="w-4 h-4 animate-spin mr-1" /> 讀取時段中...
                     </p>
+                  ) : timeSlots.length === 0 ? (
+                    <p className="text-sm text-warmgray py-4 text-center">此日無可預約時段，請選擇其他日期。</p>
                   ) : (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                       {timeSlots.map((slot) => (

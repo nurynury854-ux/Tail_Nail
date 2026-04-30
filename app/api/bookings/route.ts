@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, hasSupabaseConfig } from '@/lib/supabase'
+import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { BRANCHES, SERVICES, Booking, SelectedServiceItem, Service, Stylist } from '@/lib/types'
 import {
   calculateEndTime,
@@ -513,7 +513,8 @@ export async function POST(request: NextRequest) {
       note: note?.trim() || null,
     }
 
-    const { data, error } = await supabase.from('bookings').insert(bookingPayload).select().single()
+    const admin = createAdminClient() ?? supabase!
+    const { data, error } = await admin.from('bookings').insert(bookingPayload).select().single()
 
     if (error) {
       return NextResponse.json({ error: normalizeSupabaseError(error.message) }, { status: 500 })

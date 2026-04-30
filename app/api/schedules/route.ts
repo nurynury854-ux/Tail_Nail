@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasSupabaseConfig, supabase } from '@/lib/supabase'
+import { hasSupabaseConfig, supabase, createAdminClient } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   if (!hasSupabaseConfig || !supabase) {
@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!hasSupabaseConfig || !supabase) {
+  const admin = createAdminClient()
+  if (!hasSupabaseConfig || !admin) {
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })
   }
 
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
       [closeColumn]: close_time || null,
     }
 
-    const { data, error } = await supabase.from('branch_working_hours').upsert(upsertPayload).select().single()
+    const { data, error } = await admin.from('branch_working_hours').upsert(upsertPayload).select().single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json(data)
   }
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'stylist_id and day_of_week are required' }, { status: 400 })
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from('stylist_weekly_hours')
       .upsert({
         stylist_id,
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     if (!branch_id || !date) return NextResponse.json({ error: 'branch_id and date are required' }, { status: 400 })
 
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from('branch_day_overrides')
       .upsert({
         branch_id,
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     if (!stylist_id || !date) return NextResponse.json({ error: 'stylist_id and date are required' }, { status: 400 })
 
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from('stylist_day_overrides')
       .upsert({
         stylist_id,
@@ -156,7 +157,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!hasSupabaseConfig || !supabase) {
+  const admin = createAdminClient()
+  if (!hasSupabaseConfig || !admin) {
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })
   }
 
@@ -169,13 +171,13 @@ export async function DELETE(request: NextRequest) {
   }
 
   if (type === 'branch_override') {
-    const { error } = await supabase.from('branch_day_overrides').delete().eq('id', id)
+    const { error } = await admin.from('branch_day_overrides').delete().eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
   if (type === 'stylist_override') {
-    const { error } = await supabase.from('stylist_day_overrides').delete().eq('id', id)
+    const { error } = await admin.from('stylist_day_overrides').delete().eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }

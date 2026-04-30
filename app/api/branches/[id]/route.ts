@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasSupabaseConfig, supabase } from '@/lib/supabase'
+import { hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  if (!hasSupabaseConfig || !supabase) {
+  const admin = createAdminClient()
+  if (!hasSupabaseConfig || !admin) {
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })
   }
 
@@ -15,7 +16,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     ...(typeof body.image_url === 'string' ? { image_url: body.image_url.trim() } : {}),
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from('branches')
     .update(updates)
     .eq('id', params.id)
@@ -27,11 +28,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
-  if (!hasSupabaseConfig || !supabase) {
+  const admin = createAdminClient()
+  if (!hasSupabaseConfig || !admin) {
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })
   }
 
-  const { error } = await supabase.from('branches').delete().eq('id', params.id)
+  const { error } = await admin.from('branches').delete().eq('id', params.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ success: true })
