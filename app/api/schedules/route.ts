@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     // Use SELECT + UPDATE/INSERT to avoid duplicate rows from upsert on auto-PK
     const { data: existing, error: fetchError } = await admin
       .from('branch_working_hours')
-      .select('id')
+      .select('branch_id')
       .eq('branch_id', branch_id)
       .maybeSingle()
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       ;({ data, error } = await admin
         .from('branch_working_hours')
         .update(colUpdate)
-        .eq('id', existing.id)
+        .eq('branch_id', branch_id)
         .select()
         .single())
     } else {
