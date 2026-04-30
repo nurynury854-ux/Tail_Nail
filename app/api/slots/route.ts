@@ -44,10 +44,11 @@ export async function GET(request: NextRequest) {
     if (!fallbackHours) return jsonNoStore({ slots: [], source: 'fallback' })
 
     const safeOpen = Math.max(fallbackHours.open, 11 * 60)
+    const LATEST_START = 19 * 60 // 7pm hard cutoff regardless of closing time
     const slots: TimeSlot[] = []
     for (let start = safeOpen; start < fallbackHours.close; start += 60) {
       const end = start + totalDuration
-      const fitsInHours = end <= fallbackHours.close
+      const fitsInHours = end <= fallbackHours.close && start < LATEST_START
       slots.push({
         time: minutesToTime(start),
         available: fitsInHours,
@@ -102,6 +103,7 @@ export async function GET(request: NextRequest) {
     if (!rawBranchWindow) {
       return jsonNoStore({ slots: [], source: 'database' })
     }
+    const LATEST_START = 19 * 60 // 7pm hard cutoff regardless of closing time
     const branchWindow = {
       open: Math.max(rawBranchWindow.open, 11 * 60),
       close: rawBranchWindow.close,
@@ -147,8 +149,8 @@ export async function GET(request: NextRequest) {
     for (let start = branchWindow.open; start < branchWindow.close; start += 60) {
       const end = start + totalDuration
 
-      if (end > branchWindow.close) {
-        // Service extends past closing — show slot as unavailable rather than hiding it
+      if (start >= LATEST_START || end > branchWindow.close) {
+        // Past 7pm cutoff or service extends past closing — show as unavailable
         slots.push({
           time: minutesToTime(start),
           available: false,

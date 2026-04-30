@@ -624,10 +624,10 @@ export default function AdminPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Sparkles className="w-5 h-5 text-rose-light" />
-              <span className="text-rose-light text-sm font-semibold uppercase tracking-widest">員工專區</span>
+              <span className="text-rose-light text-sm font-semibold uppercase tracking-widest">管理員登入</span>
             </div>
-            <h1 className="font-playfair text-3xl md:text-4xl text-white font-bold">管理後台</h1>
-            <p className="text-white/50 text-sm mt-1">預約・分店・設計師・排班管理</p>
+            <h1 className="font-playfair text-3xl md:text-4xl text-white font-bold">管理員後台</h1>
+            <p className="text-white/50 text-sm mt-1">預約・分店・設計師・排班</p>
           </div>
           <div className="flex gap-3">
             <button
@@ -639,7 +639,7 @@ export default function AdminPage() {
               }}
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-xl text-sm transition-colors"
             >
-              <RefreshCw className="w-4 h-4" /> 重新整理
+              <RefreshCw className="w-4 h-4" /> 刷新
             </button>
             <button
               onClick={() => setShowAddModal(true)}
@@ -741,7 +741,7 @@ export default function AdminPage() {
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleToggleStylist(s)} className="text-xs px-2 py-1 rounded bg-blush text-charcoal">
-                        {s.is_active ? '停用' : '啟用'}
+                        {s.is_active ? '刪除' : '啟用'}
                       </button>
                       <button onClick={() => handleDeleteStylist(s.id)} className="text-red-500 hover:text-red-700">
                         <Trash2 className="w-4 h-4" />
@@ -783,7 +783,7 @@ export default function AdminPage() {
 
           <div className="bg-white rounded-2xl shadow-card p-5 lg:col-span-1">
             <h2 className="font-playfair text-xl text-charcoal font-bold mb-4 flex items-center gap-2">
-              <Settings className="w-5 h-5 text-rose" /> 排班管理
+              <Settings className="w-5 h-5 text-rose" /> 排班
             </h2>
 
             <div className="grid grid-cols-2 gap-2 mb-3">
@@ -872,7 +872,7 @@ export default function AdminPage() {
                 此日有上班
               </label>
               <button onClick={handleSaveWeekly} className="w-full bg-charcoal text-white py-2 rounded-lg text-sm font-semibold">
-                儲存每週規則
+                保存
               </button>
             </div>
 
@@ -913,7 +913,7 @@ export default function AdminPage() {
                 className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
               />
               <button onClick={handleAddOverride} className="w-full bg-charcoal text-white py-2 rounded-lg text-sm font-semibold">
-                儲存特定日設定
+                保存
               </button>
             </div>
           </div>
