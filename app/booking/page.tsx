@@ -160,7 +160,16 @@ function BookingContent() {
     else params.set('branch_id', branchId)
     try {
       const res = await fetch(`/api/service-durations?${params}`)
-      if (res.ok) setStylistDurations(await res.json())
+      if (!res.ok) return
+      const durations = await res.json()
+      // If a specific stylist has no duration records, fall back to branch max
+      // so that slot availability is always calculated conservatively
+      if (stylistId && Object.keys(durations).length === 0) {
+        const fallback = await fetch(`/api/service-durations?branch_id=${branchId}&category=${category}`)
+        setStylistDurations(fallback.ok ? await fallback.json() : {})
+      } else {
+        setStylistDurations(durations)
+      }
     } catch { /* non-fatal */ }
   }, [])
 
