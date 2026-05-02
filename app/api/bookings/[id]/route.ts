@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
+import { getBranchLineConfig } from '@/lib/lineConfig'
 import { generateCancellationMessage } from '@/lib/bookingUtils'
 
-async function sendLinePushMessage(userId: string, message: string): Promise<void> {
-  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN
-  if (!token) return
-
+async function sendLinePushMessage(userId: string, message: string, accessToken: string): Promise<void> {
   const response = await fetch('https://api.line.me/v2/bot/message/push', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -41,7 +39,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     const { data: currentBooking, error: currentError } = await supabase
       .from('bookings')
-      .select('id, customer_name, line_id, date, start_time, branches(name)')
+      .select('id, customer_name, line_id, date, start_time, branch_id, branches(name)')
       .eq('id', id)
       .single()
 
@@ -75,7 +73,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           date: currentBooking.date,
           startTime: currentBooking.start_time,
         })
-        await sendLinePushMessage(currentBooking.line_id, message)
+        const lineConfig = getBranchLineConfig(currentBooking.branch_id)
+        if (lineConfig) {
+          await sendLinePushMessage(currentBooking.line_id, message, lineConfig.channelAccessToken)
+        } else {
+          console.warn(`No LINE config for branch ${currentBooking.branch_id} — cancellation message not sent`)
+        }
       } catch (lineError) {
         console.warn('Failed to send cancellation LINE message:', lineError)
       }

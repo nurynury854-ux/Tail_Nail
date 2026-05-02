@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
+import { getLineConfigByOaId } from '@/lib/lineConfig'
 
 function verifyLineSignature(body: string, signature: string | null, channelSecret: string): boolean {
   if (!signature) return false
@@ -12,16 +13,11 @@ function verifyLineSignature(body: string, signature: string | null, channelSecr
   return timingSafeEqual(signatureBuffer, computedBuffer)
 }
 
-async function sendLineReply(replyToken: string, message: string): Promise<void> {
-  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN
-  if (!token) {
-    throw new Error('LINE_CHANNEL_ACCESS_TOKEN is not configured')
-  }
-
+async function sendLineReply(replyToken: string, message: string, accessToken: string): Promise<void> {
   const response = await fetch('https://api.line.me/v2/bot/message/reply', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -42,19 +38,10 @@ function shouldAutoReply(): boolean {
 
 export async function POST(request: NextRequest) {
   try {
-    const channelSecret = process.env.LINE_CHANNEL_SECRET
-    if (!channelSecret) {
-      return NextResponse.json({ message: 'LINE_CHANNEL_SECRET is not configured' }, { status: 500 })
-    }
-
     const signature = request.headers.get('x-line-signature')
     const rawBody = await request.text()
 
-    const isValid = verifyLineSignature(rawBody, signature, channelSecret)
-    if (!isValid) {
-      return NextResponse.json({ message: 'Invalid signature' }, { status: 401 })
-    }
-
+    // Parse body first to read `destination` (OA's own userId), then verify with the matching branch secret
     const body = JSON.parse(rawBody) as {
       destination?: string
       events?: Array<{
@@ -67,9 +54,29 @@ export async function POST(request: NextRequest) {
       }>
     }
 
+    const destination = body.destination ?? ''
+    const branchMatch = getLineConfigByOaId(destination)
+
+    if (!branchMatch) {
+      console.warn(`[LINE webhook] Unknown OA destination: ${destination} — no matching branch config`)
+      // Return 200 so LINE doesn't keep retrying; we just don't process it
+      return NextResponse.json({ message: 'Unknown OA' }, { status: 200 })
+    }
+
+    const { config, branchId } = branchMatch
+
+    if (!config.channelSecret) {
+      return NextResponse.json({ message: 'Channel secret not configured for this branch' }, { status: 500 })
+    }
+
+    const isValid = verifyLineSignature(rawBody, signature, config.channelSecret)
+    if (!isValid) {
+      return NextResponse.json({ message: 'Invalid signature' }, { status: 401 })
+    }
+
     const autoReplyEnabled = shouldAutoReply()
 
-    console.log('[LINE webhook] destination:', body.destination ?? 'unknown')
+    console.log(`[LINE webhook] branch: ${branchId}, destination: ${destination}`)
     console.log('[LINE webhook] auto-reply enabled:', autoReplyEnabled)
     for (const event of body.events ?? []) {
       console.log('[LINE webhook] event:', {
@@ -96,9 +103,10 @@ export async function POST(request: NextRequest) {
         try {
           await sendLineReply(
             event.replyToken,
-            `Thanks for reaching out! 💅\n\nClick here to book your appointment:\n${bookingUrl}`
+            `Thanks for reaching out! 💅\n\nClick here to book your appointment:\n${bookingUrl}`,
+            config.channelAccessToken
           )
-          console.log(`[LINE webhook] Sent booking link to userId: ${userId}`)
+          console.log(`[LINE webhook] Sent booking link to userId: ${userId} (branch ${branchId})`)
         } catch (replyError) {
           console.error('[LINE webhook] Failed to send reply:', replyError)
         }

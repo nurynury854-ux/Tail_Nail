@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
+import { getBranchLineConfig } from '@/lib/lineConfig'
 import { BRANCHES, SERVICES, Booking, SelectedServiceItem, Service, Stylist } from '@/lib/types'
 import {
   calculateEndTime,
@@ -34,16 +35,11 @@ type BookingRequestBody = {
   note?: string
 }
 
-async function sendLinePushMessage(userId: string, message: string): Promise<void> {
-  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN
-  if (!token) {
-    throw new Error('LINE_CHANNEL_ACCESS_TOKEN is not configured')
-  }
-
+async function sendLinePushMessage(userId: string, message: string, accessToken: string): Promise<void> {
   const response = await fetch('https://api.line.me/v2/bot/message/push', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -306,9 +302,10 @@ export async function POST(request: NextRequest) {
       })
 
       let lineNotificationSent = false
-      if (normalizedLineId) {
+      const fallbackLineConfig = getBranchLineConfig(branch_id)
+      if (normalizedLineId && fallbackLineConfig) {
         try {
-          await sendLinePushMessage(normalizedLineId, confirmationMessage)
+          await sendLinePushMessage(normalizedLineId, confirmationMessage, fallbackLineConfig.channelAccessToken)
           lineNotificationSent = true
         } catch (err) {
           console.warn('LINE push failed in fallback mode:', err)
@@ -539,22 +536,24 @@ export async function POST(request: NextRequest) {
       stylistName: assignedStylistName,
     })
 
+    const lineConfig = getBranchLineConfig(branch_id)
     let lineNotificationSent = false
-    if (normalizedLineId) {
+    if (normalizedLineId && lineConfig) {
       try {
-        await sendLinePushMessage(normalizedLineId, confirmationMessage)
+        await sendLinePushMessage(normalizedLineId, confirmationMessage, lineConfig.channelAccessToken)
         lineNotificationSent = true
       } catch (lineError) {
         console.warn(`Failed to send to customer LINE ID ${normalizedLineId}:`, lineError)
       }
     }
 
-    const businessNotifyId = process.env.LINE_BOOKING_NOTIFY_TO?.trim()
-    if (businessNotifyId) {
+    const businessNotifyId = lineConfig?.notifyTo?.trim()
+    if (businessNotifyId && lineConfig) {
       try {
         await sendLinePushMessage(
           businessNotifyId,
-          `🆕 新預約\n${bookingPayload.customer_name}｜${dbBranch.name}\n${date} ${start_time}-${finalEndTime}\n${serviceLine}\n美甲師：${assignedStylistName || '不指定'}`
+          `🆕 新預約\n${bookingPayload.customer_name}｜${dbBranch.name}\n${date} ${start_time}-${finalEndTime}\n${serviceLine}\n美甲師：${assignedStylistName || '不指定'}`,
+          lineConfig.channelAccessToken
         )
       } catch (notifyError) {
         console.warn('Business LINE new-booking notify failed:', notifyError)
