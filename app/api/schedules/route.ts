@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         start_time: start_time || null,
         end_time: end_time || null,
         is_working: Boolean(is_working),
-      })
+      }, { onConflict: 'stylist_id,day_of_week' })
       .select()
       .single()
 
