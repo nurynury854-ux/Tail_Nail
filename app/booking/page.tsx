@@ -41,6 +41,7 @@ function BookingContent() {
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [loadingStylists, setLoadingStylists] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [lineIdLocked, setLineIdLocked] = useState(false)
 
   const [state, setState] = useState<BookingState>({
     branch: null,
@@ -75,6 +76,7 @@ function BookingContent() {
     const userId = searchParams.get('userId')
     if (userId) {
       setState((prev) => ({ ...prev, lineId: userId }))
+      setLineIdLocked(true)
     }
   }, [searchParams])
 
@@ -606,12 +608,18 @@ function BookingContent() {
                   value={state.phone}
                   onChange={(e) => setState((prev) => ({ ...prev, phone: e.target.value }))}
                 />
-                <input
-                  className="w-full border border-blush rounded-xl px-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-rose/30 focus:border-rose transition-all"
-                  placeholder="LINE ID（選填）"
-                  value={state.lineId}
-                  onChange={(e) => setState((prev) => ({ ...prev, lineId: e.target.value }))}
-                />
+                {lineIdLocked ? (
+                  <div className="w-full border border-green-200 bg-green-50 rounded-xl px-4 py-2.5 text-sm text-green-700 shadow-sm">
+                    ✓ 已連結您的 LINE 帳號
+                  </div>
+                ) : (
+                  <input
+                    className="w-full border border-blush rounded-xl px-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-rose/30 focus:border-rose transition-all"
+                    placeholder="LINE ID（選填）"
+                    value={state.lineId}
+                    onChange={(e) => setState((prev) => ({ ...prev, lineId: e.target.value }))}
+                  />
+                )}
                 <textarea
                   className="w-full border border-blush rounded-xl px-4 py-2.5 text-sm shadow-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-rose/30 focus:border-rose transition-all"
                   placeholder="特殊需求備註（選填）"

@@ -126,7 +126,6 @@ export function generateConfirmationMessage(booking: {
 
   return (
     `✅ 預約確認通知 | 小尾巴美甲\n\n` +
-    `親愛的 ${booking.customerName}，您的預約已成功建立！\n\n` +
     `📍 分店：${booking.branchName}\n` +
     `💅 服務項目：${booking.serviceLine}\n` +
     `👩‍🎨 美甲師：${stylistLine}\n` +
