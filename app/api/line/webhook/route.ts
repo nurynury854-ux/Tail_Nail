@@ -32,10 +32,6 @@ async function sendLineReply(replyToken: string, message: string, accessToken: s
   }
 }
 
-function shouldAutoReply(): boolean {
-  return process.env.LINE_WEBHOOK_AUTO_REPLY === 'true'
-}
-
 export async function POST(request: NextRequest) {
   try {
     const signature = request.headers.get('x-line-signature')
@@ -74,10 +70,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid signature' }, { status: 401 })
     }
 
-    const autoReplyEnabled = shouldAutoReply()
-
     console.log(`[LINE webhook] branch: ${branchId}, destination: ${destination}`)
-    console.log('[LINE webhook] auto-reply enabled:', autoReplyEnabled)
     for (const event of body.events ?? []) {
       console.log('[LINE webhook] event:', {
         type: event.type,
@@ -89,11 +82,10 @@ export async function POST(request: NextRequest) {
         text: event.message?.text,
       })
 
-      // Silent mode is the default so existing LINE OA auto responses are not duplicated.
       if (
-        autoReplyEnabled &&
         event.type === 'message' &&
         event.message?.type === 'text' &&
+        event.message.text === '快速預約' &&
         event.source?.userId &&
         event.replyToken
       ) {
@@ -103,7 +95,7 @@ export async function POST(request: NextRequest) {
         try {
           await sendLineReply(
             event.replyToken,
-            `Thanks for reaching out! 💅\n\nClick here to book your appointment:\n${bookingUrl}`,
+            `感謝您的來訊！💅\n\n點擊以下連結即可線上預約：\n${bookingUrl}`,
             config.channelAccessToken
           )
           console.log(`[LINE webhook] Sent booking link to userId: ${userId} (branch ${branchId})`)
