@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
         try {
           await sendLineReply(
             event.replyToken,
-            `感謝您的來訊！💅\n\n點擊以下連結即可線上預約：\n${bookingUrl}`,
+            `Thanks for reaching out! 💅\n\nClick here to book your appointment:\n${bookingUrl}`,
             config.channelAccessToken
           )
           console.log(`[LINE webhook] Sent booking link to userId: ${userId} (branch ${branchId})`)
