@@ -436,15 +436,25 @@ export async function POST(request: NextRequest) {
       }
 
       const endTime = minutesToTime(endMin)
-      const { data: conflicts, error: conflictError } = await supabase
+
+      // Foot services: one equipment per branch — block if any foot booking overlaps.
+      // Hand services: per-stylist check — different stylists can work simultaneously.
+      let conflictQuery = supabase
         .from('bookings')
         .select('id, stylist_id')
         .eq('branch_id', branch_id)
         .eq('date', date)
         .eq('status', 'confirmed')
-        .eq('stylist_id', stylist.id)
         .lt('start_time', endTime)
         .gt('end_time', start_time)
+
+      if (bookingCategory === 'foot') {
+        conflictQuery = conflictQuery.eq('category', 'foot')
+      } else {
+        conflictQuery = conflictQuery.eq('stylist_id', stylist.id)
+      }
+
+      const { data: conflicts, error: conflictError } = await conflictQuery
 
       if (conflictError) {
         return NextResponse.json({ error: normalizeSupabaseError(conflictError.message) }, { status: 500 })

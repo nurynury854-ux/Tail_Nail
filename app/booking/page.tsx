@@ -208,6 +208,7 @@ function BookingContent() {
         branch_id: state.branch.id,
         date: formatDate(state.date),
         total_duration: String(totalDuration),
+        category: state.category,
       })
 
       if (!state.noPreference && state.stylist) {
@@ -273,6 +274,7 @@ function BookingContent() {
         branch_id: state.branch.id,
         date,
         total_duration: String(totalDuration),
+        category: state.category,
         ...(state.noPreference || !state.stylist ? {} : { stylist_id: state.stylist.id }),
       }).toString()}`, { cache: 'no-store' })
 

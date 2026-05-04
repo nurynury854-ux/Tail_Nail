@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
   const serviceId = searchParams.get('service_id')
   const stylistId = searchParams.get('stylist_id')
   const totalDurationParam = searchParams.get('total_duration')
+  const category = searchParams.get('category') as 'hand' | 'foot' | null
 
   if (!branchId || !date) {
     return jsonNoStore({ error: 'Missing required params: branch_id, date' }, { status: 400 })
@@ -163,6 +164,21 @@ export async function GET(request: NextRequest) {
           availableStylists: 0,
         })
         continue
+      }
+
+      // Foot services share one piece of equipment per branch — if any foot booking
+      // overlaps this slot, the slot is blocked for everyone regardless of stylist.
+      if (category === 'foot') {
+        const hasFootConflict = (existingBookings || []).some((booking) => {
+          if ((booking as Booking & { category?: string }).category !== 'foot') return false
+          const bStart = timeToMinutes(booking.start_time)
+          const bEnd = timeToMinutes(booking.end_time)
+          return bStart < end && bEnd > start
+        })
+        if (hasFootConflict) {
+          slots.push({ time: minutesToTime(start), available: false, bookingsCount: 0, availableStylists: 0 })
+          continue
+        }
       }
 
       const availableStylistIds = getAvailableStylistsForSlot({
