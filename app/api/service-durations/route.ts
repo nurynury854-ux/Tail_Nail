@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
         map[row.service_id] = row.duration_minutes
       }
     }
+    map['svc-main-custom-style'] = 120 // 自帶圖 is always 120 min regardless of stylist
     return NextResponse.json(map)
   }
 
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
         map[row.service_id] = Math.max(map[row.service_id] || 0, row.duration_minutes)
       }
     }
+    map['svc-main-custom-style'] = 120 // 自帶圖 is always 120 min regardless of stylist
     return NextResponse.json(map)
   }
 

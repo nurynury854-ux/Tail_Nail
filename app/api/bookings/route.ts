@@ -283,7 +283,8 @@ export async function POST(request: NextRequest) {
       }
 
       const endMin = startMin + finalTotalDuration
-      if (startMin < hours.open || endMin > hours.close) {
+      const effectiveClose = Math.max(hours.close, 22 * 60 + 30)
+      if (startMin < hours.open || endMin > effectiveClose) {
         return NextResponse.json({ error: '時段超出營業時間' }, { status: 400 })
       }
 
@@ -294,6 +295,7 @@ export async function POST(request: NextRequest) {
         customerName: customer_name.trim(),
         branchName: branch.name,
         serviceLine,
+        category: bookingCategory,
         date,
         startTime: start_time,
         endTime: finalEndTime,
@@ -539,6 +541,7 @@ export async function POST(request: NextRequest) {
       customerName: bookingPayload.customer_name,
       branchName: dbBranch.name,
       serviceLine,
+      category: bookingCategory,
       date,
       startTime: start_time,
       endTime: finalEndTime,
@@ -562,7 +565,7 @@ export async function POST(request: NextRequest) {
       try {
         await sendLinePushMessage(
           businessNotifyId,
-          `🆕 新預約\n${bookingPayload.customer_name}｜${dbBranch.name}\n${date} ${start_time}-${finalEndTime}\n${serviceLine}\n美甲師：${assignedStylistName || '不指定'}`,
+          `🆕 新預約\n${bookingPayload.customer_name}｜${dbBranch.name}\n${date} ${start_time}-${finalEndTime}\n部位：${bookingCategory === 'hand' ? '手部' : '足部'}\n${serviceLine}\n美甲師：${assignedStylistName || '不指定'}`,
           lineConfig.channelAccessToken
         )
       } catch (notifyError) {

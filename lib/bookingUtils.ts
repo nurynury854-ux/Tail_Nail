@@ -13,7 +13,7 @@ export function minutesToTime(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-// Get working hours for a given date — open every day 11:00–21:00 by default
+// Get working hours for a given date — open every day 11:00–21:00 by default (display close)
 export function getWorkingHours(_date: Date): { open: number; close: number } | null {
   return { open: 11 * 60, close: 21 * 60 }
 }
@@ -116,6 +116,7 @@ export function generateConfirmationMessage(booking: {
   customerName: string
   branchName: string
   serviceLine: string
+  category?: 'hand' | 'foot'
   date: string
   startTime: string
   endTime: string
@@ -123,10 +124,12 @@ export function generateConfirmationMessage(booking: {
   stylistName?: string
 }): string {
   const stylistLine = booking.stylistName ? booking.stylistName : '不指定'
+  const categoryLine = booking.category === 'hand' ? '手部' : booking.category === 'foot' ? '足部' : null
 
   return (
     `✅ 預約確認通知 | 小尾巴美甲\n\n` +
     `📍 分店：${booking.branchName}\n` +
+    (categoryLine ? `🖐 部位：${categoryLine}\n` : '') +
     `💅 服務項目：${booking.serviceLine}\n` +
     `👩‍🎨 美甲師：${stylistLine}\n` +
     `📅 日期：${formatDisplayDate(booking.date)}\n` +

@@ -632,6 +632,7 @@ function BookingContent() {
 
               <div className="mt-6 p-5 rounded-2xl bg-white/80 border border-[#DDD5C8] text-sm shadow-md space-y-1">
                 <p>分店：{state.branch?.name}</p>
+                <p>部位：{state.category === 'hand' ? '手部' : '足部'}</p>
                 <p>服務：{selectedServicesLabel}</p>
                 <p>美甲師：{state.noPreference ? '不指定' : state.stylist?.name}</p>
                 <p>日期：{state.date ? formatDisplayDate(formatDate(state.date)) : '-'}</p>
@@ -659,6 +660,7 @@ function BookingContent() {
               <div className="mt-4 text-sm bg-white/80 border border-[#DDD5C8] rounded-2xl p-5 space-y-1 shadow-md">
                 <p>預約編號：{state.bookingId || '-'}</p>
                 <p>分店：{state.branch?.name}</p>
+                <p>部位：{state.category === 'hand' ? '手部' : '足部'}</p>
                 <p>服務：{selectedServicesLabel}</p>
                 <p>美甲師：{state.assignedStylistName || (state.noPreference ? '不指定' : state.stylist?.name || '-')}</p>
                 <p>日期：{state.date ? format(state.date, 'yyyy-MM-dd') : '-'}</p>

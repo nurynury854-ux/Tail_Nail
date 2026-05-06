@@ -47,12 +47,13 @@ export async function GET(request: NextRequest) {
     if (!fallbackHours) return jsonNoStore({ slots: [], source: 'fallback' })
 
     const safeOpen = Math.max(fallbackHours.open, 11 * 60)
-    const LATEST_START = 19 * 60 // 7pm is the latest allowed start time
+    const LATEST_START = 19 * 60 // 7pm — last slot that can start
+    const EFFECTIVE_CLOSE = Math.max(fallbackHours.close, 22 * 60 + 30)
     const slots: TimeSlot[] = []
-    for (let start = safeOpen; start < fallbackHours.close; start += 60) {
-      if (start > LATEST_START) continue // hide slots after 7pm entirely
+    for (let start = safeOpen; start < EFFECTIVE_CLOSE; start += 60) {
+      if (start > LATEST_START) continue
       const end = start + totalDuration
-      const fitsInHours = end <= fallbackHours.close
+      const fitsInHours = end <= EFFECTIVE_CLOSE
       slots.push({
         time: minutesToTime(start),
         available: fitsInHours,
@@ -107,10 +108,13 @@ export async function GET(request: NextRequest) {
     if (!rawBranchWindow) {
       return jsonNoStore({ slots: [], source: 'database' })
     }
-    const LATEST_START = 19 * 60 // 7pm hard cutoff regardless of closing time
+    const LATEST_START = 19 * 60 // 7pm — last slot that can start
+    // Effective close is always at least 22:30 so services finishing after 9pm aren't blocked.
+    // The displayed/stored close time stays as-is (9pm), but the finishing deadline extends to 10:30pm.
+    const EFFECTIVE_CLOSE = Math.max(rawBranchWindow.close, 22 * 60 + 30)
     const branchWindow = {
       open: Math.max(rawBranchWindow.open, 11 * 60),
-      close: rawBranchWindow.close,
+      close: EFFECTIVE_CLOSE,
     }
 
     const stylistIds = activeStylists.map((stylist) => stylist.id)
@@ -151,7 +155,7 @@ export async function GET(request: NextRequest) {
 
     const slots: TimeSlot[] = []
     for (let start = branchWindow.open; start < branchWindow.close; start += 60) {
-      if (start > LATEST_START) continue // hide slots after 7pm entirely — no pill shown
+      if (start > LATEST_START) continue
 
       const end = start + totalDuration
 
