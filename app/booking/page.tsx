@@ -39,6 +39,8 @@ function BookingContent() {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [stylistDurations, setStylistDurations] = useState<Record<string, number>>({})
   const [durationsReady, setDurationsReady] = useState(false)
+  const [weeklyOffDays, setWeeklyOffDays] = useState<number[]>([])
+  const [fullOffDates, setFullOffDates] = useState<Date[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [loadingStylists, setLoadingStylists] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -63,6 +65,7 @@ function BookingContent() {
   const goBack = () => {
     setStep((s) => {
       const prev = Math.max(1, s - 1) as Step
+      if (prev <= 3) { setWeeklyOffDays([]); setFullOffDates([]) }
       if (prev <= 2) { setStylistDurations({}); setDurationsReady(false) }
       return prev
     })
@@ -153,6 +156,21 @@ function BookingContent() {
     return selectedServices.map((s) => s.service_name || s.service_id).join(' + ')
   }, [selectedServices])
 
+  const fetchStylistOffDates = useCallback(async (stylistId: string) => {
+    try {
+      const res = await fetch(`/api/stylist-schedule?stylist_id=${stylistId}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setWeeklyOffDays(data.weekly_off_days || [])
+      setFullOffDates(
+        (data.full_off_dates as string[] || []).map((d) => {
+          const [y, m, day] = d.split('-').map(Number)
+          return new Date(y, m - 1, day)
+        })
+      )
+    } catch { /* non-fatal */ }
+  }, [])
+
   const fetchStylistDurations = useCallback(async (
     stylistId: string | null,
     branchId: string,
@@ -238,6 +256,10 @@ function BookingContent() {
 
   useEffect(() => {
     if (step !== 4 || !state.branch) return
+    // Fetch stylist off dates (for calendar greying) when a specific stylist is selected
+    if (!state.noPreference && state.stylist) {
+      void fetchStylistOffDates(state.stylist.id)
+    }
     // Fetch durations first so totalDuration is correct before slot fetch runs
     void fetchStylistDurations(
       state.noPreference ? null : state.stylist?.id ?? null,
@@ -541,7 +563,11 @@ function BookingContent() {
                   mode="single"
                   selected={state.date || undefined}
                   onSelect={(date) => setState((prev) => ({ ...prev, date: date || null, timeSlot: null }))}
-                  disabled={{ before: addDays(startOfToday(), 1) }}
+                  disabled={[
+                    { before: addDays(startOfToday(), 1) },
+                    ...(weeklyOffDays.length > 0 ? [{ dayOfWeek: weeklyOffDays }] : []),
+                    ...fullOffDates,
+                  ]}
                   fromDate={addDays(startOfToday(), 1)}
                   toDate={addDays(startOfToday(), 60)}
                 />

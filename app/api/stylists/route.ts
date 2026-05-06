@@ -65,11 +65,11 @@ export async function POST(request: NextRequest) {
 
   // Apply hardcoded default durations for new stylists
   const DEFAULT_DURATIONS: Array<{ service_id: string; hand: number; foot: number }> = [
-    { service_id: 'svc-main-solid', hand: 40, foot: 30 },
-    { service_id: 'svc-main-cat-eye', hand: 50, foot: 40 },
-    { service_id: 'svc-main-gradient', hand: 50, foot: 50 },
-    { service_id: 'svc-main-french', hand: 60, foot: 60 },
-    { service_id: 'svc-main-mirror', hand: 60, foot: 60 },
+    { service_id: 'svc-main-solid', hand: 60, foot: 40 },
+    { service_id: 'svc-main-cat-eye', hand: 90, foot: 60 },
+    { service_id: 'svc-main-gradient', hand: 90, foot: 60 },
+    { service_id: 'svc-main-french', hand: 90, foot: 80 },
+    { service_id: 'svc-main-mirror', hand: 90, foot: 90 },
     { service_id: 'svc-main-store-style', hand: 90, foot: 90 },
     { service_id: 'svc-main-custom-style', hand: 120, foot: 120 },
     { service_id: 'svc-addon-remove', hand: 30, foot: 30 },
