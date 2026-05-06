@@ -150,7 +150,8 @@ export async function GET(request: NextRequest) {
     const day = dateObj.getDay()
     const stylistWindows: Record<string, { open: number; close: number } | null> = {}
     for (const stylist of activeStylists) {
-      stylistWindows[stylist.id] = resolveStylistWindow(day, weeklyMap[stylist.id] || [], overrideMap[stylist.id])
+      const w = resolveStylistWindow(day, weeklyMap[stylist.id] || [], overrideMap[stylist.id])
+      stylistWindows[stylist.id] = w ? { open: w.open, close: Math.max(w.close, 22 * 60 + 30) } : null
     }
 
     const slots: TimeSlot[] = []

@@ -139,6 +139,7 @@ async function enrichServiceDurationsForStylist(args: {
   for (const row of data || []) {
     if (row.duration_minutes) durationMap.set(row.service_id, row.duration_minutes)
   }
+  durationMap.set('svc-main-custom-style', 120) // 自帶圖 is always 120 min regardless of stylist DB value
 
   const items = services.map((item) => {
     const confirmed = durationMap.get(item.service_id)
@@ -407,15 +408,20 @@ export async function POST(request: NextRequest) {
       overrideMap[row.stylist_id] = row
     }
 
-    const branchWindow = resolveBranchWindow(dateObj, branchHours, branchOverride)
-    if (!branchWindow) {
+    const rawBranchWindow = resolveBranchWindow(dateObj, branchHours, branchOverride)
+    if (!rawBranchWindow) {
       return NextResponse.json({ error: '所選日期分店休息' }, { status: 400 })
+    }
+    const branchWindow = {
+      open: rawBranchWindow.open,
+      close: Math.max(rawBranchWindow.close, 22 * 60 + 30),
     }
 
     const dayOfWeek = dateObj.getDay()
     const stylistWindows: Record<string, { open: number; close: number } | null> = {}
     for (const stylist of stylists) {
-      stylistWindows[stylist.id] = resolveStylistWindow(dayOfWeek, weeklyMap[stylist.id] || [], overrideMap[stylist.id])
+      const w = resolveStylistWindow(dayOfWeek, weeklyMap[stylist.id] || [], overrideMap[stylist.id])
+      stylistWindows[stylist.id] = w ? { open: w.open, close: Math.max(w.close, 22 * 60 + 30) } : null
     }
 
     const availabilityByStylist: Record<string, { total: number; items: SelectedServiceItem[]; endTime: string }> = {}
