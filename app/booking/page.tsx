@@ -38,6 +38,7 @@ function BookingContent() {
   const [stylists, setStylists] = useState<Stylist[]>([])
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [stylistDurations, setStylistDurations] = useState<Record<string, number>>({})
+  const [durationsReady, setDurationsReady] = useState(false)
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [loadingStylists, setLoadingStylists] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -62,7 +63,7 @@ function BookingContent() {
   const goBack = () => {
     setStep((s) => {
       const prev = Math.max(1, s - 1) as Step
-      if (prev <= 2) setStylistDurations({})
+      if (prev <= 2) { setStylistDurations({}); setDurationsReady(false) }
       return prev
     })
   }
@@ -157,12 +158,13 @@ function BookingContent() {
     branchId: string,
     category: 'hand' | 'foot'
   ) => {
+    setDurationsReady(false)
     const params = new URLSearchParams({ category })
     if (stylistId) params.set('stylist_id', stylistId)
     else params.set('branch_id', branchId)
     try {
       const res = await fetch(`/api/service-durations?${params}`)
-      if (!res.ok) return
+      if (!res.ok) { setDurationsReady(true); return }
       const durations = await res.json()
       // If a specific stylist has no duration records, fall back to branch max
       // so that slot availability is always calculated conservatively
@@ -173,6 +175,7 @@ function BookingContent() {
         setStylistDurations(durations)
       }
     } catch { /* non-fatal */ }
+    setDurationsReady(true)
   }, [])
 
   const fetchStylists = useCallback(async (branchId: string) => {
@@ -200,7 +203,7 @@ function BookingContent() {
   }, [state.branch, fetchStylists])
 
   const fetchSlots = useCallback(async () => {
-    if (!state.branch || !state.date || totalDuration <= 0) return
+    if (!state.branch || !state.date || totalDuration <= 0 || !durationsReady) return
 
     setLoadingSlots(true)
     try {
@@ -231,22 +234,23 @@ function BookingContent() {
     } finally {
       setLoadingSlots(false)
     }
-  }, [state.branch, state.date, state.noPreference, state.stylist, totalDuration])
-
-  useEffect(() => {
-    if (step === 4) {
-      fetchSlots()
-    }
-  }, [step, fetchSlots])
+  }, [state.branch, state.date, state.noPreference, state.stylist, state.category, totalDuration, durationsReady])
 
   useEffect(() => {
     if (step !== 4 || !state.branch) return
+    // Fetch durations first so totalDuration is correct before slot fetch runs
     void fetchStylistDurations(
       state.noPreference ? null : state.stylist?.id ?? null,
       state.branch.id,
       state.category
     )
   }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (step === 4) {
+      fetchSlots()
+    }
+  }, [step, fetchSlots])
 
   const submitBooking = async () => {
     if (!state.branch || !state.date || !state.timeSlot) return
@@ -606,7 +610,7 @@ function BookingContent() {
                 />
                 <input
                   className="w-full border border-blush rounded-xl px-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-rose/30 focus:border-rose transition-all"
-                  placeholder="手機（09xxxxxxxx）"
+                  placeholder="手機（09xxxxxxxx）（必填）"
                   value={state.phone}
                   onChange={(e) => setState((prev) => ({ ...prev, phone: e.target.value }))}
                 />

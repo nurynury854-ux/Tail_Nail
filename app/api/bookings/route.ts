@@ -220,6 +220,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return NextResponse.json({ error: '日期格式錯誤' }, { status: 400 })
+    }
+
+    if (!/^\d{2}:\d{2}$/.test(start_time)) {
+      return NextResponse.json({ error: '時間格式錯誤' }, { status: 400 })
+    }
+
     // No same-day bookings — must be made by 23:59 the day before
     const todayTW = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
     const todayStr = `${todayTW.getFullYear()}-${String(todayTW.getMonth() + 1).padStart(2, '0')}-${String(todayTW.getDate()).padStart(2, '0')}`
