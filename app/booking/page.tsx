@@ -448,7 +448,7 @@ function BookingContent() {
                   return (
                     <button
                       key={service.id}
-                      onClick={() => setState((prev) => ({ ...prev, mainServiceId: service.id, timeSlot: null }))}
+                      onClick={() => setState((prev) => ({ ...prev, mainServiceId: prev.mainServiceId === service.id ? null : service.id, timeSlot: null }))}
                       className={`border-2 rounded-2xl p-4 sm:p-5 text-left transition-all duration-200 relative ${active ? 'border-rose bg-rose/10 text-charcoal shadow-lg -translate-y-0.5' : 'border-[#DDD5C8] bg-[#FAF7F2] text-charcoal hover:border-rose/60 hover:shadow-md hover:-translate-y-0.5'}`}
                     >
                       <p className="font-medium">{service.name}</p>
