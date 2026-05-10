@@ -405,7 +405,7 @@ function BookingContent() {
                   <button
                     key={branch.id}
                     onClick={() => {
-                      setState((prev) => ({ ...prev, branch, stylist: null, noPreference: true, date: null, timeSlot: null }))
+                      setState((prev) => ({ ...prev, branch, category: 'hand', mainServiceId: null, addonServiceIds: [], stylist: null, noPreference: true, date: null, timeSlot: null }))
                       goNext()
                     }}
                     className="w-full text-left border border-[#DDD5C8] bg-[#FAF7F2] rounded-2xl p-5 hover:border-rose transition-all duration-200 shadow-md hover:shadow-xl hover:-translate-y-1"
