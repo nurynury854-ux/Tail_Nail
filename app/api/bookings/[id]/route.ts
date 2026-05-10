@@ -68,7 +68,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       try {
         const branchName = (currentBooking.branches as { name?: string } | null)?.name || '小尾巴美甲'
         const message = generateCancellationMessage({
-          customerName: currentBooking.customer_name,
           branchName,
           date: currentBooking.date,
           startTime: currentBooking.start_time,

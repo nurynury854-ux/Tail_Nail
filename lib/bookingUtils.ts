@@ -141,14 +141,12 @@ export function generateConfirmationMessage(booking: {
 }
 
 export function generateCancellationMessage(booking: {
-  customerName: string
   branchName: string
   date: string
   startTime: string
 }): string {
   return (
     `❌ 預約取消通知 | 小尾巴美甲\n\n` +
-    `親愛的 ${booking.customerName}，\n\n` +
     `您原定於 ${formatDisplayDate(booking.date)} ${booking.startTime} 在 ${booking.branchName} 的預約已由店家取消。\n\n` +
     `如有疑問或需重新預約，歡迎再次聯繫我們！\n` +
     `對您造成不便，深感抱歉 🙇\n\n` +
