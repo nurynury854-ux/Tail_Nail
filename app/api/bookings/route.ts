@@ -580,7 +580,7 @@ export async function POST(request: NextRequest) {
       try {
         await sendLinePushMessage(
           businessNotifyId,
-          `🆕 新預約\n${bookingPayload.customer_name}｜${dbBranch.name}\n${date} ${start_time}-${finalEndTime}\n部位：${bookingCategory === 'hand' ? '手部' : '足部'}\n${serviceLine}\n美甲師：${assignedStylistName || '不指定'}`,
+          `🆕 新預約\n${bookingPayload.customer_name}｜${dbBranch.name}\n📞 ${bookingPayload.phone}\n${date} ${start_time}-${finalEndTime}\n部位：${bookingCategory === 'hand' ? '手部' : '足部'}\n${serviceLine}\n美甲師：${assignedStylistName || '不指定'}`,
           lineConfig.channelAccessToken
         )
       } catch (notifyError) {
