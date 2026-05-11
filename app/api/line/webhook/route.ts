@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
         autoReplyEnabled &&
         event.type === 'message' &&
         event.message?.type === 'text' &&
+        event.message.text === '快速預約' &&
         event.source?.userId &&
         event.replyToken
       ) {
