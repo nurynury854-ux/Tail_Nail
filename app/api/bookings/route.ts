@@ -525,10 +525,11 @@ export async function POST(request: NextRequest) {
     finalEndTime = availabilityByStylist[assignedStylistId].endTime
 
     const mainService = finalSelected.find((s) => s.service_type === 'main')
+    const primaryServiceId = mainService?.service_id ?? finalSelected[0]?.service_id ?? null
 
     const bookingPayload = {
       branch_id,
-      service_id: mainService?.service_id || null,
+      service_id: primaryServiceId,
       customer_name: customer_name.trim(),
       line_id: normalizedLineId,
       phone: phone.trim(),
