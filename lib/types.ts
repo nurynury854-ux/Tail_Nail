@@ -147,12 +147,12 @@ export interface BookingFormData {
 
 export const BRANCHES: Branch[] = [
   {
-    id: '1',
-    name: '內壢店',
-    address: '桃園市內壢區',
-    staff_count: 2,
-    phone: '03-123-4567',
-    image_url: 'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800&auto=format&fit=crop',
+    id: '3',
+    name: '中原店',
+    address: '桃園市中壢區中原大學周邊',
+    staff_count: 4,
+    phone: '03-345-6789',
+    image_url: 'https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=800&auto=format&fit=crop',
     is_active: true,
   },
   {
@@ -165,12 +165,12 @@ export const BRANCHES: Branch[] = [
     is_active: true,
   },
   {
-    id: '3',
-    name: '中原店',
-    address: '桃園市中壢區中原大學周邊',
-    staff_count: 4,
-    phone: '03-345-6789',
-    image_url: 'https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=800&auto=format&fit=crop',
+    id: '1',
+    name: '內壢店',
+    address: '桃園市內壢區',
+    staff_count: 2,
+    phone: '03-123-4567',
+    image_url: 'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800&auto=format&fit=crop',
     is_active: true,
   },
 ]
