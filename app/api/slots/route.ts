@@ -39,6 +39,11 @@ export async function GET(request: NextRequest) {
   const [year, month, day] = date.split('-').map(Number)
   const dateObj = new Date(year, month - 1, day)
 
+  // Compute current Taiwan time so past slots can be greyed out when date is today
+  const nowTW = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
+  const todayTW = `${nowTW.getFullYear()}-${String(nowTW.getMonth() + 1).padStart(2, '0')}-${String(nowTW.getDate()).padStart(2, '0')}`
+  const nowMinutes = date === todayTW ? nowTW.getHours() * 60 + nowTW.getMinutes() : -1
+
   if (!hasSupabaseConfig || !supabase) {
     // Fallback path requires branch from the static list for staff_count
     const branch = BRANCHES.find((b) => b.id === branchId)
@@ -54,11 +59,12 @@ export async function GET(request: NextRequest) {
       if (start > LATEST_START) continue
       const end = start + totalDuration
       const fitsInHours = end <= EFFECTIVE_CLOSE
+      const isPast = nowMinutes >= 0 && start <= nowMinutes
       slots.push({
         time: minutesToTime(start),
-        available: fitsInHours,
+        available: fitsInHours && !isPast,
         bookingsCount: 0,
-        availableStylists: fitsInHours ? branch.staff_count : 0,
+        availableStylists: fitsInHours && !isPast ? branch.staff_count : 0,
       })
     }
     return jsonNoStore({ slots, source: 'fallback' })
@@ -157,6 +163,12 @@ export async function GET(request: NextRequest) {
     const slots: TimeSlot[] = []
     for (let start = branchWindow.open; start < branchWindow.close; start += 60) {
       if (start > LATEST_START) continue
+
+      // Grey out slots whose start time has already passed today
+      if (nowMinutes >= 0 && start <= nowMinutes) {
+        slots.push({ time: minutesToTime(start), available: false, bookingsCount: 0, availableStylists: 0 })
+        continue
+      }
 
       const end = start + totalDuration
 

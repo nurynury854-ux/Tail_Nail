@@ -564,11 +564,11 @@ function BookingContent() {
                   selected={state.date || undefined}
                   onSelect={(date) => setState((prev) => ({ ...prev, date: date || null, timeSlot: null }))}
                   disabled={[
-                    { before: addDays(startOfToday(), 1) },
+                    { before: startOfToday() },
                     ...(weeklyOffDays.length > 0 ? [{ dayOfWeek: weeklyOffDays }] : []),
                     ...fullOffDates,
                   ]}
-                  fromDate={addDays(startOfToday(), 1)}
+                  fromDate={startOfToday()}
                   toDate={addDays(startOfToday(), 60)}
                 />
               </div>

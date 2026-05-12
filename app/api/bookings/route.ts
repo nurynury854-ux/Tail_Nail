@@ -228,11 +228,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '時間格式錯誤' }, { status: 400 })
     }
 
-    // No same-day bookings — must be made by 23:59 the day before
     const todayTW = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
     const todayStr = `${todayTW.getFullYear()}-${String(todayTW.getMonth() + 1).padStart(2, '0')}-${String(todayTW.getDate()).padStart(2, '0')}`
-    if (date <= todayStr) {
-      return NextResponse.json({ error: '預約需在前一天23:59前完成，不接受當日預約' }, { status: 400 })
+    if (date < todayStr) {
+      return NextResponse.json({ error: '無法預約過去的日期' }, { status: 400 })
+    }
+    if (date === todayStr) {
+      const nowMinutes = todayTW.getHours() * 60 + todayTW.getMinutes()
+      const startMinutes = timeToMinutes(start_time)
+      if (startMinutes <= nowMinutes) {
+        return NextResponse.json({ error: '無法預約已過去的時段' }, { status: 400 })
+      }
     }
 
     const bookingCategory = category || 'hand'
