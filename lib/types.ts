@@ -158,7 +158,7 @@ export const BRANCHES: Branch[] = [
   {
     id: '2',
     name: '中壢店',
-    address: '桃園市中壢區',
+    address: '桃園市中壢區市中心',
     staff_count: 2,
     phone: '03-234-5678',
     image_url: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&auto=format&fit=crop',
@@ -167,7 +167,7 @@ export const BRANCHES: Branch[] = [
   {
     id: '1',
     name: '內壢店',
-    address: '桃園市內壢區',
+    address: '桃園市中壢區內壢地區',
     staff_count: 2,
     phone: '03-123-4567',
     image_url: 'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800&auto=format&fit=crop',
