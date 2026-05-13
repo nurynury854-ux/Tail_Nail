@@ -236,6 +236,9 @@ export async function POST(request: NextRequest) {
     if (date === todayStr) {
       const nowMinutes = todayTW.getHours() * 60 + todayTW.getMinutes()
       const startMinutes = timeToMinutes(start_time)
+      if (startMinutes < 12 * 60) {
+        return NextResponse.json({ error: '當日預約最早從中午12點開始' }, { status: 400 })
+      }
       if (startMinutes <= nowMinutes) {
         return NextResponse.json({ error: '無法預約已過去的時段' }, { status: 400 })
       }
@@ -298,7 +301,7 @@ export async function POST(request: NextRequest) {
       }
 
       const endMin = startMin + finalTotalDuration
-      const effectiveClose = Math.max(hours.close, 22 * 60 + 30)
+      const effectiveClose = Math.max(hours.close, 22 * 60)
       if (startMin < hours.open || endMin > effectiveClose) {
         return NextResponse.json({ error: '時段超出營業時間' }, { status: 400 })
       }
@@ -428,14 +431,14 @@ export async function POST(request: NextRequest) {
     }
     const branchWindow = {
       open: rawBranchWindow.open,
-      close: Math.max(rawBranchWindow.close, 22 * 60 + 30),
+      close: Math.max(rawBranchWindow.close, 22 * 60),
     }
 
     const dayOfWeek = dateObj.getDay()
     const stylistWindows: Record<string, { open: number; close: number } | null> = {}
     for (const stylist of stylists) {
       const w = resolveStylistWindow(dayOfWeek, weeklyMap[stylist.id] || [], overrideMap[stylist.id])
-      stylistWindows[stylist.id] = w ? { open: w.open, close: Math.max(w.close, 22 * 60 + 30) } : null
+      stylistWindows[stylist.id] = w ? { open: w.open, close: Math.max(w.close, 22 * 60) } : null
     }
 
     const availabilityByStylist: Record<string, { total: number; items: SelectedServiceItem[]; endTime: string }> = {}

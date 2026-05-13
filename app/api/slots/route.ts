@@ -53,18 +53,19 @@ export async function GET(request: NextRequest) {
 
     const safeOpen = Math.max(fallbackHours.open, 11 * 60)
     const LATEST_START = 19 * 60 // 7pm — last slot that can start
-    const EFFECTIVE_CLOSE = Math.max(fallbackHours.close, 22 * 60 + 30)
+    const EFFECTIVE_CLOSE = Math.max(fallbackHours.close, 22 * 60)
     const slots: TimeSlot[] = []
     for (let start = safeOpen; start < EFFECTIVE_CLOSE; start += 60) {
       if (start > LATEST_START) continue
       const end = start + totalDuration
       const fitsInHours = end <= EFFECTIVE_CLOSE
       const isPast = nowMinutes >= 0 && start <= nowMinutes
+      const isTooEarlyToday = nowMinutes >= 0 && start < 12 * 60
       slots.push({
         time: minutesToTime(start),
-        available: fitsInHours && !isPast,
+        available: fitsInHours && !isPast && !isTooEarlyToday,
         bookingsCount: 0,
-        availableStylists: fitsInHours && !isPast ? branch.staff_count : 0,
+        availableStylists: fitsInHours && !isPast && !isTooEarlyToday ? branch.staff_count : 0,
       })
     }
     return jsonNoStore({ slots, source: 'fallback' })
@@ -117,7 +118,7 @@ export async function GET(request: NextRequest) {
     const LATEST_START = 19 * 60 // 7pm — last slot that can start
     // Effective close is always at least 22:30 so services finishing after 9pm aren't blocked.
     // The displayed/stored close time stays as-is (9pm), but the finishing deadline extends to 10:30pm.
-    const EFFECTIVE_CLOSE = Math.max(rawBranchWindow.close, 22 * 60 + 30)
+    const EFFECTIVE_CLOSE = Math.max(rawBranchWindow.close, 22 * 60)
     const branchWindow = {
       open: Math.max(rawBranchWindow.open, 11 * 60),
       close: EFFECTIVE_CLOSE,
@@ -157,15 +158,15 @@ export async function GET(request: NextRequest) {
     const stylistWindows: Record<string, { open: number; close: number } | null> = {}
     for (const stylist of activeStylists) {
       const w = resolveStylistWindow(day, weeklyMap[stylist.id] || [], overrideMap[stylist.id])
-      stylistWindows[stylist.id] = w ? { open: w.open, close: Math.max(w.close, 22 * 60 + 30) } : null
+      stylistWindows[stylist.id] = w ? { open: w.open, close: Math.max(w.close, 22 * 60) } : null
     }
 
     const slots: TimeSlot[] = []
     for (let start = branchWindow.open; start < branchWindow.close; start += 60) {
       if (start > LATEST_START) continue
 
-      // Grey out slots whose start time has already passed today
-      if (nowMinutes >= 0 && start <= nowMinutes) {
+      // Grey out slots that have passed or are before noon for same-day bookings
+      if (nowMinutes >= 0 && (start <= nowMinutes || start < 12 * 60)) {
         slots.push({ time: minutesToTime(start), available: false, bookingsCount: 0, availableStylists: 0 })
         continue
       }
