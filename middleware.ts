@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSessionCookieName, isValidAdminSessionToken } from '@/lib/adminAuth'
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (!pathname.startsWith('/admin')) {
@@ -13,7 +13,7 @@ export function middleware(request: NextRequest) {
   }
 
   const token = request.cookies.get(getAdminSessionCookieName())?.value
-  if (isValidAdminSessionToken(token)) {
+  if (await isValidAdminSessionToken(token)) {
     return NextResponse.next()
   }
 

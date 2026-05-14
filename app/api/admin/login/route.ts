@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '帳號或密碼錯誤' }, { status: 401 })
   }
 
-  const token = getExpectedAdminSessionToken()
+  const token = await getExpectedAdminSessionToken()
   if (!token) {
     return NextResponse.json({ error: '管理員帳號尚未設定' }, { status: 500 })
   }

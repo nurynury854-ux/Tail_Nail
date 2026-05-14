@@ -9,9 +9,9 @@ function maybePrune() {
   const now = Date.now()
   if (now - lastPruneAt < 60_000) return
   lastPruneAt = now
-  for (const [key, entry] of store) {
+  store.forEach((entry, key) => {
     if (now > entry.resetAt) store.delete(key)
-  }
+  })
 }
 
 /**
