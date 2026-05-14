@@ -1,8 +1,11 @@
+import { createHash, timingSafeEqual } from 'crypto'
+import type { NextRequest } from 'next/server'
+
 const SESSION_COOKIE_NAME = 'ttail_admin_session'
 
+// SHA-256 hash of credentials — not reversible to the original password.
 function buildSessionToken(username: string, password: string): string {
-  const raw = `${username}:${password}:ttail-admin`
-  return encodeURIComponent(raw)
+  return createHash('sha256').update(`${username}:${password}:ttail-admin-v2`).digest('hex')
 }
 
 export function getAdminSessionCookieName(): string {
@@ -27,5 +30,15 @@ export function getExpectedAdminSessionToken(): string | null {
 export function isValidAdminSessionToken(token?: string): boolean {
   if (!token) return false
   const expected = getExpectedAdminSessionToken()
-  return Boolean(expected && token === expected)
+  if (!expected) return false
+  try {
+    return timingSafeEqual(Buffer.from(token), Buffer.from(expected))
+  } catch {
+    return false
+  }
+}
+
+export function isAdminRequest(request: NextRequest): boolean {
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value
+  return isValidAdminSessionToken(token)
 }

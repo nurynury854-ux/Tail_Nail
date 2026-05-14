@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { getBranchLineConfig } from '@/lib/lineConfig'
 import { generateCancellationMessage } from '@/lib/bookingUtils'
+import { isAdminRequest } from '@/lib/adminAuth'
 
 async function sendLinePushMessage(userId: string, message: string, accessToken: string): Promise<void> {
   const response = await fetch('https://api.line.me/v2/bot/message/push', {
@@ -22,6 +23,10 @@ async function sendLinePushMessage(userId: string, message: string, accessToken:
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { id } = params
 
   try {
@@ -90,7 +95,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { id } = params
 
   try {

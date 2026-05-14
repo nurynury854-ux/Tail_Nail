@@ -4,8 +4,14 @@ import {
   getExpectedAdminSessionToken,
   isValidAdminCredentials,
 } from '@/lib/adminAuth'
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
 
 export async function POST(request: NextRequest) {
+  const ip = getClientIp(request)
+  if (!checkRateLimit(`admin-login:${ip}`, 5, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: '嘗試次數過多，請稍後再試' }, { status: 429 })
+  }
+
   const body = await request.json().catch(() => ({}))
   const username = typeof body.username === 'string' ? body.username.trim() : ''
   const password = typeof body.password === 'string' ? body.password : ''

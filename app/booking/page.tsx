@@ -631,12 +631,14 @@ function BookingContent() {
                 <input
                   className="w-full border border-blush rounded-xl px-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-rose/30 focus:border-rose transition-all"
                   placeholder="姓名（必填）"
+                  maxLength={50}
                   value={state.name}
                   onChange={(e) => setState((prev) => ({ ...prev, name: e.target.value }))}
                 />
                 <input
                   className="w-full border border-blush rounded-xl px-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-rose/30 focus:border-rose transition-all"
                   placeholder="手機（09xxxxxxxx）（必填）"
+                  maxLength={10}
                   value={state.phone}
                   onChange={(e) => setState((prev) => ({ ...prev, phone: e.target.value }))}
                 />
@@ -655,6 +657,7 @@ function BookingContent() {
                 <textarea
                   className="w-full border border-blush rounded-xl px-4 py-2.5 text-sm shadow-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-rose/30 focus:border-rose transition-all"
                   placeholder="特殊需求備註（選填）"
+                  maxLength={300}
                   value={state.note}
                   onChange={(e) => setState((prev) => ({ ...prev, note: e.target.value }))}
                 />

@@ -17,6 +17,8 @@ import {
   resolveBranchWindow,
   resolveStylistWindow,
 } from '@/lib/scheduleUtils'
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
+import { isAdminRequest } from '@/lib/adminAuth'
 
 type BookingRequestBody = {
   branch_id?: string
@@ -156,6 +158,10 @@ async function enrichServiceDurationsForStylist(args: {
 }
 
 export async function GET(request: NextRequest) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(request.url)
   const branchId = searchParams.get('branch_id')
   const date = searchParams.get('date')
@@ -200,6 +206,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const ip = getClientIp(request)
+  if (!checkRateLimit(`booking-post:${ip}`, 5, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: '提交次數過多，請稍後再試' }, { status: 429 })
+  }
+
   try {
     const body = (await request.json()) as BookingRequestBody
     const {
@@ -218,6 +229,14 @@ export async function POST(request: NextRequest) {
 
     if (!branch_id || !customer_name || !date || !start_time) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    if (typeof customer_name === 'string' && customer_name.trim().length > 50) {
+      return NextResponse.json({ error: '姓名不可超過50字' }, { status: 400 })
+    }
+
+    if (typeof note === 'string' && note.trim().length > 300) {
+      return NextResponse.json({ error: '備註不可超過300字' }, { status: 400 })
     }
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
