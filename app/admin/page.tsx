@@ -915,17 +915,19 @@ export default function AdminPage() {
                 onChange={(e) => setOverrideForm((f) => ({ ...f, date: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
               />
-              <div className="grid grid-cols-2 gap-2">
+              <div className={`grid grid-cols-2 gap-2 transition-opacity ${overrideForm.isOffOrClosed ? 'opacity-40 pointer-events-none' : ''}`}>
                 <input
                   type="time"
                   value={overrideForm.startTime}
                   onChange={(e) => setOverrideForm((f) => ({ ...f, startTime: e.target.value }))}
+                  disabled={overrideForm.isOffOrClosed}
                   className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
                 />
                 <input
                   type="time"
                   value={overrideForm.endTime}
                   onChange={(e) => setOverrideForm((f) => ({ ...f, endTime: e.target.value }))}
+                  disabled={overrideForm.isOffOrClosed}
                   className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
                 />
               </div>
