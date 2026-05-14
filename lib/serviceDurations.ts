@@ -1,0 +1,15 @@
+export const UNIVERSAL_DURATIONS: Record<string, { hand: number; foot: number }> = {
+  'svc-main-solid':        { hand: 60,  foot: 40  },
+  'svc-main-cat-eye':      { hand: 90,  foot: 60  },
+  'svc-main-gradient':     { hand: 90,  foot: 60  },
+  'svc-main-french':       { hand: 90,  foot: 90  },
+  'svc-main-mirror':       { hand: 90,  foot: 90  },
+  'svc-main-store-style':  { hand: 120, foot: 90  },
+  'svc-main-custom-style': { hand: 120, foot: 120 },
+  'svc-addon-remove':      { hand: 35,  foot: 35  },
+  'svc-addon-care':        { hand: 40,  foot: 60  },
+  'svc-addon-shape':       { hand: 20,  foot: 30  },
+  'svc-addon-thicken':     { hand: 35,  foot: 35  },
+  'svc-addon-extension':   { hand: 60,  foot: 60  },
+  'svc-addon-repair':      { hand: 40,  foot: 40  },
+}

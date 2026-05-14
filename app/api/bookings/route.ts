@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { getBranchLineConfig } from '@/lib/lineConfig'
 import { BRANCHES, SERVICES, Booking, SelectedServiceItem, Service, Stylist } from '@/lib/types'
+import { UNIVERSAL_DURATIONS } from '@/lib/serviceDurations'
 import {
   calculateEndTime,
   defaultWorkingHoursByDay,
@@ -107,51 +108,18 @@ function normalizeSelectedServices(raw: unknown): SelectedServiceItem[] {
     .filter((item): item is SelectedServiceItem => Boolean(item))
 }
 
-async function enrichServiceDurationsForStylist(args: {
+function enrichServiceDurationsForStylist(args: {
   stylistId: string
   category: 'hand' | 'foot'
   services: SelectedServiceItem[]
-}): Promise<{ total: number; items: SelectedServiceItem[] }> {
-  const { stylistId, category, services } = args
+}): { total: number; items: SelectedServiceItem[] } {
+  const { category, services } = args
 
-  if (!hasSupabaseConfig || !supabase) {
-    const items = services.map((item) => ({
-      ...item,
-      duration_minutes: item.duration_minutes > 0 ? item.duration_minutes : 120,
-      is_pending: item.duration_minutes > 0 ? Boolean(item.is_pending) : true,
-    }))
-    const total = items.reduce((sum, item) => sum + item.duration_minutes, 0)
-    return { total, items }
-  }
-
-  const ids = services.map((s) => s.service_id)
-  const { data, error } = await supabase
-    .from('service_durations')
-    .select('service_id, duration_minutes')
-    .eq('stylist_id', stylistId)
-    .eq('category', category)
-    .eq('is_pending', false)
-    .in('service_id', ids)
-
-  if (error) {
-    throw new Error(normalizeSupabaseError(error.message))
-  }
-
-  const durationMap = new Map<string, number>()
-  for (const row of data || []) {
-    if (row.duration_minutes) durationMap.set(row.service_id, row.duration_minutes)
-  }
-  durationMap.set('svc-main-custom-style', 120) // 自帶圖 is always 120 min regardless of stylist DB value
-
-  const items = services.map((item) => {
-    const confirmed = durationMap.get(item.service_id)
-    const minutes = confirmed ?? item.duration_minutes
-    return {
-      ...item,
-      duration_minutes: minutes,
-      is_pending: confirmed === undefined,
-    }
-  })
+  const items = services.map((item) => ({
+    ...item,
+    duration_minutes: UNIVERSAL_DURATIONS[item.service_id]?.[category] ?? item.duration_minutes ?? 120,
+    is_pending: false,
+  }))
 
   const total = items.reduce((sum, item) => sum + item.duration_minutes, 0)
   return { total, items }
@@ -463,7 +431,7 @@ export async function POST(request: NextRequest) {
     const availabilityByStylist: Record<string, { total: number; items: SelectedServiceItem[]; endTime: string }> = {}
 
     for (const stylist of stylists) {
-      const durationResult = await enrichServiceDurationsForStylist({
+      const durationResult = enrichServiceDurationsForStylist({
         stylistId: stylist.id,
         category: bookingCategory,
         services: selectedServices,
