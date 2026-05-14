@@ -264,6 +264,35 @@ export default function AdminPage() {
     }
   }, [scheduleTarget, scheduleBranchId, scheduleStylistId, fetchSchedules])
 
+  // Pre-populate weekly form from DB when stylist or day changes
+  useEffect(() => {
+    if (scheduleTarget !== 'stylist' || !scheduleStylistId) return
+    const existing = scheduleData.stylistWeekly.find((r) => r.day_of_week === weeklyForm.dayOfWeek)
+    if (existing) {
+      setWeeklyForm((f) => ({
+        ...f,
+        startTime: existing.start_time || '11:00',
+        endTime: existing.end_time || '21:00',
+        isWorking: existing.is_working,
+      }))
+    } else {
+      setWeeklyForm((f) => ({ ...f, startTime: '11:00', endTime: '21:00', isWorking: true }))
+    }
+  }, [scheduleTarget, scheduleStylistId, scheduleData.stylistWeekly, weeklyForm.dayOfWeek])
+
+  // Pre-populate weekly form from DB when branch or day changes
+  useEffect(() => {
+    if (scheduleTarget !== 'branch' || !scheduleBranchId || !scheduleData.branchHours) return
+    const open = scheduleData.branchHours[`${weeklyForm.dayKey}_open`]
+    const close = scheduleData.branchHours[`${weeklyForm.dayKey}_close`]
+    setWeeklyForm((f) => ({
+      ...f,
+      startTime: open || '11:00',
+      endTime: close || '21:00',
+      isWorking: open !== null && open !== undefined,
+    }))
+  }, [scheduleTarget, scheduleBranchId, scheduleData.branchHours, weeklyForm.dayKey])
+
   const handleCancel = async (id: string) => {
     if (!confirm('確定取消此預約？')) return
     try {
@@ -542,6 +571,7 @@ export default function AdminPage() {
       }
 
       toast.success('分店特定日設定已儲存')
+      setOverrideForm({ date: '', startTime: '11:00', endTime: '21:00', isOffOrClosed: false, reason: '' })
       fetchSchedules()
       fetchAllOverrides()
       return
@@ -573,6 +603,7 @@ export default function AdminPage() {
     }
 
     toast.success('設計師特定日設定已儲存')
+    setOverrideForm({ date: '', startTime: '11:00', endTime: '21:00', isOffOrClosed: false, reason: '' })
     fetchSchedules()
     fetchAllOverrides()
   }
