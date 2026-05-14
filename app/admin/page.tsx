@@ -82,6 +82,7 @@ type SchedulePayload = {
   }>
   branchOverrides: Array<{
     id: string
+    branch_id: string
     date: string
     open_time?: string | null
     close_time?: string | null
@@ -90,6 +91,7 @@ type SchedulePayload = {
   }>
   stylistOverrides: Array<{
     id: string
+    stylist_id: string
     date: string
     start_time?: string | null
     end_time?: string | null
@@ -955,34 +957,46 @@ export default function AdminPage() {
         <div className="bg-white rounded-2xl shadow-card p-5">
           <h3 className="font-playfair text-xl text-charcoal font-bold mb-3">近期覆蓋設定</h3>
           <div className="grid md:grid-cols-2 gap-3">
-            {allOverrides.branchOverrides.map((o) => (
-              <div key={o.id} className="border border-blush rounded-xl p-3 text-sm flex justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-charcoal">分店 · {o.date}</p>
-                  <p className="text-warmgray text-xs">
-                    {o.is_closed ? '全天公休' : `${o.open_time || '--'} - ${o.close_time || '--'}`}
-                  </p>
-                  {o.reason && <p className="text-xs text-warmgray mt-1">{o.reason}</p>}
+            {allOverrides.branchOverrides.map((o) => {
+              const branchName = branches.find((b) => b.id === o.branch_id)?.name || o.branch_id
+              return (
+                <div key={o.id} className="border border-blush rounded-xl p-3 text-sm flex justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-charcoal">{branchName} · {o.date}</p>
+                    <p className="text-warmgray text-xs">
+                      {o.is_closed ? '全天公休' : `${o.open_time || '--'} - ${o.close_time || '--'}`}
+                    </p>
+                    {o.reason && <p className="text-xs text-warmgray mt-1">{o.reason}</p>}
+                  </div>
+                  <button onClick={() => handleDeleteOverride('branch_override', o.id)} className="text-red-500 hover:text-red-700">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-                <button onClick={() => handleDeleteOverride('branch_override', o.id)} className="text-red-500 hover:text-red-700">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-            {allOverrides.stylistOverrides.map((o) => (
-              <div key={o.id} className="border border-blush rounded-xl p-3 text-sm flex justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-charcoal">設計師 · {o.date}</p>
-                  <p className="text-warmgray text-xs">
-                    {o.is_off ? '全天休假' : `${o.start_time || '--'} - ${o.end_time || '--'}`}
-                  </p>
-                  {o.reason && <p className="text-xs text-warmgray mt-1">{o.reason}</p>}
+              )
+            })}
+            {allOverrides.stylistOverrides.map((o) => {
+              const stylist = stylists.find((s) => s.id === o.stylist_id)
+              const stylistName = stylist?.name || o.stylist_id
+              const branchName = stylist ? (branches.find((b) => b.id === stylist.branch_id)?.name || '') : ''
+              return (
+                <div key={o.id} className="border border-blush rounded-xl p-3 text-sm flex justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-charcoal">
+                      {stylistName}
+                      {branchName && <span className="font-normal text-warmgray"> · {branchName}</span>}
+                      {' · '}{o.date}
+                    </p>
+                    <p className="text-warmgray text-xs">
+                      {o.is_off ? '全天休假' : `${o.start_time || '--'} - ${o.end_time || '--'}`}
+                    </p>
+                    {o.reason && <p className="text-xs text-warmgray mt-1">{o.reason}</p>}
+                  </div>
+                  <button onClick={() => handleDeleteOverride('stylist_override', o.id)} className="text-red-500 hover:text-red-700">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-                <button onClick={() => handleDeleteOverride('stylist_override', o.id)} className="text-red-500 hover:text-red-700">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+              )
+            })}
             {allOverrides.branchOverrides.length === 0 && allOverrides.stylistOverrides.length === 0 && (
               <p className="text-sm text-warmgray col-span-2">目前無覆蓋設定。</p>
             )}
