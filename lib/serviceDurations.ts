@@ -11,5 +11,5 @@ export const UNIVERSAL_DURATIONS: Record<string, { hand: number; foot: number }>
   'svc-addon-shape':       { hand: 20,  foot: 30  },
   'svc-addon-thicken':     { hand: 35,  foot: 35  },
   'svc-addon-extension':   { hand: 60,  foot: 60  },
-  'svc-addon-repair':      { hand: 40,  foot: 40  },
+  'svc-addon-repair':      { hand: 30,  foot: 30  },
 }
