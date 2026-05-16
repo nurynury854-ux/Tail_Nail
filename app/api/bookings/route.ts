@@ -557,7 +557,7 @@ export async function POST(request: NextRequest) {
       startTime: start_time,
       endTime: finalEndTime,
       phone: bookingPayload.phone || undefined,
-      stylistName: assignedStylistName,
+      stylistName: preferredStylistId ? assignedStylistName : undefined,
     })
 
     const lineConfig = getBranchLineConfig(branch_id)
@@ -576,7 +576,7 @@ export async function POST(request: NextRequest) {
       try {
         await sendLinePushMessage(
           businessNotifyId,
-          `🆕 新預約\n${bookingPayload.customer_name}｜${dbBranch.name}\n📞 ${bookingPayload.phone}\n${date} ${start_time}-${finalEndTime}\n部位：${bookingCategory === 'hand' ? '手部' : '足部'}\n${serviceLine}\n美甲師：${assignedStylistName || '不指定'}`,
+          `🆕 新預約\n${bookingPayload.customer_name}｜${dbBranch.name}\n📞 ${bookingPayload.phone}\n${date} ${start_time}-${finalEndTime}\n部位：${bookingCategory === 'hand' ? '手部' : '足部'}\n${serviceLine}\n美甲師：${preferredStylistId ? assignedStylistName : `不指定（系統指定：${assignedStylistName}）`}`,
           lineConfig.channelAccessToken
         )
       } catch (notifyError) {
