@@ -21,7 +21,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { Booking, BRANCHES, SERVICES, Branch, Service, Stylist } from '@/lib/types'
+import { Booking, BRANCHES, SERVICES, Branch, Service, Stylist, StylistGrade } from '@/lib/types'
 import { formatPrice, formatDuration, calculateEndTime } from '@/lib/bookingUtils'
 
 type FilterState = {
@@ -176,6 +176,7 @@ export default function AdminPage() {
     branchOverrides: SchedulePayload['branchOverrides']
     stylistOverrides: SchedulePayload['stylistOverrides']
   }>({ branchOverrides: [], stylistOverrides: [] })
+  const [savingGrade, setSavingGrade] = useState<string | null>(null)
 
   const fetchMasterData = useCallback(async () => {
     try {
@@ -480,6 +481,28 @@ export default function AdminPage() {
 
     toast.success('設計師已移除')
     fetchMasterData()
+  }
+
+  const handleSetGrade = async (stylistId: string, grade: StylistGrade | null) => {
+    setSavingGrade(stylistId)
+    try {
+      const res = await fetch(`/api/stylists/${stylistId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grade }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: '更新等級失敗' }))
+        toast.error(err.error || '更新等級失敗')
+        return
+      }
+      setStylists((prev) => prev.map((s) => (s.id === stylistId ? { ...s, grade } : s)))
+      toast.success('等級已更新')
+    } catch {
+      toast.error('更新等級失敗')
+    } finally {
+      setSavingGrade(null)
+    }
   }
 
   const handleSaveWeekly = async () => {
@@ -951,6 +974,110 @@ export default function AdminPage() {
                 保存
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* ── Grade Assignment Section ── */}
+        <div className="bg-white rounded-2xl shadow-card p-5">
+          <h3 className="font-playfair text-xl text-charcoal font-bold mb-1 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-rose" /> 設計師等級設定
+          </h3>
+          <p className="text-xs text-warmgray mb-4">為每位設計師指定等級，系統將依此篩選可接單的設計師。</p>
+
+          {/* Unassigned stylists */}
+          {stylists.filter((s) => !s.grade).length > 0 && (
+            <div className="mb-5">
+              <p className="text-xs font-semibold text-warmgray uppercase tracking-wide mb-2">未設定等級</p>
+              <div className="flex flex-wrap gap-2">
+                {stylists.filter((s) => !s.grade).map((s) => {
+                  const branch = branches.find((b) => b.id === s.branch_id)
+                  return (
+                    <div key={s.id} className="border border-blush rounded-xl p-2.5 flex items-center gap-2 bg-cream">
+                      <div>
+                        <p className="text-sm font-semibold text-charcoal">{s.name}</p>
+                        <p className="text-[11px] text-warmgray">{branch?.name || ''}</p>
+                      </div>
+                      <select
+                        disabled={savingGrade === s.id}
+                        value=""
+                        onChange={(e) => handleSetGrade(s.id, e.target.value as StylistGrade)}
+                        className="text-xs border border-blush rounded-lg px-1.5 py-1 bg-white text-charcoal"
+                      >
+                        <option value="" disabled>指定等級</option>
+                        <option value="grade2">二級</option>
+                        <option value="grade1">一級</option>
+                        <option value="special">特級</option>
+                      </select>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Grade columns */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {(
+              [
+                {
+                  key: 'grade2',
+                  label: '二級美甲師',
+                  desc: '足部：單色、卸甲、保養',
+                  color: 'border-blue-200 bg-blue-50',
+                },
+                {
+                  key: 'grade1',
+                  label: '一級美甲師',
+                  desc: '手足：單色、貓眼、卸甲、加厚、保養、補甲',
+                  color: 'border-rose-light bg-blush',
+                },
+                {
+                  key: 'special',
+                  label: '特級美甲師',
+                  desc: '所有手足服務',
+                  color: 'border-amber-200 bg-amber-50',
+                },
+              ] as { key: StylistGrade; label: string; desc: string; color: string }[]
+            ).map((col) => {
+              const colStylists = stylists.filter((s) => s.grade === col.key)
+              return (
+                <div key={col.key} className={`border-2 ${col.color} rounded-2xl p-3`}>
+                  <p className="text-sm font-bold text-charcoal mb-0.5">{col.label}</p>
+                  <p className="text-[11px] text-warmgray mb-3">{col.desc}</p>
+                  {colStylists.length === 0 ? (
+                    <p className="text-xs text-warmgray italic">尚無設計師</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {colStylists.map((s) => {
+                        const branch = branches.find((b) => b.id === s.branch_id)
+                        return (
+                          <div key={s.id} className="bg-white border border-blush rounded-xl p-2.5 flex items-center justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold text-charcoal">{s.name}</p>
+                              <p className="text-[11px] text-warmgray">{branch?.name || ''}</p>
+                            </div>
+                            <select
+                              disabled={savingGrade === s.id}
+                              value={s.grade ?? ''}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                handleSetGrade(s.id, val === '' ? null : (val as StylistGrade))
+                              }}
+                              className="text-xs border border-blush rounded-lg px-1.5 py-1 bg-white text-charcoal"
+                            >
+                              <option value="">未設定</option>
+                              <option value="grade2">二級</option>
+                              <option value="grade1">一級</option>
+                              <option value="special">特級</option>
+                            </select>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
 

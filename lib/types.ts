@@ -36,12 +36,15 @@ export interface ServiceDuration {
   is_pending: boolean
 }
 
+export type StylistGrade = 'special' | 'grade1' | 'grade2'
+
 export interface Stylist {
   id: string
   branch_id: string
   name: string
   bio?: string
   is_active: boolean
+  grade?: StylistGrade | null
 }
 
 export interface BranchWorkingHours {

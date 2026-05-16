@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { ChevronLeft, Check, Loader2 } from 'lucide-react'
 import { BRANCHES, SERVICES, Branch, SelectedServiceItem, Service, Stylist, TimeSlot } from '@/lib/types'
 import { calculateEndTime, formatDate, formatDisplayDate, isValidTaiwanMobile } from '@/lib/bookingUtils'
+import { getMinRequiredGrade, stylistMeetsGrade } from '@/lib/serviceGrades'
 
 import 'react-day-picker/dist/style.css'
 
@@ -531,22 +532,33 @@ function BookingContent() {
                 <p className="text-sm text-warmgray mt-4 inline-flex items-center">
                   <Loader2 className="w-4 h-4 animate-spin mr-1" /> 讀取中...
                 </p>
-              ) : (
-                <div className="grid sm:grid-cols-2 gap-2 mt-3">
-                  {stylists.map((stylist) => (
-                    <button
-                      key={stylist.id}
-                      onClick={() => {
-                        setState((prev) => ({ ...prev, noPreference: false, stylist, date: null, timeSlot: null }))
-                        goNext()
-                      }}
-                      className="border border-blush rounded-2xl p-4 text-left hover:border-rose shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-                    >
-                      <p className="font-medium text-charcoal">{stylist.name}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
+              ) : (() => {
+                const selectedIds = [
+                  ...(state.mainServiceId ? [state.mainServiceId] : []),
+                  ...state.addonServiceIds,
+                ]
+                const requiredGrade = getMinRequiredGrade(selectedIds, state.category)
+                const eligibleStylists = stylists.filter((s) => stylistMeetsGrade(s.grade, requiredGrade))
+                return (
+                  <div className="grid sm:grid-cols-2 gap-2 mt-3">
+                    {eligibleStylists.map((stylist) => (
+                      <button
+                        key={stylist.id}
+                        onClick={() => {
+                          setState((prev) => ({ ...prev, noPreference: false, stylist, date: null, timeSlot: null }))
+                          goNext()
+                        }}
+                        className="border border-blush rounded-2xl p-4 text-left hover:border-rose shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                      >
+                        <p className="font-medium text-charcoal">{stylist.name}</p>
+                      </button>
+                    ))}
+                    {eligibleStylists.length === 0 && (
+                      <p className="text-sm text-warmgray col-span-2 mt-2">目前無符合資格的美甲師，請選擇不指定或洽詢店家。</p>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
 

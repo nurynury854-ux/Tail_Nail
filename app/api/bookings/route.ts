@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { getBranchLineConfig } from '@/lib/lineConfig'
 import { BRANCHES, SERVICES, Booking, SelectedServiceItem, Service, Stylist } from '@/lib/types'
+import { getMinRequiredGrade, stylistMeetsGrade } from '@/lib/serviceGrades'
 import { UNIVERSAL_DURATIONS } from '@/lib/serviceDurations'
 import {
   calculateEndTime,
@@ -381,10 +382,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: normalizeSupabaseError(stylistError.message) }, { status: 500 })
     }
 
-    const stylists = (stylistRows || []) as Stylist[]
+    const allStylists = (stylistRows || []) as Stylist[]
+    const selectedServiceIds = selectedServices.map((s) => s.service_id)
+    const requiredGrade = getMinRequiredGrade(selectedServiceIds, bookingCategory)
+    const stylists = allStylists.filter((s) => stylistMeetsGrade(s.grade, requiredGrade))
+
     if (stylists.length === 0) {
+      const noneInDB = allStylists.length === 0
       return NextResponse.json(
-        { error: preferredStylistId ? '指定美甲師目前不可預約' : '此分店目前無可預約美甲師' },
+        {
+          error: preferredStylistId
+            ? noneInDB ? '指定美甲師目前不可預約' : '指定美甲師的等級不符合所選服務需求'
+            : noneInDB ? '此分店目前無可預約美甲師' : '此分店目前無符合等級需求的美甲師',
+        },
         { status: 409 }
       )
     }

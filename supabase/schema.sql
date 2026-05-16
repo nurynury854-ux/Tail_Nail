@@ -81,8 +81,12 @@ CREATE TABLE IF NOT EXISTS stylists (
   name        TEXT NOT NULL,
   bio         TEXT,
   is_active   BOOLEAN NOT NULL DEFAULT true,
+  grade       TEXT CHECK (grade IN ('special', 'grade1', 'grade2')),
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE stylists
+  ADD COLUMN IF NOT EXISTS grade TEXT CHECK (grade IN ('special', 'grade1', 'grade2'));
 
 ALTER TABLE bookings
   DROP CONSTRAINT IF EXISTS bookings_stylist_id_fkey,

@@ -8,11 +8,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 
   const body = await request.json()
+  const validGrades = ['special', 'grade1', 'grade2']
   const updates = {
     ...(typeof body.name === 'string' ? { name: body.name.trim() } : {}),
     ...(typeof body.bio === 'string' ? { bio: body.bio.trim() } : {}),
     ...(typeof body.branch_id === 'string' ? { branch_id: body.branch_id } : {}),
     ...(typeof body.is_active === 'boolean' ? { is_active: body.is_active } : {}),
+    ...(body.grade === null || validGrades.includes(body.grade) ? { grade: body.grade ?? null } : {}),
   }
 
   const { data, error } = await admin
