@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, hasSupabaseConfig } from '@/lib/supabase'
-import { BRANCHES, SERVICES, Booking, Stylist, TimeSlot } from '@/lib/types'
+import { BRANCHES, SERVICES, Booking, Stylist, StylistGrade, TimeSlot } from '@/lib/types'
 import { defaultWorkingHoursByDay, timeToMinutes, minutesToTime } from '@/lib/bookingUtils'
 import { getAvailableStylistsForSlot, resolveBranchWindow, resolveStylistWindow } from '@/lib/scheduleUtils'
+import { stylistMeetsGrade } from '@/lib/serviceGrades'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
   const stylistId = searchParams.get('stylist_id')
   const totalDurationParam = searchParams.get('total_duration')
   const category = searchParams.get('category') as 'hand' | 'foot' | null
+  const requiredGrade = searchParams.get('required_grade') as StylistGrade | null
 
   if (!branchId || !date) {
     return jsonNoStore({ error: 'Missing required params: branch_id, date' }, { status: 400 })
@@ -86,7 +88,7 @@ export async function GET(request: NextRequest) {
 
     let stylistQuery = supabase
       .from('stylists')
-      .select('id, branch_id, name, bio, is_active')
+      .select('id, branch_id, name, bio, is_active, grade')
       .eq('branch_id', branchId)
       .eq('is_active', true)
 
@@ -106,7 +108,10 @@ export async function GET(request: NextRequest) {
       return jsonNoStore({ error: firstError?.message || 'Failed to resolve schedule data' }, { status: 500 })
     }
 
-    const activeStylists = (stylists || []) as Stylist[]
+    const allStylists = (stylists || []) as Stylist[]
+    const activeStylists = requiredGrade && !stylistId
+      ? allStylists.filter((s) => stylistMeetsGrade(s.grade, requiredGrade))
+      : allStylists
     if (activeStylists.length === 0) {
       return jsonNoStore({ slots: [], source: 'database' })
     }

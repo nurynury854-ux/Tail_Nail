@@ -235,6 +235,12 @@ function BookingContent() {
 
       if (!state.noPreference && state.stylist) {
         params.set('stylist_id', state.stylist.id)
+      } else {
+        const selectedIds = [
+          ...(state.mainServiceId ? [state.mainServiceId] : []),
+          ...state.addonServiceIds,
+        ]
+        params.set('required_grade', getMinRequiredGrade(selectedIds, state.category))
       }
 
       const res = await fetch(`/api/slots?${params.toString()}`, { cache: 'no-store' })
@@ -297,13 +303,18 @@ function BookingContent() {
 
     try {
       const date = formatDate(state.date)
-      const recheck = await fetch(`/api/slots?${new URLSearchParams({
+      const recheckParams = new URLSearchParams({
         branch_id: state.branch.id,
         date,
         total_duration: String(totalDuration),
         category: state.category,
-        ...(state.noPreference || !state.stylist ? {} : { stylist_id: state.stylist.id }),
-      }).toString()}`, { cache: 'no-store' })
+      })
+      if (!state.noPreference && state.stylist) {
+        recheckParams.set('stylist_id', state.stylist.id)
+      } else {
+        recheckParams.set('required_grade', getMinRequiredGrade(selectedServices.map((s) => s.service_id), state.category))
+      }
+      const recheck = await fetch(`/api/slots?${recheckParams.toString()}`, { cache: 'no-store' })
 
       if (!recheck.ok) {
         toast.error('重新檢查時段失敗，請稍後再試')
