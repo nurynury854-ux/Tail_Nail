@@ -1083,7 +1083,7 @@ export default function AdminPage() {
 
         <div className="bg-white rounded-2xl shadow-card p-5">
           <h3 className="font-playfair text-xl text-charcoal font-bold mb-3">近期覆蓋設定</h3>
-          <div className="grid md:grid-cols-2 gap-3">
+          <div className="grid md:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
             {allOverrides.branchOverrides.map((o) => {
               const branchName = branches.find((b) => b.id === o.branch_id)?.name || o.branch_id
               return (
