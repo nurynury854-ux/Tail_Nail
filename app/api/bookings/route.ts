@@ -154,8 +154,8 @@ export async function GET(request: NextRequest) {
         services (id, name, service_type, is_addon, price),
         stylists (id, name)
       `)
-      .order('date', { ascending: true })
-      .order('start_time', { ascending: true })
+      .order('date', { ascending: false })
+      .order('start_time', { ascending: false })
 
     if (branchId) query = query.eq('branch_id', branchId)
     if (date) query = query.eq('date', date)
