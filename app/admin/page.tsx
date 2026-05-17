@@ -228,7 +228,30 @@ export default function AdminPage() {
       const res = await fetch(`/api/bookings?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
-        setBookings(Array.isArray(data) ? data : [])
+        const bookingList: Booking[] = Array.isArray(data) ? data : []
+        const now = new Date()
+        const pastConfirmed = bookingList.filter((b) => {
+          if (b.status !== 'confirmed') return false
+          return new Date(`${b.date}T${b.end_time}`) < now
+        })
+        if (pastConfirmed.length > 0) {
+          await Promise.all(
+            pastConfirmed.map((b) =>
+              fetch(`/api/bookings/${b.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'completed' }),
+              })
+            )
+          )
+          const res2 = await fetch(`/api/bookings?${params.toString()}`)
+          if (res2.ok) {
+            const data2 = await res2.json()
+            setBookings(Array.isArray(data2) ? data2 : [])
+          }
+        } else {
+          setBookings(bookingList)
+        }
       }
     } catch {
       toast.error('載入預約失敗')
@@ -1260,6 +1283,13 @@ export default function AdminPage() {
                                   取消
                                 </button>
                               </>
+                            ) : booking.status === 'completed' ? (
+                              <button
+                                onClick={() => handleCancel(booking.id)}
+                                className="text-xs text-red-500 hover:text-red-700 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                              >
+                                取消
+                              </button>
                             ) : (
                               <span className="text-xs text-warmgray italic">無可操作</span>
                             )}
