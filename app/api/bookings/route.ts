@@ -369,7 +369,7 @@ export async function POST(request: NextRequest) {
 
     let stylistQuery = supabase
       .from('stylists')
-      .select('id, branch_id, name, bio, is_active')
+      .select('id, branch_id, name, bio, is_active, grade')
       .eq('branch_id', branch_id)
       .eq('is_active', true)
 
