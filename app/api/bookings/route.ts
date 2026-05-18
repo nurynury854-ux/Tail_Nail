@@ -435,7 +435,14 @@ export async function POST(request: NextRequest) {
     const stylistWindows: Record<string, { open: number; close: number } | null> = {}
     for (const stylist of stylists) {
       const w = resolveStylistWindow(dayOfWeek, weeklyMap[stylist.id] || [], overrideMap[stylist.id])
-      stylistWindows[stylist.id] = w ? { open: w.open, close: w.close } : null
+      if (!w) {
+        stylistWindows[stylist.id] = null
+      } else {
+        const effectiveClose = w.close >= rawBranchWindow.close
+          ? Math.max(w.close, branchWindow.close)
+          : w.close
+        stylistWindows[stylist.id] = { open: w.open, close: effectiveClose }
+      }
     }
 
     const availabilityByStylist: Record<string, { total: number; items: SelectedServiceItem[]; endTime: string }> = {}
