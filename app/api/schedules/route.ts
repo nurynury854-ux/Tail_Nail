@@ -55,8 +55,8 @@ export async function GET(request: NextRequest) {
   return jsonNoStore({
     branchHours: branchHoursResult.data,
     stylistWeekly: stylistWeeklyResult.data || [],
-    branchOverrides: Array.from(branchOverrideMap.values()).slice(0, 30),
-    stylistOverrides: Array.from(stylistOverrideMap.values()).slice(0, 30),
+    branchOverrides: Array.from(branchOverrideMap.values()),
+    stylistOverrides: Array.from(stylistOverrideMap.values()),
   })
 }
 
