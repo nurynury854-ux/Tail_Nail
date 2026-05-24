@@ -16,21 +16,36 @@ export async function GET(request: NextRequest) {
       ? supabase.from('stylist_weekly_hours').select('*').eq('stylist_id', stylistId).order('day_of_week', { ascending: true })
       : Promise.resolve({ data: [], error: null }),
     branchId
-      ? supabase.from('branch_day_overrides').select('*').eq('branch_id', branchId).order('date', { ascending: false }).limit(30)
-      : supabase.from('branch_day_overrides').select('*').order('date', { ascending: false }).limit(30),
+      ? supabase.from('branch_day_overrides').select('*').eq('branch_id', branchId).order('date', { ascending: false }).limit(500)
+      : supabase.from('branch_day_overrides').select('*').order('date', { ascending: false }).limit(500),
     stylistId
-      ? supabase.from('stylist_day_overrides').select('*').eq('stylist_id', stylistId).order('date', { ascending: false }).limit(30)
-      : supabase.from('stylist_day_overrides').select('*').order('date', { ascending: false }).limit(30),
+      ? supabase.from('stylist_day_overrides').select('*').eq('stylist_id', stylistId).order('date', { ascending: false }).limit(500)
+      : supabase.from('stylist_day_overrides').select('*').order('date', { ascending: false }).limit(500),
   ])
 
   const error = branchHoursResult.error || stylistWeeklyResult.error || branchOverridesResult.error || stylistOverridesResult.error
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Deduplicate overrides: before the delete-before-insert fix, each save created a new row.
+  // Keep the most restrictive row per (branch_id, date) and (stylist_id, date).
+  const branchOverrideMap = new Map<string, Record<string, unknown>>()
+  for (const row of (branchOverridesResult.data || []) as Record<string, unknown>[]) {
+    const key = `${row.branch_id}:${row.date}`
+    const existing = branchOverrideMap.get(key)
+    if (!existing || row.is_closed) branchOverrideMap.set(key, row)
+  }
+  const stylistOverrideMap = new Map<string, Record<string, unknown>>()
+  for (const row of (stylistOverridesResult.data || []) as Record<string, unknown>[]) {
+    const key = `${row.stylist_id}:${row.date}`
+    const existing = stylistOverrideMap.get(key)
+    if (!existing || row.is_off) stylistOverrideMap.set(key, row)
+  }
+
   return NextResponse.json({
     branchHours: branchHoursResult.data,
     stylistWeekly: stylistWeeklyResult.data || [],
-    branchOverrides: branchOverridesResult.data || [],
-    stylistOverrides: stylistOverridesResult.data || [],
+    branchOverrides: Array.from(branchOverrideMap.values()).slice(0, 30),
+    stylistOverrides: Array.from(stylistOverrideMap.values()).slice(0, 30),
   })
 }
 
