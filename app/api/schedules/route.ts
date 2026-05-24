@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hasSupabaseConfig, supabase, createAdminClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+function jsonNoStore(body: unknown, init?: ResponseInit) {
+  const headers = new Headers(init?.headers)
+  headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
+  headers.set('Pragma', 'no-cache')
+  headers.set('Expires', '0')
+  return NextResponse.json(body, { ...init, headers })
+}
+
 export async function GET(request: NextRequest) {
   if (!hasSupabaseConfig || !supabase) {
-    return NextResponse.json({ branchHours: null, stylistWeekly: [], branchOverrides: [], stylistOverrides: [] })
+    return jsonNoStore({ branchHours: null, stylistWeekly: [], branchOverrides: [], stylistOverrides: [] })
   }
 
   const { searchParams } = new URL(request.url)
@@ -24,7 +35,7 @@ export async function GET(request: NextRequest) {
   ])
 
   const error = branchHoursResult.error || stylistWeeklyResult.error || branchOverridesResult.error || stylistOverridesResult.error
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return jsonNoStore({ error: error.message }, { status: 500 })
 
   // Deduplicate overrides: before the delete-before-insert fix, each save created a new row.
   // Keep the most restrictive row per (branch_id, date) and (stylist_id, date).
@@ -41,7 +52,7 @@ export async function GET(request: NextRequest) {
     if (!existing || row.is_off) stylistOverrideMap.set(key, row)
   }
 
-  return NextResponse.json({
+  return jsonNoStore({
     branchHours: branchHoursResult.data,
     stylistWeekly: stylistWeeklyResult.data || [],
     branchOverrides: Array.from(branchOverrideMap.values()).slice(0, 30),
