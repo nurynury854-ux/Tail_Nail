@@ -149,7 +149,11 @@ export async function GET(request: NextRequest) {
 
     const overrideMap: Record<string, { start_time?: string | null; end_time?: string | null; is_off?: boolean }> = {}
     for (const row of stylistOverrides || []) {
-      overrideMap[row.stylist_id] = row
+      const existing = overrideMap[row.stylist_id]
+      // If duplicate rows exist, prefer is_off:true (most restrictive)
+      if (!existing || row.is_off) {
+        overrideMap[row.stylist_id] = row
+      }
     }
 
     const bookingsByStylist: Record<string, Booking[]> = {}

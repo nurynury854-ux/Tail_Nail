@@ -130,9 +130,11 @@ export async function POST(request: NextRequest) {
 
     if (!branch_id || !date) return NextResponse.json({ error: 'branch_id and date are required' }, { status: 400 })
 
+    await admin.from('branch_day_overrides').delete().eq('branch_id', branch_id).eq('date', date)
+
     const { data, error } = await admin
       .from('branch_day_overrides')
-      .upsert({
+      .insert({
         branch_id,
         date,
         open_time: open_time || null,
@@ -159,9 +161,11 @@ export async function POST(request: NextRequest) {
 
     if (!stylist_id || !date) return NextResponse.json({ error: 'stylist_id and date are required' }, { status: 400 })
 
+    await admin.from('stylist_day_overrides').delete().eq('stylist_id', stylist_id).eq('date', date)
+
     const { data, error } = await admin
       .from('stylist_day_overrides')
-      .upsert({
+      .insert({
         stylist_id,
         date,
         start_time: start_time || null,
