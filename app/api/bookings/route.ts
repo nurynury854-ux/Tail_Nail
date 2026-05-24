@@ -558,6 +558,35 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = createAdminClient() ?? supabase!
+
+    // Final conflict re-check immediately before insert to close the race window.
+    // The earlier check runs during stylist selection (potentially seconds earlier);
+    // a concurrent request could have inserted between then and now.
+    {
+      let finalConflictQuery = admin
+        .from('bookings')
+        .select('id')
+        .eq('branch_id', branch_id)
+        .eq('date', date)
+        .eq('status', 'confirmed')
+        .lt('start_time', finalEndTime)
+        .gt('end_time', start_time)
+
+      if (bookingCategory === 'foot') {
+        finalConflictQuery = finalConflictQuery.eq('category', 'foot')
+      } else {
+        finalConflictQuery = finalConflictQuery.eq('stylist_id', assignedStylistId)
+      }
+
+      const { data: finalConflicts, error: finalConflictError } = await finalConflictQuery
+      if (finalConflictError) {
+        return NextResponse.json({ error: normalizeSupabaseError(finalConflictError.message) }, { status: 500 })
+      }
+      if ((finalConflicts || []).length > 0) {
+        return NextResponse.json({ error: '此時段已無可預約美甲師，請改選其他時間' }, { status: 409 })
+      }
+    }
+
     const { data, error } = await admin.from('bookings').insert(bookingPayload).select().single()
 
     if (error) {
