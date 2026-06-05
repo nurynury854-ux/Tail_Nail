@@ -493,6 +493,28 @@ export async function POST(request: NextRequest) {
         continue
       }
 
+      // For foot bookings the equipment check above only looks at other foot bookings.
+      // Also verify the stylist isn't already occupied by a hand booking in this window.
+      if (bookingCategory === 'foot') {
+        const { data: stylistConflicts, error: stylistConflictError } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('branch_id', branch_id)
+          .eq('date', date)
+          .eq('status', 'confirmed')
+          .eq('stylist_id', stylist.id)
+          .lt('start_time', endTime)
+          .gt('end_time', start_time)
+
+        if (stylistConflictError) {
+          return NextResponse.json({ error: normalizeSupabaseError(stylistConflictError.message) }, { status: 500 })
+        }
+
+        if ((stylistConflicts || []).length > 0) {
+          continue
+        }
+      }
+
       availabilityByStylist[stylist.id] = {
         total: durationResult.total,
         items: durationResult.items,
@@ -584,6 +606,27 @@ export async function POST(request: NextRequest) {
       }
       if ((finalConflicts || []).length > 0) {
         return NextResponse.json({ error: '此時段已無可預約美甲師，請改選其他時間' }, { status: 409 })
+      }
+
+      // For foot: equipment check above only matches other foot bookings.
+      // Also guard against the assigned stylist being busy with a hand booking.
+      if (bookingCategory === 'foot') {
+        const { data: finalStylistConflicts, error: finalStylistConflictError } = await admin
+          .from('bookings')
+          .select('id')
+          .eq('branch_id', branch_id)
+          .eq('date', date)
+          .eq('status', 'confirmed')
+          .eq('stylist_id', assignedStylistId)
+          .lt('start_time', finalEndTime)
+          .gt('end_time', start_time)
+
+        if (finalStylistConflictError) {
+          return NextResponse.json({ error: normalizeSupabaseError(finalStylistConflictError.message) }, { status: 500 })
+        }
+        if ((finalStylistConflicts || []).length > 0) {
+          return NextResponse.json({ error: '此時段已無可預約美甲師，請改選其他時間' }, { status: 409 })
+        }
       }
     }
 
