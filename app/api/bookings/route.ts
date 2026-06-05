@@ -419,7 +419,11 @@ export async function POST(request: NextRequest) {
 
     const overrideMap: Record<string, { start_time?: string | null; end_time?: string | null; is_off?: boolean }> = {}
     for (const row of stylistOverrides || []) {
-      overrideMap[row.stylist_id] = row
+      const existing = overrideMap[row.stylist_id]
+      // Prefer is_off:true (most restrictive), then prefer rows that actually have times set
+      if (!existing || row.is_off || (!existing.is_off && existing.start_time == null && row.start_time != null)) {
+        overrideMap[row.stylist_id] = row
+      }
     }
 
     const rawBranchWindow = resolveBranchWindow(dateObj, branchHours, branchOverride)
