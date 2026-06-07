@@ -109,9 +109,9 @@ export async function GET(request: NextRequest) {
     }
 
     const allStylists = (stylists || []) as Stylist[]
-    const activeStylists = requiredGrade && !stylistId
+    const activeStylists = requiredGrade
       ? allStylists.filter((s) => stylistMeetsGrade(s.grade, requiredGrade))
-      : allStylists
+      : allStylists.filter((s) => !!s.grade)
     if (activeStylists.length === 0) {
       return jsonNoStore({ slots: [], source: 'database' })
     }

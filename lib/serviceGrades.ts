@@ -46,12 +46,12 @@ export function getMinRequiredGrade(
 
 /**
  * Returns true if the stylist's grade meets or exceeds the required grade.
- * Ungraded stylists (null/undefined) are always eligible (backwards compatible).
+ * Ungraded stylists (null/undefined) cannot take any service.
  */
 export function stylistMeetsGrade(
   stylistGrade: StylistGrade | null | undefined,
   requiredGrade: StylistGrade
 ): boolean {
-  if (!stylistGrade) return true
+  if (!stylistGrade) return false
   return GRADE_LEVEL[stylistGrade] >= GRADE_LEVEL[requiredGrade]
 }
