@@ -105,6 +105,19 @@ function BookingContent() {
     loadMaster()
   }, [])
 
+  // Stable order so the list doesn't reshuffle when the API result (sorted by
+  // name) replaces the hardcoded seed. Newest branch first (id descending).
+  const sortedBranches = useMemo(
+    () =>
+      [...branches].sort((a, b) => {
+        const na = Number(a.id)
+        const nb = Number(b.id)
+        if (!Number.isNaN(na) && !Number.isNaN(nb)) return nb - na
+        return String(b.id).localeCompare(String(a.id))
+      }),
+    [branches]
+  )
+
   const mainServices = useMemo(() => services.filter((s) => s.service_type === 'main' && s.is_active), [services])
   const addonServices = useMemo(() => services.filter((s) => s.service_type === 'addon' && s.is_active), [services])
 
@@ -413,7 +426,7 @@ function BookingContent() {
               <p className="section-kicker mb-2">Select a branch</p>
               <h2 className="section-title text-2xl sm:text-3xl tracking-tight">1. 選擇分店</h2>
               <div className="space-y-4 mt-6">
-                {branches.map((branch) => (
+                {sortedBranches.map((branch) => (
                   <button
                     key={branch.id}
                     onClick={() => {
