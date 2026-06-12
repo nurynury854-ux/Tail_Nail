@@ -64,7 +64,8 @@ type WeeklyForm = {
 }
 
 type OverrideForm = {
-  date: string
+  pendingDate: string
+  dates: string[]
   startTime: string
   endTime: string
   isOffOrClosed: boolean
@@ -160,7 +161,8 @@ export default function AdminPage() {
     isWorking: true,
   })
   const [overrideForm, setOverrideForm] = useState<OverrideForm>({
-    date: '',
+    pendingDate: '',
+    dates: [],
     startTime: '11:00',
     endTime: '21:00',
     isOffOrClosed: false,
@@ -587,7 +589,12 @@ export default function AdminPage() {
   }
 
   const handleAddOverride = async () => {
-    if (!overrideForm.date) {
+    // Include a date still sitting in the picker that wasn't added to the list yet
+    const dates = Array.from(
+      new Set([...overrideForm.dates, ...(overrideForm.pendingDate ? [overrideForm.pendingDate] : [])])
+    ).sort()
+
+    if (dates.length === 0) {
       toast.error('請選擇日期')
       return
     }
@@ -597,63 +604,60 @@ export default function AdminPage() {
         toast.error('請先選擇分店')
         return
       }
-
-      const res = await fetch('/api/schedules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'branch_override',
-          branch_id: scheduleBranchId,
-          date: overrideForm.date,
-          open_time: overrideForm.isOffOrClosed ? null : overrideForm.startTime,
-          close_time: overrideForm.isOffOrClosed ? null : overrideForm.endTime,
-          is_closed: overrideForm.isOffOrClosed,
-          reason: overrideForm.reason,
-        }),
-      })
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: '新增分店覆蓋設定失敗' }))
-        toast.error(err.error || '新增分店覆蓋設定失敗')
-        return
-      }
-
-      toast.success('分店特定日設定已儲存')
-      setOverrideForm({ date: '', startTime: '11:00', endTime: '21:00', isOffOrClosed: false, reason: '' })
-      fetchSchedules()
-      fetchAllOverrides()
-      return
-    }
-
-    if (!scheduleStylistId) {
+    } else if (!scheduleStylistId) {
       toast.error('請先選擇設計師')
       return
     }
 
-    const res = await fetch('/api/schedules', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'stylist_override',
-        stylist_id: scheduleStylistId,
-        date: overrideForm.date,
-        start_time: overrideForm.isOffOrClosed ? null : overrideForm.startTime,
-        end_time: overrideForm.isOffOrClosed ? null : overrideForm.endTime,
-        is_off: overrideForm.isOffOrClosed,
-        reason: overrideForm.reason,
-      }),
-    })
+    const buildBody = (date: string) =>
+      scheduleTarget === 'branch'
+        ? {
+            type: 'branch_override',
+            branch_id: scheduleBranchId,
+            date,
+            open_time: overrideForm.isOffOrClosed ? null : overrideForm.startTime,
+            close_time: overrideForm.isOffOrClosed ? null : overrideForm.endTime,
+            is_closed: overrideForm.isOffOrClosed,
+            reason: overrideForm.reason,
+          }
+        : {
+            type: 'stylist_override',
+            stylist_id: scheduleStylistId,
+            date,
+            start_time: overrideForm.isOffOrClosed ? null : overrideForm.startTime,
+            end_time: overrideForm.isOffOrClosed ? null : overrideForm.endTime,
+            is_off: overrideForm.isOffOrClosed,
+            reason: overrideForm.reason,
+          }
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: '新增設計師覆蓋設定失敗' }))
-      toast.error(err.error || '新增設計師覆蓋設定失敗')
-      return
+    const results = await Promise.all(
+      dates.map((date) =>
+        fetch('/api/schedules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildBody(date)),
+        })
+          .then((res) => ({ date, ok: res.ok }))
+          .catch(() => ({ date, ok: false }))
+      )
+    )
+
+    const failed = results.filter((r) => !r.ok).map((r) => r.date)
+    const label = scheduleTarget === 'branch' ? '分店' : '設計師'
+
+    if (failed.length === 0) {
+      toast.success(`${label}特定日設定已儲存（${dates.length} 天）`)
+    } else if (failed.length === dates.length) {
+      toast.error(`${label}特定日設定儲存失敗`)
+    } else {
+      toast.error(`部分日期儲存失敗：${failed.join('、')}`)
     }
 
-    toast.success('設計師特定日設定已儲存')
-    setOverrideForm({ date: '', startTime: '11:00', endTime: '21:00', isOffOrClosed: false, reason: '' })
-    fetchSchedules()
-    fetchAllOverrides()
+    if (failed.length < dates.length) {
+      setOverrideForm({ pendingDate: '', dates: [], startTime: '11:00', endTime: '21:00', isOffOrClosed: false, reason: '' })
+      fetchSchedules()
+      fetchAllOverrides()
+    }
   }
 
   const handleDeleteOverride = async (type: 'branch_override' | 'stylist_override', id: string) => {
@@ -957,12 +961,46 @@ export default function AdminPage() {
 
             <div className="space-y-2 border border-blush rounded-xl p-3">
               <p className="text-xs font-semibold text-charcoal uppercase tracking-wide">特定日覆蓋</p>
-              <input
-                type="date"
-                value={overrideForm.date}
-                onChange={(e) => setOverrideForm((f) => ({ ...f, date: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={overrideForm.pendingDate}
+                  onChange={(e) => setOverrideForm((f) => ({ ...f, pendingDate: e.target.value }))}
+                  className="flex-1 px-3 py-2 rounded-lg border border-blush text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOverrideForm((f) => {
+                      if (!f.pendingDate || f.dates.includes(f.pendingDate)) return { ...f, pendingDate: '' }
+                      return { ...f, dates: [...f.dates, f.pendingDate].sort(), pendingDate: '' }
+                    })
+                  }
+                  className="px-4 py-2 rounded-lg border border-charcoal text-charcoal text-sm font-semibold whitespace-nowrap"
+                >
+                  新增
+                </button>
+              </div>
+              {overrideForm.dates.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {overrideForm.dates.map((d) => (
+                    <span
+                      key={d}
+                      className="inline-flex items-center gap-1 bg-blush/40 text-charcoal text-xs px-2 py-1 rounded-full"
+                    >
+                      {d}
+                      <button
+                        type="button"
+                        onClick={() => setOverrideForm((f) => ({ ...f, dates: f.dates.filter((x) => x !== d) }))}
+                        className="text-warmgray hover:text-rose font-bold leading-none"
+                        aria-label={`移除 ${d}`}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className={`grid grid-cols-2 gap-2 transition-opacity ${overrideForm.isOffOrClosed ? 'opacity-40 pointer-events-none' : ''}`}>
                 <input
                   type="time"
