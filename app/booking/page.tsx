@@ -106,14 +106,15 @@ function BookingContent() {
   }, [])
 
   // Stable order so the list doesn't reshuffle when the API result (sorted by
-  // name) replaces the hardcoded seed. Newest branch first (id descending).
+  // name) replaces the hardcoded seed. Oldest branch first (id ascending), so
+  // the latest added branch sits at the bottom.
   const sortedBranches = useMemo(
     () =>
       [...branches].sort((a, b) => {
         const na = Number(a.id)
         const nb = Number(b.id)
-        if (!Number.isNaN(na) && !Number.isNaN(nb)) return nb - na
-        return String(b.id).localeCompare(String(a.id))
+        if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb
+        return String(a.id).localeCompare(String(b.id))
       }),
     [branches]
   )
