@@ -24,6 +24,12 @@ const BRANCH_LINE_CONFIGS: Record<string, BranchLineConfig> = {
     notifyTo: process.env.LINE_BRANCH_3_NOTIFY_TO,
     oaId: process.env.LINE_BRANCH_3_OA_ID,
   },
+  '4': {
+    channelSecret: process.env.LINE_BRANCH_4_CHANNEL_SECRET ?? '',
+    channelAccessToken: process.env.LINE_BRANCH_4_CHANNEL_ACCESS_TOKEN ?? '',
+    notifyTo: process.env.LINE_BRANCH_4_NOTIFY_TO,
+    oaId: process.env.LINE_BRANCH_4_OA_ID,
+  },
 }
 
 export function getBranchLineConfig(branchId: string): BranchLineConfig | null {
