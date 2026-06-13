@@ -146,28 +146,41 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    let query = supabase
-      .from('bookings')
-      .select(`
-        *,
-        branches (id, name, address),
-        services (id, name, service_type, is_addon, price),
-        stylists (id, name)
-      `)
-      .order('date', { ascending: false })
-      .order('start_time', { ascending: false })
+    // PostgREST caps a single response at 1000 rows. Page through with .range()
+    // until a short batch comes back so the admin total isn't stuck at 1000.
+    // `id` is the final tiebreaker to give a deterministic total order across pages.
+    const PAGE_SIZE = 1000
+    const buildQuery = () => {
+      let query = supabase!
+        .from('bookings')
+        .select(`
+          *,
+          branches (id, name, address),
+          services (id, name, service_type, is_addon, price),
+          stylists (id, name)
+        `)
+        .order('date', { ascending: false })
+        .order('start_time', { ascending: false })
+        .order('id', { ascending: false })
 
-    if (branchId) query = query.eq('branch_id', branchId)
-    if (date) query = query.eq('date', date)
-    if (status) query = query.eq('status', status)
-
-    const { data, error } = await query
-
-    if (error) {
-      return NextResponse.json({ error: normalizeSupabaseError(error.message) }, { status: 500 })
+      if (branchId) query = query.eq('branch_id', branchId)
+      if (date) query = query.eq('date', date)
+      if (status) query = query.eq('status', status)
+      return query
     }
 
-    return NextResponse.json(data || [])
+    const allBookings: unknown[] = []
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await buildQuery().range(from, from + PAGE_SIZE - 1)
+      if (error) {
+        return NextResponse.json({ error: normalizeSupabaseError(error.message) }, { status: 500 })
+      }
+      const batch = data || []
+      allBookings.push(...batch)
+      if (batch.length < PAGE_SIZE) break
+    }
+
+    return NextResponse.json(allBookings)
   } catch (err) {
     console.error('GET bookings error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
