@@ -130,6 +130,10 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState<FilterState>({ branch_id: '', date: '', status: '', search: '' })
+  const [statsMonth, setStatsMonth] = useState(() => {
+    const nowTW = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
+    return `${nowTW.getFullYear()}-${String(nowTW.getMonth() + 1).padStart(2, '0')}`
+  })
   const [showAddModal, setShowAddModal] = useState(false)
   const [addForm, setAddForm] = useState<ManualBooking>({
     branch_id: '',
@@ -683,11 +687,12 @@ export default function AdminPage() {
     )
   })
 
+  // Monthly stats — filtered by appointment date (YYYY-MM) for the selected month
+  const monthlyBookings = bookings.filter((b) => (b.date || '').startsWith(statsMonth))
   const stats = {
-    total: bookings.length,
-    confirmed: bookings.filter((b) => b.status === 'confirmed').length,
-    completed: bookings.filter((b) => b.status === 'completed').length,
-    cancelled: bookings.filter((b) => b.status === 'cancelled').length,
+    total: monthlyBookings.length,
+    completed: monthlyBookings.filter((b) => b.status === 'completed').length,
+    cancelled: monthlyBookings.filter((b) => b.status === 'cancelled').length,
   }
 
   const stylistsBySelectedBranch = useMemo(
@@ -735,21 +740,33 @@ export default function AdminPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: '總計', value: stats.total, icon: Calendar, color: 'text-charcoal', bg: 'bg-white' },
-            { label: '已確認', value: stats.confirmed, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
-            { label: '已完成', value: stats.completed, icon: CheckCircle, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: '已取消', value: stats.cancelled, icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
-          ].map((stat) => (
-            <div key={stat.label} className={`${stat.bg} rounded-2xl p-5 shadow-card`}>
-              <div className="flex items-center gap-3">
-                <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                <span className="text-warmgray text-sm">{stat.label}</span>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h2 className="font-playfair text-xl text-charcoal font-bold flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-rose" /> 月份統計
+            </h2>
+            <input
+              type="month"
+              value={statsMonth}
+              onChange={(e) => setStatsMonth(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-blush text-sm"
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              { label: '總計', value: stats.total, icon: Calendar, color: 'text-charcoal', bg: 'bg-white' },
+              { label: '已完成', value: stats.completed, icon: CheckCircle, color: 'text-blue-600', bg: 'bg-blue-50' },
+              { label: '已取消', value: stats.cancelled, icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
+            ].map((stat) => (
+              <div key={stat.label} className={`${stat.bg} rounded-2xl p-5 shadow-card`}>
+                <div className="flex items-center gap-3">
+                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                  <span className="text-warmgray text-sm">{stat.label}</span>
+                </div>
+                <p className={`font-playfair text-3xl font-bold mt-2 ${stat.color}`}>{stat.value}</p>
               </div>
-              <p className={`font-playfair text-3xl font-bold mt-2 ${stat.color}`}>{stat.value}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
