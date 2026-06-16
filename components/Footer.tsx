@@ -1,6 +1,14 @@
+'use client'
+
+import { usePathname } from 'next/navigation'
 import { Clock, Instagram, Sparkles } from 'lucide-react'
 
 export default function Footer() {
+  const pathname = usePathname()
+
+  // The checkout/POS system is a self-contained internal tool — no public footer.
+  if (pathname?.startsWith('/checkout')) return null
+
   return (
     <footer className="bg-charcoal text-white/80">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
