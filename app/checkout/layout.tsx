@@ -17,6 +17,9 @@ function NavBar() {
     { href: '/checkout/calendar', label: '行事曆', roles: ['owner', 'manager', 'stylist'] },
     { href: '/checkout/reports', label: '報表', roles: ['owner', 'manager'] },
     { href: '/checkout/reconcile', label: '對帳', roles: ['owner', 'manager'] },
+    { href: '/checkout/cleaning', label: '清潔', roles: ['owner', 'manager', 'stylist'] },
+    { href: '/checkout/messages', label: '留言板', roles: ['owner', 'manager'] },
+    { href: '/checkout/bonuses', label: '獎金', roles: ['owner'] },
     { href: '/checkout/logs', label: '修改記錄', roles: ['owner', 'manager'] },
     { href: '/checkout/accounts', label: '帳號管理', roles: ['owner'] },
   ].filter((l) => l.roles.includes(session.role))

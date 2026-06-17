@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   const orders = data || []
 
-  const byStylist = new Map<string, { stylist_id: string | null; stylist_name: string; branch_id: string; branch_name: string; orderCount: number; revenue: number; income: number }>()
-  const byBranch = new Map<string, { branch_id: string; branch_name: string; orderCount: number; revenue: number; income: number }>()
+  const byStylist = new Map<string, { stylist_id: string | null; stylist_name: string; branch_id: string; branch_name: string; orderCount: number; revenue: number; income: number; bonus: number }>()
+  const byBranch = new Map<string, { branch_id: string; branch_name: string; orderCount: number; revenue: number; income: number; bonus: number }>()
   const payment = { cash: 0, transfer: 0, unset: 0 }
   let totalRevenue = 0
   let totalIncome = 0
@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
       orderCount: 0,
       revenue: 0,
       income: 0,
+      bonus: 0,
     }
     s.orderCount += 1
     s.revenue += o.revenue || 0
@@ -65,6 +66,7 @@ export async function GET(request: NextRequest) {
       orderCount: 0,
       revenue: 0,
       income: 0,
+      bonus: 0,
     }
     b.orderCount += 1
     b.revenue += o.revenue || 0
@@ -76,10 +78,47 @@ export async function GET(request: NextRequest) {
     else payment.unset += o.revenue || 0
   }
 
+  // Bonuses only apply to the monthly view (fixed = monthly; performance = period revenue).
+  let totalBonus = 0
+  if (!date) {
+    const [{ data: fixed }, { data: perf }] = await Promise.all([
+      admin.from('fixed_bonuses').select('*').eq('is_active', true),
+      admin.from('performance_bonuses').select('*').eq('is_active', true),
+    ])
+
+    const stylistRows = Array.from(byStylist.values())
+    const branchRows = Array.from(byBranch.values())
+
+    // Fixed bonus: flat amount per stylist, every month.
+    for (const fb of fixed || []) {
+      for (const s of stylistRows) {
+        if (s.stylist_id && s.stylist_id === fb.stylist_id_snapshot) s.bonus += fb.amount || 0
+      }
+    }
+    // Performance bonus: paid once the period revenue threshold is hit.
+    for (const pb of perf || []) {
+      if (pb.scope === 'stylist') {
+        for (const s of stylistRows) {
+          if (s.stylist_id === pb.stylist_id_snapshot && s.revenue >= pb.revenue_threshold) {
+            s.bonus += pb.bonus_amount || 0
+          }
+        }
+      } else if (pb.scope === 'branch') {
+        for (const b of branchRows) {
+          if (b.branch_id === pb.branch_id_snapshot && b.revenue >= pb.revenue_threshold) {
+            b.bonus += pb.bonus_amount || 0
+          }
+        }
+      }
+    }
+
+    for (const s of stylistRows) totalBonus += s.bonus
+  }
+
   return NextResponse.json({
     scope: session.role === 'manager' ? 'branch' : 'all',
     range: date ? { date } : { month },
-    totals: { revenue: totalRevenue, income: totalIncome, orderCount: orders.length },
+    totals: { revenue: totalRevenue, income: totalIncome, orderCount: orders.length, bonus: totalBonus },
     payment,
     byStylist: Array.from(byStylist.values()).sort((a, b) => b.revenue - a.revenue),
     byBranch: Array.from(byBranch.values()).sort((a, b) => b.revenue - a.revenue),

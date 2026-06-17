@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { formatNTD, useCheckoutSession } from '@/components/checkout/session'
 
 interface ReportData {
-  totals: { revenue: number; income: number; orderCount: number }
+  range: { month?: string; date?: string }
+  totals: { revenue: number; income: number; orderCount: number; bonus?: number }
   payment: { cash: number; transfer: number; unset: number }
-  byStylist: Array<{ stylist_name: string; branch_name: string; orderCount: number; revenue: number; income: number }>
-  byBranch: Array<{ branch_name: string; orderCount: number; revenue: number; income: number }>
+  byStylist: Array<{ stylist_name: string; branch_name: string; orderCount: number; revenue: number; income: number; bonus?: number }>
+  byBranch: Array<{ branch_name: string; orderCount: number; revenue: number; income: number; bonus?: number }>
 }
 
 const monthStr = () => new Date().toISOString().slice(0, 7)
@@ -59,9 +60,10 @@ export default function ReportsPage() {
         <p className="text-warmgray">載入中...</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <Stat label="總營業額" value={formatNTD(data.totals.revenue)} />
             <Stat label="總業績" value={formatNTD(data.totals.income)} />
+            {mode === 'month' && <Stat label="總獎金" value={formatNTD(data.totals.bonus || 0)} />}
             <Stat label="訂單數" value={String(data.totals.orderCount)} />
             <Stat label="現金 / 轉帳" value={`${formatNTD(data.payment.cash)} / ${formatNTD(data.payment.transfer)}`} small />
           </div>
@@ -69,16 +71,22 @@ export default function ReportsPage() {
           {session?.role === 'owner' && data.byBranch.length > 0 && (
             <Section title="各分店">
               <Table
-                head={['分店', '訂單', '營業額', '業績']}
-                rows={data.byBranch.map((b) => [b.branch_name, String(b.orderCount), formatNTD(b.revenue), formatNTD(b.income)])}
+                head={mode === 'month' ? ['分店', '訂單', '營業額', '業績', '獎金'] : ['分店', '訂單', '營業額', '業績']}
+                rows={data.byBranch.map((b) => {
+                  const base = [b.branch_name, String(b.orderCount), formatNTD(b.revenue), formatNTD(b.income)]
+                  return mode === 'month' ? [...base, formatNTD(b.bonus || 0)] : base
+                })}
               />
             </Section>
           )}
 
           <Section title="個人業績">
             <Table
-              head={['美甲師', '分店', '訂單', '營業額', '業績']}
-              rows={data.byStylist.map((s) => [s.stylist_name, s.branch_name, String(s.orderCount), formatNTD(s.revenue), formatNTD(s.income)])}
+              head={mode === 'month' ? ['美甲師', '分店', '訂單', '營業額', '業績', '獎金'] : ['美甲師', '分店', '訂單', '營業額', '業績']}
+              rows={data.byStylist.map((s) => {
+                const base = [s.stylist_name, s.branch_name, String(s.orderCount), formatNTD(s.revenue), formatNTD(s.income)]
+                return mode === 'month' ? [...base, formatNTD(s.bonus || 0)] : base
+              })}
             />
           </Section>
         </>

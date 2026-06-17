@@ -120,6 +120,49 @@ export interface ActualAmountAdjustment {
   created_at?: string
 }
 
+export interface FixedBonus {
+  id: string
+  stylist_id_snapshot?: string | null
+  stylist_name_snapshot?: string | null
+  amount: number
+  is_active: boolean
+  effective_from?: string | null
+  created_at?: string
+}
+
+export type BonusScope = 'stylist' | 'branch'
+
+export interface PerformanceBonus {
+  id: string
+  scope: BonusScope
+  stylist_id_snapshot?: string | null
+  branch_id_snapshot?: string | null
+  revenue_threshold: number
+  bonus_amount: number
+  is_active: boolean
+  created_at?: string
+}
+
+export interface CleaningDuty {
+  id: string
+  branch_id: string
+  duty_date: string
+  stylist_id?: string | null
+  stylist_name_snapshot?: string | null
+  assigned_at?: string
+}
+
+export interface BoardMessage {
+  id: string
+  branch_id: string
+  author_account_id?: string | null
+  author_name: string
+  author_role: string
+  body: string
+  created_at?: string
+  deleted_at?: string | null
+}
+
 // The default stylist income share (业绩 = 50% of 营业额).
 export const DEFAULT_INCOME_RATE = 0.5
 
