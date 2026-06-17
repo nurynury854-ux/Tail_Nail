@@ -1,14 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { LogOut } from 'lucide-react'
 import { CheckoutSessionProvider, ROLE_LABELS, useCheckoutSession } from '@/components/checkout/session'
 
 function NavBar() {
   const { session } = useCheckoutSession()
   const pathname = usePathname()
-  const router = useRouter()
 
   if (!session || pathname === '/checkout/login') return null
 
@@ -24,8 +23,8 @@ function NavBar() {
 
   const logout = async () => {
     await fetch('/api/checkout/logout', { method: 'POST' })
-    router.replace('/checkout/login')
-    router.refresh()
+    // Hard navigation so the session provider fully resets.
+    window.location.assign('/checkout/login')
   }
 
   return (

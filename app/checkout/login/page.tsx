@@ -1,11 +1,9 @@
 'use client'
 
 import { FormEvent, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 
 export default function CheckoutLoginPage() {
-  const router = useRouter()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -25,8 +23,9 @@ export default function CheckoutLoginPage() {
         return
       }
       toast.success('登入成功')
-      router.replace('/checkout')
-      router.refresh()
+      // Hard navigation so the session provider remounts and re-checks /me
+      // with the freshly-set cookie (a soft router push keeps stale state).
+      window.location.assign('/checkout')
     } catch {
       toast.error('登入失敗，請稍後再試')
     } finally {
