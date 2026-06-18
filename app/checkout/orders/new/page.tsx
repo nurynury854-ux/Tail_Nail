@@ -3,19 +3,19 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import type { Service } from '@/lib/types'
+import type { PriceItem } from '@/lib/checkoutPricing'
 import OrderForm, { OrderFormPayload } from '@/components/checkout/OrderForm'
 
 export default function NewOrderPage() {
   const router = useRouter()
-  const [services, setServices] = useState<Service[]>([])
+  const [priceItems, setPriceItems] = useState<PriceItem[]>([])
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    fetch('/api/services', { cache: 'no-store' })
+    fetch('/api/checkout/prices', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : []))
-      .then(setServices)
-      .catch(() => setServices([]))
+      .then(setPriceItems)
+      .catch(() => setPriceItems([]))
   }, [])
 
   const handleSubmit = async (payload: OrderFormPayload, finalize: boolean) => {
@@ -59,7 +59,7 @@ export default function NewOrderPage() {
     <div className="max-w-2xl mx-auto">
       <h1 className="font-playfair text-2xl text-charcoal mb-4">手動結帳</h1>
       <div className="rounded-2xl border border-blush bg-white p-5">
-        <OrderForm services={services} mode="create" busy={busy} onSubmit={handleSubmit} />
+        <OrderForm priceItems={priceItems} mode="create" busy={busy} onSubmit={handleSubmit} />
       </div>
     </div>
   )

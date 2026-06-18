@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { getCheckoutSession } from '@/lib/checkoutAuth'
 import { computeOrderTotals } from '@/lib/checkoutCalc'
-import { normalizeItems, replaceOrderItems } from '@/lib/checkoutOrders'
+import { replaceOrderItems } from '@/lib/checkoutOrders'
+import { buildOrderItems, fetchPriceCatalog, PricedItemInput } from '@/lib/checkoutPricing.server'
 import { logOrderEvent } from '@/lib/orderEditLog'
-import { DEFAULT_INCOME_RATE, OrderItemInput, PaymentMethod } from '@/lib/checkoutTypes'
+import { DEFAULT_INCOME_RATE, PaymentMethod } from '@/lib/checkoutTypes'
 
 export const runtime = 'nodejs'
 
@@ -83,7 +84,14 @@ export async function POST(request: NextRequest) {
 
   let customerName = typeof body.customer_name === 'string' ? body.customer_name.trim() : ''
   let customerPhone = typeof body.customer_phone === 'string' ? body.customer_phone.trim() : ''
-  let itemInputs: OrderItemInput[] = Array.isArray(body.items) ? body.items : []
+  let itemInputs: PricedItemInput[] = Array.isArray(body.items) ? body.items : []
+
+  const catalog = await fetchPriceCatalog(admin)
+  // Map a booking service_id -> price catalog key for calendar import.
+  const keyByBookingService = new Map<string, string>()
+  for (const item of Array.from(catalog.values())) {
+    if (item.booking_service_id) keyByBookingService.set(item.booking_service_id, item.key)
+  }
 
   // Calendar import: pull customer + services straight from the booking.
   if (source === 'calendar' && bookingId) {
@@ -98,25 +106,22 @@ export async function POST(request: NextRequest) {
     customerPhone = customerPhone || booking.phone || ''
 
     const selected = Array.isArray(booking.selected_services) ? booking.selected_services : []
-    // selected_services carries no price; look prices up from the services catalog.
-    const serviceIds = selected.map((s: { service_id: string }) => s.service_id).filter(Boolean)
-    const priceById: Record<string, { name: string; price: number }> = {}
-    if (serviceIds.length) {
-      const { data: services } = await admin
-        .from('services')
-        .select('id, name, price')
-        .in('id', serviceIds)
-      for (const s of services || []) priceById[s.id] = { name: s.name, price: s.price ?? 0 }
-    }
-    itemInputs = selected.map((s: { service_id: string; service_name?: string }) => ({
-      service_id: s.service_id,
-      service_name: priceById[s.service_id]?.name || s.service_name || s.service_id,
-      unit_price: priceById[s.service_id]?.price ?? 0,
-      quantity: 1,
-    }))
+    // Map each booked service to a catalog item by category. Fixed-price items
+    // resolve immediately; tier/per-unit/manual items import at 0 for the tech
+    // to complete (a booking doesn't record the tier or finger count).
+    itemInputs = selected
+      .map((s: { service_id: string; category?: 'hand' | 'foot' }) => {
+        const key = s.service_id ? keyByBookingService.get(s.service_id) : undefined
+        if (!key) return null
+        return {
+          price_key: key,
+          category: (s.category as 'hand' | 'foot') || (booking.category as 'hand' | 'foot') || 'hand',
+        } as PricedItemInput
+      })
+      .filter(Boolean) as PricedItemInput[]
   }
 
-  const items = normalizeItems(itemInputs)
+  const items = buildOrderItems(catalog, itemInputs)
   if (!items.length) {
     return NextResponse.json({ error: '請至少新增一個項目' }, { status: 400 })
   }

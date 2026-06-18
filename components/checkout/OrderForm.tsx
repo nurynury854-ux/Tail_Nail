@@ -2,37 +2,28 @@
 
 import { useMemo, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import type { Service } from '@/lib/types'
 import { computeOrderTotals } from '@/lib/checkoutCalc'
-import {
-  DEFAULT_INCOME_RATE,
-  PaymentMethod,
-  REVIEW_INCENTIVE_AMOUNT,
-} from '@/lib/checkoutTypes'
+import { PriceItem, PricedItemInput, resolveUnitPrice } from '@/lib/checkoutPricing'
+import { DEFAULT_INCOME_RATE, PaymentMethod, REVIEW_INCENTIVE_AMOUNT } from '@/lib/checkoutTypes'
 import { formatNTD } from './session'
 
 interface FormLine {
   key: string
-  service_id: string | null
-  service_name: string
-  unit_price: number
-  quantity: number
+  price_key: string // catalog key, '' = custom off-catalog line
+  category: 'hand' | 'foot'
+  tier_index: number
+  unit_count: number
+  manual_price: number
+  custom_name: string
   discount: number
   review_incentive: boolean
 }
 
-export interface OrderFormPayload {
+export type OrderFormPayload = {
   customer_name: string
   customer_phone: string
   payment_method: PaymentMethod | null
-  items: Array<{
-    service_id: string | null
-    service_name: string
-    unit_price: number
-    quantity: number
-    discount: number
-    discount_type: 'manual' | 'review_incentive' | null
-  }>
+  items: PricedItemInput[]
 }
 
 interface InitialData {
@@ -40,11 +31,12 @@ interface InitialData {
   customer_phone?: string | null
   payment_method?: PaymentMethod | null
   items?: Array<{
-    service_id?: string | null
+    price_key?: string | null
     service_name_snapshot?: string
-    service_name?: string
+    category?: 'hand' | 'foot' | null
+    tier_index?: number | null
+    unit_count?: number | null
     unit_price: number
-    quantity: number
     discount: number
     discount_type?: string | null
   }>
@@ -54,22 +46,24 @@ let counter = 0
 const newKey = () => `line-${counter++}`
 
 function emptyLine(): FormLine {
-  return { key: newKey(), service_id: null, service_name: '', unit_price: 0, quantity: 1, discount: 0, review_incentive: false }
+  return { key: newKey(), price_key: '', category: 'hand', tier_index: 0, unit_count: 1, manual_price: 0, custom_name: '', discount: 0, review_incentive: false }
 }
 
 export default function OrderForm({
-  services,
+  priceItems,
   mode = 'create',
   initial,
   busy = false,
   onSubmit,
 }: {
-  services: Service[]
+  priceItems: PriceItem[]
   mode?: 'create' | 'edit'
   initial?: InitialData
   busy?: boolean
   onSubmit: (payload: OrderFormPayload, finalize: boolean) => void
 }) {
+  const catalog = useMemo(() => new Map(priceItems.map((p) => [p.key, p])), [priceItems])
+
   const [customerName, setCustomerName] = useState(initial?.customer_name || '')
   const [customerPhone, setCustomerPhone] = useState(initial?.customer_phone || '')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(initial?.payment_method || null)
@@ -78,10 +72,12 @@ export default function OrderForm({
     if (initial?.items?.length) {
       return initial.items.map((it) => ({
         key: newKey(),
-        service_id: it.service_id || null,
-        service_name: it.service_name_snapshot || it.service_name || '',
-        unit_price: it.unit_price,
-        quantity: it.quantity,
+        price_key: it.price_key || '',
+        category: (it.category as 'hand' | 'foot') || 'hand',
+        tier_index: it.tier_index ?? 0,
+        unit_count: it.unit_count ?? 1,
+        manual_price: it.unit_price,
+        custom_name: it.price_key ? '' : it.service_name_snapshot || '',
         discount: it.discount,
         review_incentive: it.discount_type === 'review_incentive',
       }))
@@ -89,31 +85,31 @@ export default function OrderForm({
     return [emptyLine()]
   })
 
-  const updateLine = (key: string, patch: Partial<FormLine>) =>
+  const update = (key: string, patch: Partial<FormLine>) =>
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)))
 
-  const onPickService = (key: string, serviceId: string) => {
-    if (!serviceId) {
-      updateLine(key, { service_id: null }) // custom line; keep name/price editable
-      return
-    }
-    const svc = services.find((s) => s.id === serviceId)
-    if (svc) {
-      // Tapping a standard service auto-fills its fixed price (single source of truth).
-      updateLine(key, { service_id: svc.id, service_name: svc.name, unit_price: svc.price || 0 })
-    }
+  const lineUnitPrice = (line: FormLine): number => {
+    const item = catalog.get(line.price_key)
+    if (!item) return Math.max(0, line.manual_price)
+    return resolveUnitPrice(item, {
+      category: line.category,
+      tierIndex: line.tier_index,
+      unitCount: line.unit_count,
+      manualPrice: line.manual_price,
+    })
   }
 
   const toggleReview = (key: string, on: boolean) =>
-    updateLine(key, { review_incentive: on, discount: on ? REVIEW_INCENTIVE_AMOUNT : 0 })
+    update(key, { review_incentive: on, discount: on ? REVIEW_INCENTIVE_AMOUNT : 0 })
 
   const totals = useMemo(
     () =>
       computeOrderTotals(
-        lines.map((l) => ({ unit_price: l.unit_price, quantity: l.quantity, discount: l.discount })),
+        lines.map((l) => ({ unit_price: lineUnitPrice(l), quantity: 1, discount: l.discount })),
         DEFAULT_INCOME_RATE,
       ),
-    [lines],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lines, catalog],
   )
 
   const buildPayload = (): OrderFormPayload => ({
@@ -121,24 +117,27 @@ export default function OrderForm({
     customer_phone: customerPhone.trim(),
     payment_method: paymentMethod,
     items: lines
-      .filter((l) => l.service_name.trim())
+      .filter((l) => l.price_key || l.custom_name.trim())
       .map((l) => ({
-        service_id: l.service_id,
-        service_name: l.service_name.trim(),
-        unit_price: l.unit_price,
-        quantity: l.quantity,
+        price_key: l.price_key || null,
+        service_name: l.custom_name.trim(),
+        category: l.category,
+        tier_index: l.tier_index,
+        unit_count: l.unit_count,
+        manual_price: l.manual_price,
         discount: l.discount,
         discount_type: l.review_incentive ? 'review_incentive' : l.discount > 0 ? 'manual' : null,
       })),
   })
 
-  const hasItems = lines.some((l) => l.service_name.trim())
-
+  const hasItems = lines.some((l) => l.price_key || l.custom_name.trim())
   const inputCls = 'w-full rounded-lg border border-blush px-3 py-2 text-sm focus:ring-2 focus:ring-rose/40 outline-none'
+
+  const main = priceItems.filter((p) => p.service_type === 'main')
+  const addon = priceItems.filter((p) => p.service_type === 'addon')
 
   return (
     <div className="space-y-5">
-      {/* Customer */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-sm text-charcoal mb-1">客戶姓名</label>
@@ -150,148 +149,141 @@ export default function OrderForm({
         </div>
       </div>
 
-      {/* Line items */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-playfair text-lg text-charcoal">服務項目</h3>
-          <button
-            type="button"
-            onClick={() => setLines((p) => [...p, emptyLine()])}
-            className="inline-flex items-center gap-1 text-sm text-rose-dark hover:opacity-80"
-          >
+          <button type="button" onClick={() => setLines((p) => [...p, emptyLine()])} className="inline-flex items-center gap-1 text-sm text-rose-dark hover:opacity-80">
             <Plus size={16} /> 新增項目
           </button>
         </div>
 
-        {lines.map((line) => (
-          <div key={line.key} className="rounded-xl border border-blush p-3 space-y-2 bg-white/60">
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-start">
-              <select
-                className={inputCls}
-                value={line.service_id || ''}
-                onChange={(e) => onPickService(line.key, e.target.value)}
-              >
-                <option value="">— 自訂項目 / 選擇服務 —</option>
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                    {s.price ? `（${formatNTD(s.price)}）` : ''}
-                  </option>
-                ))}
-              </select>
-              {lines.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setLines((p) => p.filter((l) => l.key !== line.key))}
-                  className="p-2 text-warmgray hover:text-rose-dark"
-                  aria-label="刪除項目"
+        {lines.map((line) => {
+          const item = catalog.get(line.price_key)
+          const price = lineUnitPrice(line)
+          const tiers = item?.pricing_mode === 'tier' ? (line.category === 'foot' ? item.tiers_foot : item.tiers_hand) || [] : []
+          return (
+            <div key={line.key} className="rounded-xl border border-blush p-3 space-y-2 bg-white/60">
+              <div className="flex gap-2 items-start">
+                <select
+                  className={inputCls}
+                  value={line.price_key}
+                  onChange={(e) => update(line.key, { price_key: e.target.value, tier_index: 0, unit_count: 1, manual_price: 0 })}
                 >
-                  <Trash2 size={16} />
-                </button>
+                  <option value="">— 自訂項目 —</option>
+                  <optgroup label="手部 / 足部服務">
+                    {main.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
+                  </optgroup>
+                  <optgroup label="附加服務">
+                    {addon.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
+                  </optgroup>
+                </select>
+                {lines.length > 1 && (
+                  <button type="button" onClick={() => setLines((p) => p.filter((l) => l.key !== line.key))} className="p-2 text-warmgray hover:text-rose-dark" aria-label="刪除項目">
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+
+              {/* Hand / Foot toggle (catalog items) */}
+              {item && (
+                <div className="flex gap-2">
+                  {([['hand', '手部'], ['foot', '足部']] as const).map(([val, label]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => update(line.key, { category: val })}
+                      className={`px-3 py-1.5 rounded-lg text-sm border transition ${line.category === val ? 'bg-rose text-white border-rose' : 'bg-white text-charcoal border-blush'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               )}
+
+              {/* Custom line: name + price */}
+              {!item && (
+                <div className="grid grid-cols-2 gap-2">
+                  <input className={inputCls} placeholder="自訂項目名稱" value={line.custom_name} onChange={(e) => update(line.key, { custom_name: e.target.value })} />
+                  <input className={inputCls} type="number" placeholder="價格" value={line.manual_price} onChange={(e) => update(line.key, { manual_price: Number(e.target.value) || 0 })} />
+                </div>
+              )}
+
+              {/* Tier picker */}
+              {item?.pricing_mode === 'tier' && (
+                <div className="flex flex-wrap gap-2">
+                  {tiers.map((t, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => update(line.key, { tier_index: idx })}
+                      className={`px-3 py-1.5 rounded-lg text-sm border transition ${line.tier_index === idx ? 'bg-rose text-white border-rose' : 'bg-white text-charcoal border-blush'}`}
+                    >
+                      {formatNTD(t)}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Per-unit (extension) */}
+              {item?.pricing_mode === 'per_unit' && (
+                <div className="flex items-center gap-2 text-sm">
+                  <label className="text-warmgray">指／趾數</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={item.unit_full_qty || 10}
+                    className="w-24 rounded-lg border border-blush px-3 py-2 text-sm"
+                    value={line.unit_count}
+                    onChange={(e) => update(line.key, { unit_count: Math.max(1, Number(e.target.value) || 1) })}
+                  />
+                  <span className="text-warmgray text-xs">滿 {item.unit_full_qty} 指自動以 {formatNTD(item.unit_full_price || 0)} 計</span>
+                </div>
+              )}
+
+              {/* Manual-price catalog item (custom-design / repair) */}
+              {item?.pricing_mode === 'manual' && (
+                <div>
+                  <label className="block text-xs text-warmgray mb-1">價格（手動輸入）</label>
+                  <input className={inputCls} type="number" value={line.manual_price} onChange={(e) => update(line.key, { manual_price: Number(e.target.value) || 0 })} />
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-2">
+                <label className="flex items-center gap-2 text-xs text-warmgray">
+                  <input type="checkbox" checked={line.review_incentive} onChange={(e) => toggleReview(line.key, e.target.checked)} />
+                  好評折扣 −{formatNTD(REVIEW_INCENTIVE_AMOUNT)}
+                </label>
+                {!line.review_incentive && (
+                  <div className="flex items-center gap-1 text-xs text-warmgray">
+                    <span>折扣</span>
+                    <input type="number" min={0} className="w-20 rounded-lg border border-blush px-2 py-1 text-sm" value={line.discount} onChange={(e) => update(line.key, { discount: Math.max(0, Number(e.target.value) || 0) })} />
+                  </div>
+                )}
+                <span className="text-sm font-semibold text-charcoal">{formatNTD(Math.max(0, price - line.discount))}</span>
+              </div>
             </div>
-
-            {!line.service_id && (
-              <input
-                className={inputCls}
-                placeholder="自訂項目名稱"
-                value={line.service_name}
-                onChange={(e) => updateLine(line.key, { service_name: e.target.value })}
-              />
-            )}
-
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="block text-xs text-warmgray mb-1">單價</label>
-                <input
-                  type="number"
-                  className={inputCls}
-                  value={line.unit_price}
-                  // Standard services have a fixed price; only custom lines are editable.
-                  disabled={Boolean(line.service_id)}
-                  onChange={(e) => updateLine(line.key, { unit_price: Number(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-warmgray mb-1">數量</label>
-                <input
-                  type="number"
-                  min={1}
-                  className={inputCls}
-                  value={line.quantity}
-                  onChange={(e) => updateLine(line.key, { quantity: Math.max(1, Number(e.target.value) || 1) })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-warmgray mb-1">折扣</label>
-                <input
-                  type="number"
-                  min={0}
-                  className={inputCls}
-                  value={line.discount}
-                  disabled={line.review_incentive}
-                  onChange={(e) => updateLine(line.key, { discount: Math.max(0, Number(e.target.value) || 0) })}
-                />
-              </div>
-            </div>
-
-            <label className="flex items-center gap-2 text-xs text-warmgray">
-              <input
-                type="checkbox"
-                checked={line.review_incentive}
-                onChange={(e) => toggleReview(line.key, e.target.checked)}
-              />
-              好評折扣 −{formatNTD(REVIEW_INCENTIVE_AMOUNT)}
-            </label>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
-      {/* Payment method */}
       <div>
         <label className="block text-sm text-charcoal mb-1">付款方式</label>
         <div className="flex gap-2">
-          {([
-            ['cash', '現金'],
-            ['transfer', '轉帳'],
-          ] as const).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setPaymentMethod(value)}
-              className={`px-4 py-2 rounded-lg text-sm border transition ${
-                paymentMethod === value
-                  ? 'bg-rose text-white border-rose'
-                  : 'bg-white text-charcoal border-blush hover:border-rose/50'
-              }`}
-            >
+          {([['cash', '現金'], ['transfer', '轉帳']] as const).map(([value, label]) => (
+            <button key={value} type="button" onClick={() => setPaymentMethod(value)} className={`px-4 py-2 rounded-lg text-sm border transition ${paymentMethod === value ? 'bg-rose text-white border-rose' : 'bg-white text-charcoal border-blush hover:border-rose/50'}`}>
               {label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Totals */}
       <div className="rounded-xl bg-blush/60 border border-blush p-4 space-y-1 text-sm">
-        <div className="flex justify-between text-warmgray">
-          <span>小計</span>
-          <span>{formatNTD(totals.gross)}</span>
-        </div>
-        <div className="flex justify-between text-warmgray">
-          <span>折扣</span>
-          <span>−{formatNTD(totals.discountTotal)}</span>
-        </div>
-        <div className="flex justify-between text-charcoal font-semibold text-base">
-          <span>營業額</span>
-          <span>{formatNTD(totals.revenue)}</span>
-        </div>
-        <div className="flex justify-between text-rose-dark font-semibold">
-          <span>業績（50%）</span>
-          <span>{formatNTD(totals.stylistIncome)}</span>
-        </div>
+        <div className="flex justify-between text-warmgray"><span>小計</span><span>{formatNTD(totals.gross)}</span></div>
+        <div className="flex justify-between text-warmgray"><span>折扣</span><span>−{formatNTD(totals.discountTotal)}</span></div>
+        <div className="flex justify-between text-charcoal font-semibold text-base"><span>營業額</span><span>{formatNTD(totals.revenue)}</span></div>
+        <div className="flex justify-between text-rose-dark font-semibold"><span>業績（50%）</span><span>{formatNTD(totals.stylistIncome)}</span></div>
       </div>
 
-      {/* Actions */}
       {mode === 'create' ? (
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-sm text-charcoal">
@@ -299,31 +291,16 @@ export default function OrderForm({
             我確認以上結帳資料正確（送出後無法修改）
           </label>
           <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={busy || !hasItems}
-              onClick={() => onSubmit(buildPayload(), false)}
-              className="flex-1 py-2.5 rounded-lg border border-rose text-rose-dark font-semibold hover:bg-rose/5 disabled:opacity-50"
-            >
+            <button type="button" disabled={busy || !hasItems} onClick={() => onSubmit(buildPayload(), false)} className="flex-1 py-2.5 rounded-lg border border-rose text-rose-dark font-semibold hover:bg-rose/5 disabled:opacity-50">
               儲存草稿
             </button>
-            <button
-              type="button"
-              disabled={busy || !hasItems || !confirmChecked}
-              onClick={() => onSubmit(buildPayload(), true)}
-              className="flex-1 py-2.5 rounded-lg bg-rose text-white font-semibold hover:opacity-90 disabled:opacity-50"
-            >
+            <button type="button" disabled={busy || !hasItems || !confirmChecked} onClick={() => onSubmit(buildPayload(), true)} className="flex-1 py-2.5 rounded-lg bg-rose text-white font-semibold hover:opacity-90 disabled:opacity-50">
               確認結帳並送出
             </button>
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          disabled={busy || !hasItems}
-          onClick={() => onSubmit(buildPayload(), false)}
-          className="w-full py-2.5 rounded-lg bg-rose text-white font-semibold hover:opacity-90 disabled:opacity-50"
-        >
+        <button type="button" disabled={busy || !hasItems} onClick={() => onSubmit(buildPayload(), false)} className="w-full py-2.5 rounded-lg bg-rose text-white font-semibold hover:opacity-90 disabled:opacity-50">
           儲存修改
         </button>
       )}

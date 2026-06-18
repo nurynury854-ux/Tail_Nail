@@ -55,11 +55,15 @@ export interface OrderItem {
   id: string
   order_id: string
   service_id?: string | null
+  price_key?: string | null
   service_name_snapshot: string
+  category?: 'hand' | 'foot' | null
   unit_price: number
   quantity: number
   discount: number
   discount_type?: DiscountType | null
+  unit_count?: number | null
+  tier_index?: number | null
   line_total: number
   created_at?: string
 }

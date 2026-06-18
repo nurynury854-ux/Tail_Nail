@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { canEditOrder, getCheckoutSession } from '@/lib/checkoutAuth'
 import { computeOrderTotals } from '@/lib/checkoutCalc'
-import { fetchOrderWithItems, normalizeItems, replaceOrderItems } from '@/lib/checkoutOrders'
+import { fetchOrderWithItems, replaceOrderItems } from '@/lib/checkoutOrders'
+import { buildOrderItems, fetchPriceCatalog, PricedItemInput } from '@/lib/checkoutPricing.server'
 import { diffOrder, logOrderEvent } from '@/lib/orderEditLog'
-import { OrderItemInput, PaymentMethod } from '@/lib/checkoutTypes'
+import { PaymentMethod } from '@/lib/checkoutTypes'
 
 export const runtime = 'nodejs'
 
@@ -59,10 +60,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (typeof body.customer_phone === 'string') update.customer_phone = body.customer_phone.trim() || null
   if ('payment_method' in body) update.payment_method = (body.payment_method as PaymentMethod) || null
 
-  // If items are supplied, replace them and recompute money.
-  let newItems = before.items || []
+  // If items are supplied, replace them and recompute money (prices resolved
+  // server-side from the catalog so a tech can't override fixed prices).
+  let newItems: object[] = before.items || []
   if (Array.isArray(body.items)) {
-    const normalized = normalizeItems(body.items as OrderItemInput[])
+    const catalog = await fetchPriceCatalog(admin)
+    const normalized = buildOrderItems(catalog, body.items as PricedItemInput[])
     if (!normalized.length) {
       return NextResponse.json({ error: '請至少保留一個項目' }, { status: 400 })
     }

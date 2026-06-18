@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import type { CheckoutOrder, OrderEditLog } from '@/lib/checkoutTypes'
-import type { Service } from '@/lib/types'
+import type { PriceItem } from '@/lib/checkoutPricing'
 import OrderForm, { OrderFormPayload } from '@/components/checkout/OrderForm'
 import OrderStatusBadge from '@/components/checkout/OrderStatusBadge'
 import { formatNTD, useCheckoutSession, type ClientSession } from '@/components/checkout/session'
@@ -32,7 +32,7 @@ export default function OrderDetailPage() {
   const router = useRouter()
   const { session } = useCheckoutSession()
   const [order, setOrder] = useState<CheckoutOrder | null>(null)
-  const [services, setServices] = useState<Service[]>([])
+  const [priceItems, setPriceItems] = useState<PriceItem[]>([])
   const [logs, setLogs] = useState<OrderEditLog[]>([])
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -45,7 +45,7 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     load()
-    fetch('/api/services').then((r) => (r.ok ? r.json() : [])).then(setServices).catch(() => {})
+    fetch('/api/checkout/prices').then((r) => (r.ok ? r.json() : [])).then(setPriceItems).catch(() => {})
   }, [id])
 
   useEffect(() => {
@@ -116,7 +116,7 @@ export default function OrderDetailPage() {
       {editing ? (
         <div className="rounded-2xl border border-blush bg-white p-5">
           <OrderForm
-            services={services}
+            priceItems={priceItems}
             mode="edit"
             busy={busy}
             initial={{

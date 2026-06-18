@@ -55,7 +55,7 @@ export async function fetchOrderWithItems(
 export async function replaceOrderItems(
   admin: SupabaseClient,
   orderId: string,
-  items: NormalizedItem[],
+  items: object[],
 ): Promise<void> {
   await admin.from('checkout_order_items').delete().eq('order_id', orderId)
   if (items.length) {
