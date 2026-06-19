@@ -38,6 +38,8 @@ export interface ServiceDuration {
 
 export type StylistGrade = 'special' | 'grade1' | 'grade2'
 
+export type StylistWeight = 'high' | 'low'
+
 export interface Stylist {
   id: string
   branch_id: string
@@ -45,6 +47,7 @@ export interface Stylist {
   bio?: string
   is_active: boolean
   grade?: StylistGrade | null
+  selection_weight?: StylistWeight | null
 }
 
 export interface BranchWorkingHours {

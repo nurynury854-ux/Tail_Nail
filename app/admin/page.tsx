@@ -21,7 +21,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { Booking, BRANCHES, SERVICES, Branch, Service, Stylist, StylistGrade } from '@/lib/types'
+import { Booking, BRANCHES, SERVICES, Branch, Service, Stylist, StylistGrade, StylistWeight } from '@/lib/types'
 import { formatPrice, formatDuration, calculateEndTime } from '@/lib/bookingUtils'
 
 type FilterState = {
@@ -183,6 +183,7 @@ export default function AdminPage() {
     stylistOverrides: SchedulePayload['stylistOverrides']
   }>({ branchOverrides: [], stylistOverrides: [] })
   const [savingGrade, setSavingGrade] = useState<string | null>(null)
+  const [savingWeight, setSavingWeight] = useState<string | null>(null)
 
   const fetchMasterData = useCallback(async () => {
     try {
@@ -531,6 +532,28 @@ export default function AdminPage() {
       toast.error('更新等級失敗')
     } finally {
       setSavingGrade(null)
+    }
+  }
+
+  const handleSetWeight = async (stylistId: string, selection_weight: StylistWeight | null) => {
+    setSavingWeight(stylistId)
+    try {
+      const res = await fetch(`/api/stylists/${stylistId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selection_weight }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: '更新權重失敗' }))
+        toast.error(err.error || '更新權重失敗')
+        return
+      }
+      setStylists((prev) => prev.map((s) => (s.id === stylistId ? { ...s, selection_weight } : s)))
+      toast.success('指派權重已更新')
+    } catch {
+      toast.error('更新權重失敗')
+    } finally {
+      setSavingWeight(null)
     }
   }
 
@@ -1157,6 +1180,56 @@ export default function AdminPage() {
               )
             })}
           </div>
+        </div>
+
+        {/* ── Assignment Weight Section ── */}
+        <div className="bg-white rounded-2xl shadow-card p-5">
+          <h3 className="font-playfair text-xl text-charcoal font-bold mb-1 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-rose" /> 不指定派單權重
+          </h3>
+          <p className="text-xs text-warmgray mb-4">
+            當客人選「不指定」設計師時，系統會在可預約的設計師中隨機派單，並依當日忙碌程度自動平衡。
+            可在此微調個別設計師被派到的機率：「高」較容易、「低」較不容易，預設為一般。空檔／休假者不受影響。
+          </p>
+
+          {stylists.length === 0 ? (
+            <p className="text-xs text-warmgray italic">尚無設計師</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              {stylists.map((s) => {
+                const branch = branches.find((b) => b.id === s.branch_id)
+                return (
+                  <div
+                    key={s.id}
+                    className={`border rounded-xl p-2.5 flex items-center justify-between gap-2 ${
+                      s.is_active ? 'border-blush bg-white' : 'border-gray-200 bg-gray-50 opacity-70'
+                    }`}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-charcoal">
+                        {s.name}
+                        {!s.is_active && <span className="text-[11px] text-warmgray ml-1">（停用）</span>}
+                      </p>
+                      <p className="text-[11px] text-warmgray">{branch?.name || ''}</p>
+                    </div>
+                    <select
+                      disabled={savingWeight === s.id}
+                      value={s.selection_weight ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        handleSetWeight(s.id, val === '' ? null : (val as StylistWeight))
+                      }}
+                      className="text-xs border border-blush rounded-lg px-1.5 py-1 bg-white text-charcoal"
+                    >
+                      <option value="">一般</option>
+                      <option value="high">高</option>
+                      <option value="low">低</option>
+                    </select>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-card p-5">

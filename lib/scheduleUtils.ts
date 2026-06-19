@@ -154,3 +154,66 @@ export function chooseLeastBookedStylist(args: {
 
   return ranked[0] || null
 }
+
+// Relative multipliers for the Owner's manual weight nudge. Kept deliberately
+// modest so "High" is more likely than "Low" without overwhelming randomness.
+export const STYLIST_WEIGHT_MULTIPLIERS = {
+  high: 1.5,
+  default: 1.0,
+  low: 0.67,
+} as const
+
+export type StylistWeightSetting = 'high' | 'low' | null | undefined
+
+export function weightMultiplier(weight: StylistWeightSetting): number {
+  if (weight === 'high') return STYLIST_WEIGHT_MULTIPLIERS.high
+  if (weight === 'low') return STYLIST_WEIGHT_MULTIPLIERS.low
+  return STYLIST_WEIGHT_MULTIPLIERS.default
+}
+
+/**
+ * Picks a stylist for a "no preference" booking using a weighted random draw
+ * that blends the Owner's manual weight with same-day load balancing:
+ *
+ *   score(t) = weightMultiplier(t) / (bookingsToday(t) + 1)
+ *   P(t)     = score(t) / Σ score
+ *
+ * A busier stylist gets lower odds (preserving the old least-booked spirit),
+ * while the Owner's High/Low nudge biases the result. When the Owner has set no
+ * weights, every stylist with equal load has equal probability. A single
+ * candidate is always returned. Returns null only for an empty pool.
+ *
+ * `rng` is injectable for deterministic testing; defaults to Math.random.
+ */
+export function chooseWeightedStylist(args: {
+  candidateIds: string[]
+  bookingsByStylist: Record<string, Booking[]>
+  weightByStylist: Record<string, StylistWeightSetting>
+  rng?: () => number
+}): string | null {
+  const { candidateIds, bookingsByStylist, weightByStylist, rng = Math.random } = args
+  if (candidateIds.length === 0) return null
+  if (candidateIds.length === 1) return candidateIds[0]
+
+  const scored = candidateIds.map((id) => {
+    const load = (bookingsByStylist[id] || []).length
+    const score = weightMultiplier(weightByStylist[id]) / (load + 1)
+    return { id, score }
+  })
+
+  const totalScore = scored.reduce((sum, s) => sum + s.score, 0)
+  if (totalScore <= 0) {
+    // Degenerate guard (shouldn't happen with positive multipliers) — fall back
+    // to a uniform pick so we never fail to assign an eligible stylist.
+    return candidateIds[Math.floor(rng() * candidateIds.length)] || candidateIds[0]
+  }
+
+  let threshold = rng() * totalScore
+  for (const s of scored) {
+    threshold -= s.score
+    if (threshold <= 0) return s.id
+  }
+
+  // Floating-point fallthrough safety net.
+  return scored[scored.length - 1].id
+}

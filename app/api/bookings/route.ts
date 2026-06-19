@@ -14,7 +14,7 @@ import {
   timeToMinutes,
 } from '@/lib/bookingUtils'
 import {
-  chooseLeastBookedStylist,
+  chooseWeightedStylist,
   getAvailableStylistsForSlot,
   resolveBranchWindow,
   resolveStylistWindow,
@@ -382,7 +382,7 @@ export async function POST(request: NextRequest) {
 
     let stylistQuery = supabase
       .from('stylists')
-      .select('id, branch_id, name, bio, is_active, grade')
+      .select('id, branch_id, name, bio, is_active, grade, selection_weight')
       .eq('branch_id', branch_id)
       .eq('is_active', true)
 
@@ -559,9 +559,15 @@ export async function POST(request: NextRequest) {
         bookingsByStylist[booking.stylist_id].push(booking)
       }
 
-      assignedStylistId = chooseLeastBookedStylist({
+      const weightByStylist: Record<string, 'high' | 'low' | null | undefined> = {}
+      for (const stylist of stylists) {
+        weightByStylist[stylist.id] = stylist.selection_weight ?? null
+      }
+
+      assignedStylistId = chooseWeightedStylist({
         candidateIds: availableStylistIds,
         bookingsByStylist,
+        weightByStylist,
       })
     } else {
       assignedStylistId = preferredStylistId

@@ -82,11 +82,17 @@ CREATE TABLE IF NOT EXISTS stylists (
   bio         TEXT,
   is_active   BOOLEAN NOT NULL DEFAULT true,
   grade       TEXT CHECK (grade IN ('special', 'grade1', 'grade2')),
+  -- Owner's manual nudge for unassigned ("no preference") bookings.
+  -- NULL = default weight (1.0); 'high' = boosted; 'low' = reduced.
+  selection_weight TEXT CHECK (selection_weight IN ('high', 'low')),
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
 ALTER TABLE stylists
   ADD COLUMN IF NOT EXISTS grade TEXT CHECK (grade IN ('special', 'grade1', 'grade2'));
+
+ALTER TABLE stylists
+  ADD COLUMN IF NOT EXISTS selection_weight TEXT CHECK (selection_weight IN ('high', 'low'));
 
 ALTER TABLE bookings
   DROP CONSTRAINT IF EXISTS bookings_stylist_id_fkey,
