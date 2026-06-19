@@ -5,6 +5,7 @@ import { computeOrderTotals } from '@/lib/checkoutCalc'
 import { replaceOrderItems } from '@/lib/checkoutOrders'
 import { buildOrderItems, fetchPriceCatalog, PricedItemInput } from '@/lib/checkoutPricing.server'
 import { logOrderEvent } from '@/lib/orderEditLog'
+import { computeServiceEndAt, redactOrder } from '@/lib/checkoutPrivacy'
 import { DEFAULT_INCOME_RATE, PaymentMethod } from '@/lib/checkoutTypes'
 
 export const runtime = 'nodejs'
@@ -60,7 +61,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json(orders.map((o) => ({ ...o, items: itemsByOrder[o.id] || [] })))
+  // Redact customer identity per the requesting role + timers.
+  return NextResponse.json(
+    orders.map((o) => ({ ...redactOrder(o, session.role), items: itemsByOrder[o.id] || [] })),
+  )
 }
 
 // POST /api/checkout/orders — create an order (manual walk-in or calendar import).
@@ -85,6 +89,8 @@ export async function POST(request: NextRequest) {
   let customerName = typeof body.customer_name === 'string' ? body.customer_name.trim() : ''
   let customerPhone = typeof body.customer_phone === 'string' ? body.customer_phone.trim() : ''
   let itemInputs: PricedItemInput[] = Array.isArray(body.items) ? body.items : []
+  let bookingDate: string | null = null
+  let bookingEndTime: string | null = null
 
   const catalog = await fetchPriceCatalog(admin)
   // Map a booking service_id -> price catalog key for calendar import.
@@ -104,6 +110,8 @@ export async function POST(request: NextRequest) {
 
     customerName = customerName || booking.customer_name || ''
     customerPhone = customerPhone || booking.phone || ''
+    bookingDate = booking.date || null
+    bookingEndTime = booking.end_time || null
 
     const selected = Array.isArray(booking.selected_services) ? booking.selected_services : []
     // Map each booked service to a catalog item by category. Fixed-price items
@@ -155,6 +163,7 @@ export async function POST(request: NextRequest) {
       payment_method: paymentMethod,
       status: 'draft',
       business_date: businessDate,
+      service_end_at: computeServiceEndAt({ source, businessDate, bookingDate, bookingEndTime }),
     })
     .select()
     .single()
@@ -169,5 +178,5 @@ export async function POST(request: NextRequest) {
     action: 'create',
   })
 
-  return NextResponse.json({ ...order, items }, { status: 201 })
+  return NextResponse.json({ ...redactOrder(order, session.role), items }, { status: 201 })
 }

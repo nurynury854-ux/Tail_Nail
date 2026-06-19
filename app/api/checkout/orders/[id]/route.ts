@@ -5,6 +5,7 @@ import { computeOrderTotals } from '@/lib/checkoutCalc'
 import { fetchOrderWithItems, replaceOrderItems } from '@/lib/checkoutOrders'
 import { buildOrderItems, fetchPriceCatalog, PricedItemInput } from '@/lib/checkoutPricing.server'
 import { diffOrder, logOrderEvent } from '@/lib/orderEditLog'
+import { customerVisibility, orderServiceEnd, redactOrder } from '@/lib/checkoutPrivacy'
 import { PaymentMethod } from '@/lib/checkoutTypes'
 
 export const runtime = 'nodejs'
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
-  return NextResponse.json(order)
+  return NextResponse.json(redactOrder(order, session.role))
 }
 
 // PATCH /api/checkout/orders/[id] — gated by the edit-permission matrix.
@@ -56,8 +57,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const body = await request.json().catch(() => ({}))
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
-  if (typeof body.customer_name === 'string') update.customer_name = body.customer_name.trim() || null
-  if (typeof body.customer_phone === 'string') update.customer_phone = body.customer_phone.trim() || null
+  // Only let the editor touch identity fields they can currently see — otherwise
+  // a redacted (null) form value would wipe PII the owner/manager still needs.
+  const vis = customerVisibility(session.role, orderServiceEnd(before))
+  if (vis.name && typeof body.customer_name === 'string') update.customer_name = body.customer_name.trim() || null
+  if (vis.phone && typeof body.customer_phone === 'string') update.customer_phone = body.customer_phone.trim() || null
   if ('payment_method' in body) update.payment_method = (body.payment_method as PaymentMethod) || null
 
   // If items are supplied, replace them and recompute money (prices resolved
@@ -96,7 +100,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     fieldChanges: changes,
   })
 
-  return NextResponse.json({ ...after, items: newItems })
+  return NextResponse.json({ ...redactOrder(after, session.role), items: newItems })
 }
 
 // DELETE /api/checkout/orders/[id] — same matrix as edit.

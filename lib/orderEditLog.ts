@@ -11,9 +11,9 @@ export interface FieldChange {
 }
 
 // Order header fields worth diffing for the audit log.
+// Customer identity fields are intentionally excluded so PII is never stored in
+// the (manager-visible, long-lived) audit log.
 const TRACKED_FIELDS: (keyof CheckoutOrder)[] = [
-  'customer_name',
-  'customer_phone',
   'payment_method',
   'gross_amount',
   'discount_total',

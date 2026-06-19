@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { getCheckoutSession } from '@/lib/checkoutAuth'
+import { redactBooking } from '@/lib/checkoutPrivacy'
 
 export const runtime = 'nodejs'
 
@@ -36,5 +37,6 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json(data || [])
+  // Redact customer identity per the requesting role + timers.
+  return NextResponse.json((data || []).map((b) => redactBooking(b, session.role)))
 }
