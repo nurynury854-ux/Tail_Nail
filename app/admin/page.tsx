@@ -111,6 +111,18 @@ const DAY_OPTIONS = [
   { key: 'saturday', label: '週六', value: 6 },
 ] as const
 
+// Quick-jump nav sections for the admin page top bar
+const ADMIN_SECTIONS = [
+  { id: 'admin-stats', label: '月份統計' },
+  { id: 'admin-branches', label: '分店管理' },
+  { id: 'admin-stylists', label: '設計師管理' },
+  { id: 'admin-schedule', label: '排班' },
+  { id: 'admin-grades', label: '設計師等級設定' },
+  { id: 'admin-weights', label: '不指定派單權重' },
+  { id: 'admin-overrides', label: '近期覆蓋設定' },
+  { id: 'admin-bookings', label: '預約記錄' },
+] as const
+
 const STATUS_LABEL: Record<string, string> = {
   confirmed: '已確認',
   completed: '已完成',
@@ -762,8 +774,24 @@ export default function AdminPage() {
         </div>
       </div>
 
+      <div className="sticky top-16 z-30 bg-cream/95 backdrop-blur border-b border-blush shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex gap-2 overflow-x-auto py-3">
+            {ADMIN_SECTIONS.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="whitespace-nowrap px-3 py-1.5 rounded-full border border-blush text-sm text-charcoal hover:bg-blush/40 transition-colors"
+              >
+                {s.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        <div className="space-y-4">
+        <div id="admin-stats" className="space-y-4 scroll-mt-32">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h2 className="font-playfair text-xl text-charcoal font-bold flex items-center gap-2">
               <Calendar className="w-5 h-5 text-rose" /> 月份統計
@@ -793,7 +821,7 @@ export default function AdminPage() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-2xl shadow-card p-5 lg:col-span-1">
+          <div id="admin-branches" className="bg-white rounded-2xl shadow-card p-5 lg:col-span-1 scroll-mt-32">
             <h2 className="font-playfair text-xl text-charcoal font-bold mb-4 flex items-center gap-2">
               <Building2 className="w-5 h-5 text-rose" /> 分店管理
             </h2>
@@ -845,7 +873,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-card p-5 lg:col-span-1">
+          <div id="admin-stylists" className="bg-white rounded-2xl shadow-card p-5 lg:col-span-1 scroll-mt-32">
             <h2 className="font-playfair text-xl text-charcoal font-bold mb-4 flex items-center gap-2">
               <Scissors className="w-5 h-5 text-rose" /> 設計師管理
             </h2>
@@ -904,7 +932,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-card p-5 lg:col-span-1">
+          <div id="admin-schedule" className="bg-white rounded-2xl shadow-card p-5 lg:col-span-1 scroll-mt-32">
             <h2 className="font-playfair text-xl text-charcoal font-bold mb-4 flex items-center gap-2">
               <Settings className="w-5 h-5 text-rose" /> 排班
             </h2>
@@ -1079,7 +1107,7 @@ export default function AdminPage() {
         </div>
 
         {/* ── Grade Assignment Section ── */}
-        <div className="bg-white rounded-2xl shadow-card p-5">
+        <div id="admin-grades" className="bg-white rounded-2xl shadow-card p-5 scroll-mt-32">
           <h3 className="font-playfair text-xl text-charcoal font-bold mb-1 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-rose" /> 設計師等級設定
           </h3>
@@ -1183,7 +1211,7 @@ export default function AdminPage() {
         </div>
 
         {/* ── Assignment Weight Section ── */}
-        <div className="bg-white rounded-2xl shadow-card p-5">
+        <div id="admin-weights" className="bg-white rounded-2xl shadow-card p-5 scroll-mt-32">
           <h3 className="font-playfair text-xl text-charcoal font-bold mb-1 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-rose" /> 不指定派單權重
           </h3>
@@ -1232,7 +1260,7 @@ export default function AdminPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-card p-5">
+        <div id="admin-overrides" className="bg-white rounded-2xl shadow-card p-5 scroll-mt-32">
           <h3 className="font-playfair text-xl text-charcoal font-bold mb-3">近期覆蓋設定</h3>
           <div className="grid md:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
             {allOverrides.branchOverrides.map((o) => {
@@ -1281,7 +1309,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-card p-5">
+        <div id="admin-bookings" className="bg-white rounded-2xl shadow-card p-5 scroll-mt-32">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warmgray" />
