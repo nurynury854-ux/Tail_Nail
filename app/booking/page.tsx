@@ -46,6 +46,9 @@ function BookingContent() {
   const [loadingStylists, setLoadingStylists] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [lineIdLocked, setLineIdLocked] = useState(false)
+  // Which branch's LINE OA issued the customer's userId (userIds are per-channel),
+  // so the confirmation is sent via that channel even for a cross-branch booking.
+  const [srcBranch, setSrcBranch] = useState<string | null>(null)
 
   const [state, setState] = useState<BookingState>({
     branch: null,
@@ -83,6 +86,8 @@ function BookingContent() {
       setState((prev) => ({ ...prev, lineId: userId }))
       setLineIdLocked(true)
     }
+    const src = searchParams.get('srcBranch')
+    if (src) setSrcBranch(src)
   }, [searchParams])
 
   useEffect(() => {
@@ -361,6 +366,7 @@ function BookingContent() {
           end_time: calculateEndTime(state.timeSlot, totalDuration),
           status: 'confirmed',
           note: state.note.trim() || null,
+          line_source_branch_id: srcBranch,
         }),
       })
 

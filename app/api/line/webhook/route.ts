@@ -99,7 +99,10 @@ export async function POST(request: NextRequest) {
         event.replyToken
       ) {
         const userId = event.source.userId
-        const bookingUrl = `${process.env.NEXT_PUBLIC_BOOKING_URL || 'https://tail-nail.vercel.app/booking'}?userId=${encodeURIComponent(userId)}`
+        // srcBranch records which branch's OA issued this userId. LINE user IDs are
+        // scoped per channel, so confirmations must be sent via this same channel
+        // even if the customer ends up booking a different branch.
+        const bookingUrl = `${process.env.NEXT_PUBLIC_BOOKING_URL || 'https://tail-nail.vercel.app/booking'}?userId=${encodeURIComponent(userId)}&srcBranch=${encodeURIComponent(branchId)}`
 
         try {
           await sendLineReply(

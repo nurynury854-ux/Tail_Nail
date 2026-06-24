@@ -37,6 +37,7 @@ type BookingRequestBody = {
   end_time?: string
   status?: 'pending' | 'confirmed' | 'cancelled' | 'completed'
   note?: string
+  line_source_branch_id?: string | null
 }
 
 async function sendLinePushMessage(userId: string, message: string, accessToken: string): Promise<void> {
@@ -207,6 +208,7 @@ export async function POST(request: NextRequest) {
       start_time,
       status,
       note,
+      line_source_branch_id,
     } = body
 
     if (!branch_id || !customer_name || !date || !start_time) {
@@ -323,7 +325,10 @@ export async function POST(request: NextRequest) {
       })
 
       let lineNotificationSent = false
-      const fallbackLineConfig = getBranchLineConfig(branch_id)
+      const fallbackLineConfig =
+        (line_source_branch_id && line_source_branch_id !== branch_id
+          ? getBranchLineConfig(line_source_branch_id)
+          : null) || getBranchLineConfig(branch_id)
       if (normalizedLineId && fallbackLineConfig) {
         try {
           await sendLinePushMessage(normalizedLineId, confirmationMessage, fallbackLineConfig.channelAccessToken)
@@ -673,10 +678,17 @@ export async function POST(request: NextRequest) {
     })
 
     const lineConfig = getBranchLineConfig(branch_id)
+    // LINE user IDs are scoped per channel. If the customer's userId came from a
+    // different branch's OA (cross-branch booking), the confirmation must be sent
+    // via that originating channel, not the booked branch's channel.
+    const customerLineConfig =
+      (line_source_branch_id && line_source_branch_id !== branch_id
+        ? getBranchLineConfig(line_source_branch_id)
+        : null) || lineConfig
     let lineNotificationSent = false
-    if (normalizedLineId && lineConfig) {
+    if (normalizedLineId && customerLineConfig) {
       try {
-        await sendLinePushMessage(normalizedLineId, confirmationMessage, lineConfig.channelAccessToken)
+        await sendLinePushMessage(normalizedLineId, confirmationMessage, customerLineConfig.channelAccessToken)
         lineNotificationSent = true
       } catch (lineError) {
         console.warn(`Failed to send to customer LINE ID ${normalizedLineId}:`, lineError)
