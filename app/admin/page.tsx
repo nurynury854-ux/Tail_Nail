@@ -146,6 +146,7 @@ export default function AdminPage() {
     const nowTW = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
     return `${nowTW.getFullYear()}-${String(nowTW.getMonth() + 1).padStart(2, '0')}`
   })
+  const [statsBranch, setStatsBranch] = useState('') // '' = all branches
   const [showAddModal, setShowAddModal] = useState(false)
   const [addForm, setAddForm] = useState<ManualBooking>({
     branch_id: '',
@@ -723,7 +724,20 @@ export default function AdminPage() {
   })
 
   // Monthly stats — filtered by appointment date (YYYY-MM) for the selected month
-  const monthlyBookings = bookings.filter((b) => (b.date || '').startsWith(statsMonth))
+  const sortedStatsBranches = useMemo(
+    () =>
+      [...branches].sort((a, b) => {
+        const na = Number(a.id)
+        const nb = Number(b.id)
+        if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb
+        return String(a.id).localeCompare(String(b.id))
+      }),
+    [branches]
+  )
+
+  const monthlyBookings = bookings.filter(
+    (b) => (b.date || '').startsWith(statsMonth) && (!statsBranch || b.branch_id === statsBranch)
+  )
   const stats = {
     total: monthlyBookings.length,
     completed: monthlyBookings.filter((b) => b.status === 'completed').length,
@@ -796,12 +810,26 @@ export default function AdminPage() {
             <h2 className="font-playfair text-xl text-charcoal font-bold flex items-center gap-2">
               <Calendar className="w-5 h-5 text-rose" /> 月份統計
             </h2>
-            <input
-              type="month"
-              value={statsMonth}
-              onChange={(e) => setStatsMonth(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-blush text-sm"
-            />
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={statsBranch}
+                onChange={(e) => setStatsBranch(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-blush text-sm bg-white"
+              >
+                <option value="">全部分店</option>
+                {sortedStatsBranches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="month"
+                value={statsMonth}
+                onChange={(e) => setStatsMonth(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-blush text-sm"
+              />
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
