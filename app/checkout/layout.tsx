@@ -12,6 +12,8 @@ function NavBar() {
   if (!session || pathname === '/checkout/login') return null
 
   const links: Array<{ href: string; label: string; roles: string[] }> = [
+    // 帳號管理 is owner-only and intentionally listed first so it leads the owner's nav.
+    { href: '/checkout/accounts', label: '帳號管理', roles: ['owner'] },
     { href: '/checkout', label: '總覽', roles: ['owner', 'manager', 'stylist'] },
     { href: '/checkout/orders', label: '結帳', roles: ['owner', 'manager', 'stylist'] },
     { href: '/checkout/calendar', label: '行事曆', roles: ['owner', 'manager', 'stylist'] },
@@ -22,7 +24,6 @@ function NavBar() {
     { href: '/checkout/bonuses', label: '獎金', roles: ['owner'] },
     { href: '/checkout/prices', label: '價格', roles: ['owner'] },
     { href: '/checkout/logs', label: '修改記錄', roles: ['owner', 'manager'] },
-    { href: '/checkout/accounts', label: '帳號管理', roles: ['owner'] },
   ].filter((l) => l.roles.includes(session.role))
 
   const logout = async () => {
