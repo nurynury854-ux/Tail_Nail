@@ -15,11 +15,11 @@ function NavBar() {
     // 帳號管理 is owner-only and intentionally listed first so it leads the owner's nav.
     { href: '/checkout/accounts', label: '帳號管理', roles: ['owner'] },
     { href: '/checkout', label: '總覽', roles: ['owner', 'manager', 'stylist'] },
-    { href: '/checkout/orders', label: '結帳', roles: ['owner', 'manager', 'stylist'] },
+    { href: '/checkout/orders', label: 'K單', roles: ['owner', 'manager', 'stylist'] },
     { href: '/checkout/calendar', label: '行事曆', roles: ['owner', 'manager', 'stylist'] },
     { href: '/checkout/reports', label: '報表', roles: ['owner', 'manager'] },
     { href: '/checkout/reconcile', label: '對帳', roles: ['manager'] },
-    { href: '/checkout/cleaning', label: '清潔', roles: ['owner', 'manager', 'stylist'] },
+    { href: '/checkout/cleaning', label: '值日生', roles: ['owner', 'manager', 'stylist'] },
     { href: '/checkout/messages', label: '留言板', roles: ['owner', 'manager'] },
     { href: '/checkout/bonuses', label: '獎金', roles: ['owner'] },
     { href: '/checkout/prices', label: '價格', roles: ['owner'] },
