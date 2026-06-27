@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CalendarDays, ClipboardList, Plus } from 'lucide-react'
 import type { CheckoutOrder } from '@/lib/checkoutTypes'
-import type { Stylist } from '@/lib/types'
+import type { Branch, Stylist } from '@/lib/types'
 import { formatNTD, ROLE_LABELS, useCheckoutSession } from '@/components/checkout/session'
 
 const todayStr = () => new Date().toISOString().slice(0, 10)
@@ -25,6 +25,8 @@ export default function CheckoutHome() {
   const [orders, setOrders] = useState<CheckoutOrder[]>([])
   const [stylists, setStylists] = useState<Stylist[]>([])
   const [selectedStylistId, setSelectedStylistId] = useState('')
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [selectedBranchId, setSelectedBranchId] = useState('')
   const [mode, setMode] = useState<'day' | 'month'>('day')
   const [day, setDay] = useState(todayStr())
   const [month, setMonth] = useState(todayStr().slice(0, 7))
@@ -43,16 +45,24 @@ export default function CheckoutHome() {
       .catch(() => setOrders([]))
   }, [session, rangeQuery])
 
-  // Owner can drill into any one stylist's performance from the dashboard.
+  // Owner can drill into any one branch's or stylist's performance from the dashboard.
   useEffect(() => {
     if (session?.role !== 'owner') return
     fetch('/api/stylists?active=true', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : []))
       .then(setStylists)
       .catch(() => setStylists([]))
+    fetch('/api/branches', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setBranches)
+      .catch(() => setBranches([]))
   }, [session])
 
   const stats = useMemo(() => summarize(orders), [orders])
+  const branchStats = useMemo(
+    () => summarize(selectedBranchId ? orders.filter((o) => o.branch_id_snapshot === selectedBranchId) : []),
+    [orders, selectedBranchId],
+  )
   const individual = useMemo(
     () => summarize(selectedStylistId ? orders.filter((o) => o.stylist_id_snapshot === selectedStylistId) : []),
     [orders, selectedStylistId],
@@ -98,6 +108,35 @@ export default function CheckoutHome() {
         <StatCard label="訂單數" value={String(stats.count)} />
         <StatCard label="待確認" value={String(stats.pending)} />
       </div>
+
+      {/* Owner: drill into one branch's performance for the selected range. */}
+      {session.role === 'owner' && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-playfair text-lg text-charcoal">分店業績</h2>
+            <select
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              className="rounded-lg border border-blush px-3 py-2 text-sm"
+            >
+              <option value="">— 選擇分店 —</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          {selectedBranchId ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatCard label={`${rangeWord}營業額`} value={formatNTD(branchStats.revenue)} />
+              <StatCard label={`${rangeWord}業績總額`} value={formatNTD(branchStats.income)} />
+              <StatCard label="訂單數" value={String(branchStats.count)} />
+              <StatCard label="待確認" value={String(branchStats.pending)} />
+            </div>
+          ) : (
+            <p className="text-sm text-warmgray">選擇分店以查看其{rangeWord}業績。</p>
+          )}
+        </div>
+      )}
 
       {/* Owner: drill into one stylist's performance for the selected range. */}
       {session.role === 'owner' && (
