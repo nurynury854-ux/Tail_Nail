@@ -60,8 +60,13 @@ export default function CheckoutHome() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <ActionCard href="/checkout/orders/new" icon={<Plus size={18} />} title="手動結帳" desc="走客 / 現場新增訂單" />
-        <ActionCard href="/checkout/calendar" icon={<CalendarDays size={18} />} title="從行事曆匯入" desc="點選預約自動帶入" />
+        {/* The owner oversees rather than rings up sales, so hide the entry shortcuts. */}
+        {session.role !== 'owner' && (
+          <>
+            <ActionCard href="/checkout/orders/new" icon={<Plus size={18} />} title="手動結帳" desc="走客 / 現場新增訂單" />
+            <ActionCard href="/checkout/calendar" icon={<CalendarDays size={18} />} title="從行事曆匯入" desc="點選預約自動帶入" />
+          </>
+        )}
         <ActionCard href="/checkout/orders" icon={<ClipboardList size={18} />} title="今日訂單" desc="查看與管理訂單" />
       </div>
     </div>
