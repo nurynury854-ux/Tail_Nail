@@ -5,14 +5,26 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CalendarDays, ClipboardList, Plus } from 'lucide-react'
 import type { CheckoutOrder } from '@/lib/checkoutTypes'
+import type { Stylist } from '@/lib/types'
 import { formatNTD, ROLE_LABELS, useCheckoutSession } from '@/components/checkout/session'
 
 const todayStr = () => new Date().toISOString().slice(0, 10)
+
+function summarize(orders: CheckoutOrder[]) {
+  return {
+    revenue: orders.reduce((s, o) => s + (o.revenue || 0), 0),
+    income: orders.reduce((s, o) => s + (o.stylist_income || 0), 0),
+    count: orders.length,
+    pending: orders.filter((o) => o.status !== 'confirmed').length,
+  }
+}
 
 export default function CheckoutHome() {
   const { session, loading } = useCheckoutSession()
   const router = useRouter()
   const [orders, setOrders] = useState<CheckoutOrder[]>([])
+  const [stylists, setStylists] = useState<Stylist[]>([])
+  const [selectedStylistId, setSelectedStylistId] = useState('')
 
   useEffect(() => {
     if (!loading && !session) router.replace('/checkout/login')
@@ -26,12 +38,20 @@ export default function CheckoutHome() {
       .catch(() => setOrders([]))
   }, [session])
 
-  const stats = useMemo(() => {
-    const revenue = orders.reduce((s, o) => s + (o.revenue || 0), 0)
-    const income = orders.reduce((s, o) => s + (o.stylist_income || 0), 0)
-    const pending = orders.filter((o) => o.status !== 'confirmed').length
-    return { revenue, income, count: orders.length, pending }
-  }, [orders])
+  // Owner can drill into any one stylist's performance from the dashboard.
+  useEffect(() => {
+    if (session?.role !== 'owner') return
+    fetch('/api/stylists?active=true', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setStylists)
+      .catch(() => setStylists([]))
+  }, [session])
+
+  const stats = useMemo(() => summarize(orders), [orders])
+  const individual = useMemo(
+    () => summarize(selectedStylistId ? orders.filter((o) => o.stylist_id_snapshot === selectedStylistId) : []),
+    [orders, selectedStylistId],
+  )
 
   if (loading || !session) return <p className="text-warmgray">載入中...</p>
 
@@ -58,6 +78,35 @@ export default function CheckoutHome() {
         <StatCard label="訂單數" value={String(stats.count)} />
         <StatCard label="待確認" value={String(stats.pending)} />
       </div>
+
+      {/* Owner: drill into one stylist's performance (today), mirroring the overall section. */}
+      {session.role === 'owner' && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-playfair text-lg text-charcoal">個人業績</h2>
+            <select
+              value={selectedStylistId}
+              onChange={(e) => setSelectedStylistId(e.target.value)}
+              className="rounded-lg border border-blush px-3 py-2 text-sm"
+            >
+              <option value="">— 選擇美甲師 —</option>
+              {stylists.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          {selectedStylistId ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatCard label="今日營業額" value={formatNTD(individual.revenue)} />
+              <StatCard label="今日業績" value={formatNTD(individual.income)} />
+              <StatCard label="訂單數" value={String(individual.count)} />
+              <StatCard label="待確認" value={String(individual.pending)} />
+            </div>
+          ) : (
+            <p className="text-sm text-warmgray">選擇美甲師以查看其今日業績。</p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* The owner oversees rather than rings up sales, so hide the entry shortcuts. */}
