@@ -2,43 +2,29 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import type { Branch } from '@/lib/types'
 import type { ActualAmountAdjustment } from '@/lib/checkoutTypes'
-import { formatNTD, useCheckoutSession } from '@/components/checkout/session'
+import { formatNTD } from '@/components/checkout/session'
 
 const todayStr = () => new Date().toISOString().slice(0, 10)
 
+// 對帳（實收金額）is a store-manager-only function; the API scopes it to the
+// manager's own branch, so no branch selector is needed here.
 export default function ReconcilePage() {
-  const { session } = useCheckoutSession()
   const [date, setDate] = useState(todayStr())
-  const [branchId, setBranchId] = useState<string>('')
-  const [branches, setBranches] = useState<Branch[]>([])
   const [systemTotal, setSystemTotal] = useState(0)
   const [adjustments, setAdjustments] = useState<ActualAmountAdjustment[]>([])
   const [actual, setActual] = useState('')
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
-    if (session?.role === 'owner') {
-      fetch('/api/branches').then((r) => (r.ok ? r.json() : [])).then((b: Branch[]) => {
-        setBranches(b)
-        if (b[0]) setBranchId((prev) => prev || b[0].id)
-      })
-    } else if (session?.branchId) {
-      setBranchId(session.branchId)
-    }
-  }, [session])
-
   const load = useCallback(async () => {
-    if (!branchId) return
-    const res = await fetch(`/api/checkout/reconcile?date=${date}&branch_id=${branchId}`, { cache: 'no-store' })
+    const res = await fetch(`/api/checkout/reconcile?date=${date}`, { cache: 'no-store' })
     if (res.ok) {
       const data = await res.json()
       setSystemTotal(data.system_total)
       setAdjustments(data.adjustments || [])
     }
-  }, [date, branchId])
+  }, [date])
 
   useEffect(() => {
     load()
@@ -54,7 +40,7 @@ export default function ReconcilePage() {
       const res = await fetch('/api/checkout/reconcile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, branch_id: branchId, actual_total: Number(actual), reason }),
+        body: JSON.stringify({ date, actual_total: Number(actual), reason }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -78,13 +64,6 @@ export default function ReconcilePage() {
 
       <div className="flex flex-wrap gap-2">
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
-        {session?.role === 'owner' && (
-          <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={inputCls}>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-        )}
       </div>
 
       <div className="rounded-2xl border border-blush bg-white p-5 space-y-3">

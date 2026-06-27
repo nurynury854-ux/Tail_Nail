@@ -16,7 +16,7 @@ function NavBar() {
     { href: '/checkout/orders', label: '結帳', roles: ['owner', 'manager', 'stylist'] },
     { href: '/checkout/calendar', label: '行事曆', roles: ['owner', 'manager', 'stylist'] },
     { href: '/checkout/reports', label: '報表', roles: ['owner', 'manager'] },
-    { href: '/checkout/reconcile', label: '對帳', roles: ['owner', 'manager'] },
+    { href: '/checkout/reconcile', label: '對帳', roles: ['manager'] },
     { href: '/checkout/cleaning', label: '清潔', roles: ['owner', 'manager', 'stylist'] },
     { href: '/checkout/messages', label: '留言板', roles: ['owner', 'manager'] },
     { href: '/checkout/bonuses', label: '獎金', roles: ['owner'] },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
-import { canViewBranch, getCheckoutSession } from '@/lib/checkoutAuth'
+import { getCheckoutSession } from '@/lib/checkoutAuth'
 
 export const runtime = 'nodejs'
 
@@ -21,20 +21,20 @@ async function systemTotal(
   return (data || []).reduce((sum, o) => sum + (o.revenue || 0), 0)
 }
 
-// GET /api/checkout/reconcile?branch_id=&date= — system total + saved adjustments.
+// GET /api/checkout/reconcile?date= — system total + saved adjustments.
+// Reconciliation (對帳) is a store-manager-only function.
 export async function GET(request: NextRequest) {
   const session = await getCheckoutSession(request)
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  if (session.role === 'stylist') return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  if (session.role !== 'manager') return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const admin = createAdminClient()
   if (!admin) return NextResponse.json({ error: 'Supabase 未設定' }, { status: 500 })
 
   const url = new URL(request.url)
   const date = url.searchParams.get('date') || today()
-  const branchId = session.role === 'manager' ? session.branchId! : url.searchParams.get('branch_id')
+  const branchId = session.branchId
   if (!branchId) return NextResponse.json({ error: '缺少分店' }, { status: 400 })
-  if (!canViewBranch(session, branchId)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const system_total = await systemTotal(admin, branchId, date)
   const { data: adjustments } = await admin
@@ -48,22 +48,22 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/checkout/reconcile — record an actual-amount adjustment (reason required).
+// Store-manager-only.
 export async function POST(request: NextRequest) {
   const session = await getCheckoutSession(request)
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  if (session.role === 'stylist') return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  if (session.role !== 'manager') return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const admin = createAdminClient()
   if (!admin) return NextResponse.json({ error: 'Supabase 未設定' }, { status: 500 })
 
   const body = await request.json().catch(() => ({}))
   const date = typeof body.date === 'string' ? body.date : today()
-  const branchId = session.role === 'manager' ? session.branchId! : (body.branch_id ? String(body.branch_id) : null)
+  const branchId = session.branchId
   const actualTotal = Math.trunc(Number(body.actual_total))
   const reason = typeof body.reason === 'string' ? body.reason.trim() : ''
 
   if (!branchId) return NextResponse.json({ error: '缺少分店' }, { status: 400 })
-  if (!canViewBranch(session, branchId)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   if (!Number.isFinite(actualTotal)) return NextResponse.json({ error: '請輸入實際金額' }, { status: 400 })
   if (!reason) return NextResponse.json({ error: '請填寫調整原因' }, { status: 400 })
 
