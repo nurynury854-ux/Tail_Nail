@@ -25,6 +25,11 @@ export default function CheckoutHome() {
   const [orders, setOrders] = useState<CheckoutOrder[]>([])
   const [stylists, setStylists] = useState<Stylist[]>([])
   const [selectedStylistId, setSelectedStylistId] = useState('')
+  const [mode, setMode] = useState<'day' | 'month'>('day')
+  const [day, setDay] = useState(todayStr())
+  const [month, setMonth] = useState(todayStr().slice(0, 7))
+
+  const rangeQuery = mode === 'day' ? `date=${day}` : `month=${month}`
 
   useEffect(() => {
     if (!loading && !session) router.replace('/checkout/login')
@@ -32,11 +37,11 @@ export default function CheckoutHome() {
 
   useEffect(() => {
     if (!session) return
-    fetch(`/api/checkout/orders?date=${todayStr()}`, { cache: 'no-store' })
+    fetch(`/api/checkout/orders?${rangeQuery}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : []))
       .then(setOrders)
       .catch(() => setOrders([]))
-  }, [session])
+  }, [session, rangeQuery])
 
   // Owner can drill into any one stylist's performance from the dashboard.
   useEffect(() => {
@@ -55,8 +60,8 @@ export default function CheckoutHome() {
 
   if (loading || !session) return <p className="text-warmgray">載入中...</p>
 
-  const scopeLabel =
-    session.role === 'stylist' ? '我的今日' : session.role === 'manager' ? '本店今日' : '全店今日'
+  const scopeWord = session.role === 'stylist' ? '我的' : session.role === 'manager' ? '本店' : '全店'
+  const rangeWord = mode === 'day' ? '當日' : '當月'
 
   return (
     <div className="space-y-6">
@@ -65,21 +70,36 @@ export default function CheckoutHome() {
           歡迎，{session.displayName}
           <span className="text-sm text-warmgray ml-2">{ROLE_LABELS[session.role]}</span>
         </h1>
-        <p className="text-sm text-warmgray mt-1">{todayStr()}</p>
+      </div>
+
+      {/* Date / month range picker driving the stats below. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex rounded-lg border border-blush overflow-hidden">
+          {(['day', 'month'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`px-4 py-2 text-sm ${mode === m ? 'bg-rose text-white' : 'bg-white text-charcoal'}`}
+            >
+              {m === 'day' ? '日' : '月'}
+            </button>
+          ))}
+        </div>
+        {mode === 'day' ? (
+          <input type="date" value={day} onChange={(e) => setDay(e.target.value)} className="rounded-lg border border-blush px-3 py-2 text-sm" />
+        ) : (
+          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="rounded-lg border border-blush px-3 py-2 text-sm" />
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label={`${scopeLabel}營業額`} value={formatNTD(stats.revenue)} />
-        {session.role === 'stylist' ? (
-          <StatCard label="今日業績" value={formatNTD(stats.income)} />
-        ) : (
-          <StatCard label="今日業績總額" value={formatNTD(stats.income)} />
-        )}
+        <StatCard label={`${scopeWord}${rangeWord}營業額`} value={formatNTD(stats.revenue)} />
+        <StatCard label={`${rangeWord}業績${session.role === 'stylist' ? '' : '總額'}`} value={formatNTD(stats.income)} />
         <StatCard label="訂單數" value={String(stats.count)} />
         <StatCard label="待確認" value={String(stats.pending)} />
       </div>
 
-      {/* Owner: drill into one stylist's performance (today), mirroring the overall section. */}
+      {/* Owner: drill into one stylist's performance for the selected range. */}
       {session.role === 'owner' && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -97,13 +117,13 @@ export default function CheckoutHome() {
           </div>
           {selectedStylistId ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard label="今日營業額" value={formatNTD(individual.revenue)} />
-              <StatCard label="今日業績" value={formatNTD(individual.income)} />
+              <StatCard label={`${rangeWord}營業額`} value={formatNTD(individual.revenue)} />
+              <StatCard label={`${rangeWord}業績`} value={formatNTD(individual.income)} />
               <StatCard label="訂單數" value={String(individual.count)} />
               <StatCard label="待確認" value={String(individual.pending)} />
             </div>
           ) : (
-            <p className="text-sm text-warmgray">選擇美甲師以查看其今日業績。</p>
+            <p className="text-sm text-warmgray">選擇美甲師以查看其{rangeWord}業績。</p>
           )}
         </div>
       )}
