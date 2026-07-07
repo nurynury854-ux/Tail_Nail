@@ -36,9 +36,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const body = await request.json().catch(() => ({}))
   const reason = typeof body.reason === 'string' && body.reason.trim() ? body.reason.trim() : null
 
+  // NOTE: the bookings table has no cancel_reason column — the reason is kept in
+  // the audit log below (visible to the owner), not on the booking row.
   const { error } = await admin
     .from('bookings')
-    .update({ status: 'cancelled', cancel_reason: reason })
+    .update({ status: 'cancelled' })
     .eq('id', booking.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
