@@ -45,9 +45,12 @@ export function resolveUnitPrice(item: PriceItem, sel: PriceSelection): number {
     }
     case 'per_unit': {
       const n = Math.max(0, Math.trunc(sel.unitCount || 0))
-      const fullQty = item.unit_full_qty || 0
-      if (fullQty && n >= fullQty) return Math.max(0, item.unit_full_price || 0)
-      return Math.max(0, n * (item.unit_price || 0))
+      const per = n * (item.unit_price || 0)
+      const flat = item.unit_full_price || 0
+      // The flat full-set rate auto-applies as soon as it's cheaper (i.e. 8+
+      // fingers at 120 each), and for a full/over-full set. price = min(per, flat).
+      if (flat > 0 && per >= flat) return flat
+      return Math.max(0, per)
     }
     case 'manual':
       return Math.max(0, Math.trunc(sel.manualPrice || 0))

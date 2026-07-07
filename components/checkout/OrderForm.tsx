@@ -161,6 +161,11 @@ export default function OrderForm({
           const item = catalog.get(line.price_key)
           const price = lineUnitPrice(line)
           const tiers = item?.pricing_mode === 'tier' ? (line.category === 'foot' ? item.tiers_foot : item.tiers_hand) || [] : []
+          const perUnitMax = item?.unit_full_qty || 10
+          const perUnitCorrected =
+            item?.pricing_mode === 'per_unit' &&
+            (item.unit_full_price || 0) > 0 &&
+            line.unit_count * (item.unit_price || 0) >= (item.unit_full_price || 0)
           return (
             <div key={line.key} className="rounded-xl border border-blush p-3 space-y-2 bg-white/60">
               <div className="flex gap-2 items-start">
@@ -224,19 +229,24 @@ export default function OrderForm({
                 </div>
               )}
 
-              {/* Per-unit (extension) */}
+              {/* Per-unit (extension): finger-count selector with auto flat-rate. */}
               {item?.pricing_mode === 'per_unit' && (
-                <div className="flex items-center gap-2 text-sm">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
                   <label className="text-warmgray">指／趾數</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={item.unit_full_qty || 10}
+                  <select
                     className="w-24 rounded-lg border border-blush px-3 py-2 text-sm"
                     value={line.unit_count}
-                    onChange={(e) => update(line.key, { unit_count: Math.max(1, Number(e.target.value) || 1) })}
-                  />
-                  <span className="text-warmgray text-xs">滿 {item.unit_full_qty} 指自動以 {formatNTD(item.unit_full_price || 0)} 計</span>
+                    onChange={(e) => update(line.key, { unit_count: Number(e.target.value) })}
+                  >
+                    {Array.from({ length: perUnitMax }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>{n} 指</option>
+                    ))}
+                  </select>
+                  {perUnitCorrected ? (
+                    <span className="text-rose-dark text-xs">已自動套用滿額價 {formatNTD(item.unit_full_price || 0)}</span>
+                  ) : (
+                    <span className="text-warmgray text-xs">每指 {formatNTD(item.unit_price || 0)}</span>
+                  )}
                 </div>
               )}
 
