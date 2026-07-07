@@ -21,6 +21,7 @@ export interface PriceItem {
   unit_price?: number | null
   unit_full_qty?: number | null
   unit_full_price?: number | null
+  accent_price?: number | null // 跳色 per-finger add-on rate (fixed services only)
   booking_service_id?: string | null
   sort_order?: number
   is_active?: boolean
@@ -31,13 +32,22 @@ export interface PriceSelection {
   tierIndex?: number | null
   unitCount?: number | null
   manualPrice?: number | null
+  accentCount?: number | null
+}
+
+/** 跳色 add-on amount for a fixed service (0 when the service has no 跳色 rate). */
+export function accentAmount(item: PriceItem, accentCount?: number | null): number {
+  if (!item.accent_price) return 0
+  return Math.max(0, Math.trunc(accentCount || 0)) * item.accent_price
 }
 
 /** Authoritative unit price for a catalog item given the technician's selection. */
 export function resolveUnitPrice(item: PriceItem, sel: PriceSelection): number {
   switch (item.pricing_mode) {
-    case 'fixed':
-      return Math.max(0, (sel.category === 'foot' ? item.price_foot : item.price_hand) || 0)
+    case 'fixed': {
+      const base = Math.max(0, (sel.category === 'foot' ? item.price_foot : item.price_hand) || 0)
+      return base + accentAmount(item, sel.accentCount)
+    }
     case 'tier': {
       const tiers = (sel.category === 'foot' ? item.tiers_foot : item.tiers_hand) || []
       const idx = sel.tierIndex ?? 0
@@ -67,6 +77,7 @@ export interface PricedItemInput {
   tier_index?: number | null
   unit_count?: number | null
   manual_price?: number | null
+  accent_count?: number | null
   discount?: number
   discount_type?: DiscountType | null
 }
@@ -83,6 +94,7 @@ export interface BuiltOrderItem {
   discount_type: DiscountType | null
   unit_count: number | null
   tier_index: number | null
+  accent_count: number | null
   line_total: number
 }
 
@@ -103,17 +115,20 @@ export function buildOrderItems(
         input.discount_type || (discount > 0 ? 'manual' : null)
 
       if (item) {
+        const accentCount = item.accent_price ? Math.max(0, Math.trunc(input.accent_count || 0)) : 0
         const sel: PriceSelection = {
           category: input.category ?? 'hand',
           tierIndex: input.tier_index ?? 0,
           unitCount: input.unit_count ?? 0,
           manualPrice: input.manual_price ?? 0,
+          accentCount,
         }
         const unit_price = resolveUnitPrice(item, sel)
+        const name = accentCount > 0 ? `${item.name}（跳色×${accentCount}）` : item.name
         return {
           service_id: item.booking_service_id || null,
           price_key: item.key,
-          service_name_snapshot: item.name,
+          service_name_snapshot: name,
           category: sel.category ?? null,
           unit_price,
           quantity: 1,
@@ -121,6 +136,7 @@ export function buildOrderItems(
           discount_type,
           unit_count: item.pricing_mode === 'per_unit' ? sel.unitCount ?? 0 : null,
           tier_index: item.pricing_mode === 'tier' ? sel.tierIndex ?? 0 : null,
+          accent_count: accentCount > 0 ? accentCount : null,
           line_total: computeLineTotal({ unit_price, quantity: 1, discount }),
         }
       }
@@ -138,6 +154,7 @@ export function buildOrderItems(
         discount_type,
         unit_count: null,
         tier_index: null,
+        accent_count: null,
         line_total: computeLineTotal({ unit_price, quantity: 1, discount }),
       }
     })

@@ -47,6 +47,7 @@ export async function PATCH(request: NextRequest) {
   if ('unit_price' in body) update.unit_price = toInt(body.unit_price)
   if ('unit_full_qty' in body) update.unit_full_qty = toInt(body.unit_full_qty)
   if ('unit_full_price' in body) update.unit_full_price = toInt(body.unit_full_price)
+  if ('accent_price' in body) update.accent_price = toInt(body.accent_price)
   if (typeof body.is_active === 'boolean') update.is_active = body.is_active
 
   const { data, error } = await admin

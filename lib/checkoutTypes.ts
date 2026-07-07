@@ -64,6 +64,7 @@ export interface OrderItem {
   discount_type?: DiscountType | null
   unit_count?: number | null
   tier_index?: number | null
+  accent_count?: number | null
   line_total: number
   created_at?: string
 }

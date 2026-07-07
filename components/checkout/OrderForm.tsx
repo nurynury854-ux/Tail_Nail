@@ -14,6 +14,7 @@ interface FormLine {
   tier_index: number
   unit_count: number
   manual_price: number
+  accent_count: number
   custom_name: string
   discount: number
   review_incentive: boolean
@@ -36,6 +37,7 @@ interface InitialData {
     category?: 'hand' | 'foot' | null
     tier_index?: number | null
     unit_count?: number | null
+    accent_count?: number | null
     unit_price: number
     discount: number
     discount_type?: string | null
@@ -46,7 +48,7 @@ let counter = 0
 const newKey = () => `line-${counter++}`
 
 function emptyLine(): FormLine {
-  return { key: newKey(), price_key: '', category: 'hand', tier_index: 0, unit_count: 1, manual_price: 0, custom_name: '', discount: 0, review_incentive: false }
+  return { key: newKey(), price_key: '', category: 'hand', tier_index: 0, unit_count: 1, manual_price: 0, accent_count: 0, custom_name: '', discount: 0, review_incentive: false }
 }
 
 export default function OrderForm({
@@ -77,6 +79,7 @@ export default function OrderForm({
         tier_index: it.tier_index ?? 0,
         unit_count: it.unit_count ?? 1,
         manual_price: it.unit_price,
+        accent_count: it.accent_count ?? 0,
         custom_name: it.price_key ? '' : it.service_name_snapshot || '',
         discount: it.discount,
         review_incentive: it.discount_type === 'review_incentive',
@@ -96,6 +99,7 @@ export default function OrderForm({
       tierIndex: line.tier_index,
       unitCount: line.unit_count,
       manualPrice: line.manual_price,
+      accentCount: line.accent_count,
     })
   }
 
@@ -125,6 +129,7 @@ export default function OrderForm({
         tier_index: l.tier_index,
         unit_count: l.unit_count,
         manual_price: l.manual_price,
+        accent_count: l.accent_count,
         discount: l.discount,
         discount_type: l.review_incentive ? 'review_incentive' : l.discount > 0 ? 'manual' : null,
       })),
@@ -172,7 +177,7 @@ export default function OrderForm({
                 <select
                   className={inputCls}
                   value={line.price_key}
-                  onChange={(e) => update(line.key, { price_key: e.target.value, tier_index: 0, unit_count: 1, manual_price: 0 })}
+                  onChange={(e) => update(line.key, { price_key: e.target.value, tier_index: 0, unit_count: 1, manual_price: 0, accent_count: 0 })}
                 >
                   <option value="">— 自訂項目 —</option>
                   <optgroup label="手部 / 足部服務">
@@ -204,6 +209,23 @@ export default function OrderForm({
                   ))}
                 </div>
               )}
+
+              {/* 跳色 add-on — only appears on services with an accent rate (單色 / 貓眼) */}
+              {item?.accent_price ? (
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <label className="text-warmgray">跳色</label>
+                  <select
+                    className="w-24 rounded-lg border border-blush px-3 py-2 text-sm"
+                    value={line.accent_count}
+                    onChange={(e) => update(line.key, { accent_count: Number(e.target.value) })}
+                  >
+                    {Array.from({ length: 11 }, (_, i) => i).map((n) => (
+                      <option key={n} value={n}>{n === 0 ? '無' : `${n} 指`}</option>
+                    ))}
+                  </select>
+                  <span className="text-warmgray text-xs">每指 +{formatNTD(item.accent_price)}</span>
+                </div>
+              ) : null}
 
               {/* Custom line: name + price */}
               {!item && (

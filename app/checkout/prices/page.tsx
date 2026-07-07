@@ -78,11 +78,22 @@ export default function PricesPage() {
 function FixedEditor({ item, busy, numCls, onSave }: { item: PriceItem; busy: boolean; numCls: string; onSave: (p: object) => void }) {
   const [hand, setHand] = useState(String(item.price_hand ?? ''))
   const [foot, setFoot] = useState(String(item.price_foot ?? ''))
+  const hasAccent = item.accent_price != null
+  const [accent, setAccent] = useState(String(item.accent_price ?? ''))
   return (
     <div className="flex flex-wrap items-end gap-3 text-sm">
       <label className="text-warmgray">手部 <input className={numCls} type="number" value={hand} onChange={(e) => setHand(e.target.value)} /></label>
       <label className="text-warmgray">足部 <input className={numCls} type="number" value={foot} onChange={(e) => setFoot(e.target.value)} /></label>
-      <button disabled={busy} onClick={() => onSave({ price_hand: Number(hand), price_foot: Number(foot) })} className="bg-rose text-white px-4 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50">儲存</button>
+      {hasAccent && (
+        <label className="text-warmgray">跳色/指 <input className={numCls} type="number" value={accent} onChange={(e) => setAccent(e.target.value)} /></label>
+      )}
+      <button
+        disabled={busy}
+        onClick={() => onSave({ price_hand: Number(hand), price_foot: Number(foot), ...(hasAccent ? { accent_price: Number(accent) } : {}) })}
+        className="bg-rose text-white px-4 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50"
+      >
+        儲存
+      </button>
     </div>
   )
 }
