@@ -119,19 +119,30 @@ export default function AppointmentCalendar({
                 {format(day, 'd')}
               </div>
               <div className="space-y-0.5">
-                {shown.map((b) => (
-                  <button
-                    key={b.id}
-                    onClick={() => onSelect(b)}
-                    className="w-full rounded bg-rose/10 hover:bg-rose/20 px-1 py-0.5 text-left transition"
-                  >
-                    <span className="block text-[10px] leading-tight text-rose-dark font-semibold">{b.start_time}</span>
-                    <span className="block text-[10px] leading-tight text-charcoal truncate">{serviceLabel(b)}</span>
-                    {b.customer_name && (
-                      <span className="block text-[10px] leading-tight text-warmgray truncate">{b.customer_name}</span>
-                    )}
-                  </button>
-                ))}
+                {shown.map((b) => {
+                  const cancelled = b.status === 'cancelled'
+                  return (
+                    <button
+                      key={b.id}
+                      onClick={() => !cancelled && onSelect(b)}
+                      disabled={cancelled}
+                      title={cancelled ? '已取消，無法結帳' : undefined}
+                      className={`w-full rounded px-1 py-0.5 text-left transition ${
+                        cancelled ? 'bg-warmgray/10 opacity-70 cursor-not-allowed' : 'bg-rose/10 hover:bg-rose/20'
+                      }`}
+                    >
+                      <span className={`block text-[10px] leading-tight font-semibold ${cancelled ? 'text-warmgray line-through' : 'text-rose-dark'}`}>
+                        {b.start_time}{cancelled ? ' 已取消' : ''}
+                      </span>
+                      <span className={`block text-[10px] leading-tight truncate ${cancelled ? 'text-warmgray line-through' : 'text-charcoal'}`}>
+                        {serviceLabel(b)}
+                      </span>
+                      {b.customer_name && (
+                        <span className="block text-[10px] leading-tight text-warmgray truncate">{b.customer_name}</span>
+                      )}
+                    </button>
+                  )
+                })}
                 {appts.length > 3 && (
                   <button onClick={() => toggle(dateStr)} className="text-[10px] text-rose-dark hover:underline">
                     {isExpanded ? '收合' : `+${appts.length - 3} 更多`}

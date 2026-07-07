@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
   if (month) query = query.gte('date', `${month}-01`).lte('date', `${month}-31`)
   else if (date) query = query.eq('date', date)
 
+  // Cancelled appointments stay on everyone's calendar (greyed, non-importable).
   query = query
-    .neq('status', 'cancelled')
     .order('date', { ascending: true })
     .order('start_time', { ascending: true })
 

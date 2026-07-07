@@ -117,6 +117,9 @@ export async function POST(request: NextRequest) {
       .eq('id', bookingId)
       .maybeSingle()
     if (!booking) return NextResponse.json({ error: '找不到該預約' }, { status: 404 })
+    if (booking.status === 'cancelled') {
+      return NextResponse.json({ error: '此預約已取消，無法匯入' }, { status: 400 })
+    }
 
     customerName = customerName || booking.customer_name || ''
     customerPhone = customerPhone || booking.phone || ''

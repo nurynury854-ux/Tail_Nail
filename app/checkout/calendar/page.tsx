@@ -13,6 +13,7 @@ const STATUS_LABELS: Record<string, string> = {
   confirmed: '已確認',
   pending: '待確認',
   completed: '已完成',
+  cancelled: '已取消',
 }
 
 export default function CalendarPage() {
@@ -186,21 +187,29 @@ export default function CalendarPage() {
               <Row label="預估時長" value={selected.total_duration ? `${selected.total_duration} 分鐘` : '—'} />
               <Row label="狀態" value={STATUS_LABELS[selected.status] || selected.status} />
             </div>
-            <button
-              onClick={importBooking}
-              disabled={importing}
-              className="mt-4 w-full bg-rose text-white py-2.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
-            >
-              {importing ? '匯入中...' : '匯入結帳'}
-            </button>
-            {/* Managers (own store) and the owner can cancel appointments. */}
-            {(role === 'manager' || role === 'owner') && (
-              <button
-                onClick={cancelBooking}
-                className="mt-2 w-full border border-rose text-rose-dark py-2.5 rounded-lg font-semibold hover:bg-rose/5"
-              >
-                取消預約
-              </button>
+            {selected.status === 'cancelled' ? (
+              <p className="mt-4 w-full text-center text-warmgray text-sm py-2.5 bg-warmgray/10 rounded-lg">
+                此預約已取消，無法結帳
+              </p>
+            ) : (
+              <>
+                <button
+                  onClick={importBooking}
+                  disabled={importing}
+                  className="mt-4 w-full bg-rose text-white py-2.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
+                >
+                  {importing ? '匯入中...' : '匯入結帳'}
+                </button>
+                {/* Managers (own store) and the owner can cancel appointments. */}
+                {(role === 'manager' || role === 'owner') && (
+                  <button
+                    onClick={cancelBooking}
+                    className="mt-2 w-full border border-rose text-rose-dark py-2.5 rounded-lg font-semibold hover:bg-rose/5"
+                  >
+                    取消預約
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
