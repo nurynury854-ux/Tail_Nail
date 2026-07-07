@@ -72,11 +72,6 @@ export async function POST(request: NextRequest) {
   const session = await getCheckoutSession(request)
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-  // Owner oversees; orders are created by the technician/manager doing checkout.
-  if (!session.branchId || !session.stylistId) {
-    return NextResponse.json({ error: '此帳號未綁定分店／美甲師，無法建立訂單' }, { status: 400 })
-  }
-
   const admin = createAdminClient()
   if (!admin) return NextResponse.json({ error: 'Supabase 未設定' }, { status: 500 })
 
@@ -91,6 +86,21 @@ export async function POST(request: NextRequest) {
   let itemInputs: PricedItemInput[] = Array.isArray(body.items) ? body.items : []
   let bookingDate: string | null = null
   let bookingEndTime: string | null = null
+
+  // The order is credited to a stylist/branch. For a manual walk-in that's the
+  // technician entering it; for a calendar import it's the booking's stylist
+  // (so a manager/owner importing on someone's behalf credits the right person).
+  let creditBranchId: string | null = null
+  let creditStylistId: string | null = null
+  let creditStylistName = ''
+  if (source === 'manual') {
+    if (!session.branchId || !session.stylistId) {
+      return NextResponse.json({ error: '此帳號未綁定分店／美甲師，無法手動結帳' }, { status: 400 })
+    }
+    creditBranchId = session.branchId
+    creditStylistId = session.stylistId
+    creditStylistName = session.displayName
+  }
 
   const catalog = await fetchPriceCatalog(admin)
   // Map a booking service_id -> price catalog key for calendar import.
@@ -112,6 +122,27 @@ export async function POST(request: NextRequest) {
     customerPhone = customerPhone || booking.phone || ''
     bookingDate = booking.date || null
     bookingEndTime = booking.end_time || null
+
+    // Importer may only import bookings they're allowed to see.
+    if (session.role === 'stylist' && booking.stylist_id !== session.stylistId) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+    if (session.role === 'manager' && booking.branch_id !== session.branchId) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+
+    // Credit the booking's stylist/branch, not the importer.
+    creditBranchId = booking.branch_id || session.branchId
+    creditStylistId = booking.stylist_id || session.stylistId
+    if (!creditBranchId || !creditStylistId) {
+      return NextResponse.json({ error: '此預約未指定美甲師，無法匯入' }, { status: 400 })
+    }
+    if (creditStylistId === session.stylistId) {
+      creditStylistName = session.displayName
+    } else {
+      const { data: st } = await admin.from('stylists').select('name').eq('id', creditStylistId).maybeSingle()
+      creditStylistName = st?.name || creditStylistId
+    }
 
     const selected = Array.isArray(booking.selected_services) ? booking.selected_services : []
     // Map each booked service to a catalog item by category. Fixed-price items
@@ -140,16 +171,16 @@ export async function POST(request: NextRequest) {
   const { data: branch } = await admin
     .from('branches')
     .select('name')
-    .eq('id', session.branchId)
+    .eq('id', creditBranchId!)
     .maybeSingle()
 
   const { data: order, error } = await admin
     .from('checkout_orders')
     .insert({
-      branch_id_snapshot: session.branchId,
-      branch_name_snapshot: branch?.name || session.branchId,
-      stylist_id_snapshot: session.stylistId,
-      stylist_name_snapshot: session.displayName,
+      branch_id_snapshot: creditBranchId,
+      branch_name_snapshot: branch?.name || creditBranchId,
+      stylist_id_snapshot: creditStylistId,
+      stylist_name_snapshot: creditStylistName,
       account_id_snapshot: session.accountId === 'owner-bootstrap' ? null : session.accountId,
       booking_id: bookingId,
       source,
