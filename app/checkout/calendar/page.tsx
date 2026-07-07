@@ -105,6 +105,25 @@ export default function CalendarPage() {
     }
   }
 
+  const cancelBooking = async () => {
+    if (!selected) return
+    if (!confirm('確定取消此預約？')) return
+    const reason = prompt('取消原因（選填）') || ''
+    const res = await fetch(`/api/checkout/bookings/${selected.id}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    })
+    if (res.ok) {
+      toast.success('已取消預約')
+      setSelected(null)
+      load()
+    } else {
+      const e = await res.json().catch(() => ({}))
+      toast.error(e.error || '取消失敗')
+    }
+  }
+
   const selectCls = 'rounded-lg border border-blush px-3 py-2 text-sm'
 
   return (
@@ -174,6 +193,15 @@ export default function CalendarPage() {
             >
               {importing ? '匯入中...' : '匯入結帳'}
             </button>
+            {/* Managers (own store) and the owner can cancel appointments. */}
+            {(role === 'manager' || role === 'owner') && (
+              <button
+                onClick={cancelBooking}
+                className="mt-2 w-full border border-rose text-rose-dark py-2.5 rounded-lg font-semibold hover:bg-rose/5"
+              >
+                取消預約
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -12,6 +12,7 @@ const ACTION_LABELS: Record<string, string> = {
   blocked_edit_attempt: '嘗試修改已鎖定訂單',
   delete: '刪除訂單',
   actual_amount_adjust: '實收金額調整',
+  cancel_appointment: '取消預約',
 }
 
 export default function LogsPage() {

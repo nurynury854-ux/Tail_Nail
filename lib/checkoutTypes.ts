@@ -14,6 +14,7 @@ export type EditLogAction =
   | 'blocked_edit_attempt'
   | 'delete'
   | 'actual_amount_adjust'
+  | 'cancel_appointment'
 
 export interface Account {
   id: string
