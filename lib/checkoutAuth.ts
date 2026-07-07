@@ -161,7 +161,37 @@ export async function verifySessionToken(token?: string): Promise<CheckoutSessio
 
 export async function getCheckoutSession(request: NextRequest): Promise<CheckoutSession | null> {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value
-  return verifySessionToken(token)
+  const session = await verifySessionToken(token)
+  if (!session) return null
+
+  // The env-bootstrap owner has no DB row — trust the token as-is.
+  if (session.accountId === 'owner-bootstrap') return session
+
+  // Re-read role/branch/stylist/active from the DB so account changes
+  // (type switch, branch transfer, deactivation, deletion) take effect
+  // immediately, with no need to log out and back in. Dynamic import keeps
+  // Supabase out of the Edge middleware bundle.
+  try {
+    const { createAdminClient } = await import('./supabase')
+    const admin = createAdminClient()
+    if (!admin) return session
+    const { data: account } = await admin
+      .from('accounts')
+      .select('role, branch_id, stylist_id, display_name, is_active')
+      .eq('id', session.accountId)
+      .maybeSingle()
+    if (!account || !account.is_active) return null // deleted or deactivated → logged out
+    return {
+      accountId: session.accountId,
+      username: session.username,
+      role: account.role,
+      branchId: account.branch_id ?? null,
+      stylistId: account.stylist_id ?? null,
+      displayName: account.display_name ?? session.displayName,
+    }
+  } catch {
+    return session
+  }
 }
 
 export const SESSION_MAX_AGE_SECONDS = SESSION_TTL_MS / 1000

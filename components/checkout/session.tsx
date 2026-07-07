@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import type { CheckoutRole } from '@/lib/checkoutTypes'
 
 export interface ClientSession {
@@ -42,6 +42,12 @@ export function CheckoutSessionProvider({ children }: { children: React.ReactNod
 
   useEffect(() => {
     refresh()
+    // Re-check the live role/scope when the tab regains focus, so an account-type
+    // switch (or transfer/deactivation) reflects in the UI without a re-login.
+    const onFocus = () => refresh()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
