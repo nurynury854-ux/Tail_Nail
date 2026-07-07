@@ -152,6 +152,18 @@ export default function AccountsPage() {
                   {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
                 <button
+                  onClick={() => {
+                    const next = a.role === 'manager' ? 'stylist' : 'manager'
+                    const label = next === 'manager' ? '店長' : '美甲師'
+                    if (confirm(`將此帳號切換為${label}？資料會保留。`)) {
+                      patch(a.id, { role: next }, `已切換為${label}`)
+                    }
+                  }}
+                  className="px-3 py-1 rounded-lg border border-rose text-rose-dark hover:bg-rose/5"
+                >
+                  {a.role === 'manager' ? '設為美甲師' : '設為店長'}
+                </button>
+                <button
                   onClick={() => patch(a.id, { is_active: !a.is_active })}
                   className="px-3 py-1 rounded-lg border border-blush hover:border-rose/50"
                 >

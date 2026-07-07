@@ -35,6 +35,23 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     update.password_salt = salt
   }
 
+  // Account-type switch — only between 美甲師 (stylist) and 店長 (manager).
+  // Never converts to/from owner, and the account row is kept so no data is lost.
+  if ('role' in body) {
+    if (body.role !== 'stylist' && body.role !== 'manager') {
+      return NextResponse.json({ error: '僅可切換美甲師／店長' }, { status: 400 })
+    }
+    const { data: current } = await admin.from('accounts').select('role, branch_id').eq('id', params.id).maybeSingle()
+    if (!current) return NextResponse.json({ error: '找不到帳號' }, { status: 404 })
+    if (current.role === 'owner') {
+      return NextResponse.json({ error: '無法變更老闆帳號類型' }, { status: 403 })
+    }
+    if (body.role === 'manager' && !current.branch_id && !('branch_id' in body)) {
+      return NextResponse.json({ error: '店長必須指定分店' }, { status: 400 })
+    }
+    update.role = body.role
+  }
+
   const { data, error } = await admin
     .from('accounts')
     .update(update)
