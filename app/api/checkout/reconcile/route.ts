@@ -13,11 +13,14 @@ async function systemTotal(
   branchId: string,
   date: string,
 ): Promise<number> {
+  // Only manager-confirmed orders count toward the store's revenue total, so an
+  // unconfirmed order shows up as a discrepancy against the real till count.
   const { data } = await admin!
     .from('checkout_orders')
     .select('revenue')
     .eq('branch_id_snapshot', branchId)
     .eq('business_date', date)
+    .eq('status', 'confirmed')
   return (data || []).reduce((sum, o) => sum + (o.revenue || 0), 0)
 }
 

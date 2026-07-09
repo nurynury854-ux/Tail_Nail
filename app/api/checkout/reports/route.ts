@@ -27,6 +27,10 @@ export async function GET(request: NextRequest) {
 
   if (session.role === 'manager') query = query.eq('branch_id_snapshot', session.branchId)
 
+  // Revenue/performance only counts orders the store manager has confirmed.
+  // Draft and submitted orders are visible elsewhere but never counted here.
+  query = query.eq('status', 'confirmed')
+
   if (date) query = query.eq('business_date', date)
   else query = query.gte('business_date', `${month}-01`).lte('business_date', `${month}-31`)
 

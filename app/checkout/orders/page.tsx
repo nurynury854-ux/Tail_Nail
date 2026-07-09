@@ -77,6 +77,10 @@ export default function OrdersPage() {
         className="rounded-lg border border-blush px-3 py-2 text-sm"
       />
 
+      <p className="text-xs text-warmgray">
+        訂單需經店長確認後才會計入營業額與業績；未確認的訂單標示為「未計入」。
+      </p>
+
       {loading ? (
         <p className="text-warmgray">載入中...</p>
       ) : orders.length === 0 ? (
@@ -103,8 +107,19 @@ export default function OrdersPage() {
                   {session?.role !== 'stylist' && (
                     <td className="px-3 py-2 text-charcoal">{o.stylist_name_snapshot}</td>
                   )}
-                  <td className="px-3 py-2 text-right text-charcoal">{formatNTD(o.revenue)}</td>
-                  <td className="px-3 py-2 text-right text-rose-dark">{formatNTD(o.stylist_income)}</td>
+                  <td className="px-3 py-2 text-right">
+                    <span className={o.status === 'confirmed' ? 'text-charcoal' : 'text-warmgray'}>
+                      {formatNTD(o.revenue)}
+                    </span>
+                    {o.status !== 'confirmed' && (
+                      <span className="block text-[10px] text-warmgray">未計入</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <span className={o.status === 'confirmed' ? 'text-rose-dark' : 'text-warmgray'}>
+                      {formatNTD(o.stylist_income)}
+                    </span>
+                  </td>
                   <td className="px-3 py-2 text-warmgray">
                     {o.payment_method === 'cash' ? '現金' : o.payment_method === 'transfer' ? '轉帳' : '—'}
                   </td>

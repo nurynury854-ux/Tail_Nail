@@ -10,12 +10,17 @@ import { formatNTD, ROLE_LABELS, useCheckoutSession } from '@/components/checkou
 
 const todayStr = () => new Date().toISOString().slice(0, 10)
 
+// Revenue/業績 only count orders the store manager has confirmed. Unconfirmed
+// orders are still surfaced (count + amount) but flagged as not yet counted.
 function summarize(orders: CheckoutOrder[]) {
+  const confirmed = orders.filter((o) => o.status === 'confirmed')
+  const unconfirmed = orders.filter((o) => o.status !== 'confirmed')
   return {
-    revenue: orders.reduce((s, o) => s + (o.revenue || 0), 0),
-    income: orders.reduce((s, o) => s + (o.stylist_income || 0), 0),
+    revenue: confirmed.reduce((s, o) => s + (o.revenue || 0), 0),
+    income: confirmed.reduce((s, o) => s + (o.stylist_income || 0), 0),
     count: orders.length,
-    pending: orders.filter((o) => o.status !== 'confirmed').length,
+    pending: unconfirmed.length,
+    pendingRevenue: unconfirmed.reduce((s, o) => s + (o.revenue || 0), 0),
   }
 }
 
@@ -108,6 +113,15 @@ export default function CheckoutHome() {
         <StatCard label="訂單數" value={String(stats.count)} />
         <StatCard label="待確認" value={String(stats.pending)} />
       </div>
+
+      <p className="text-xs text-warmgray -mt-2">
+        營業額與業績僅計入店長已確認的訂單。
+        {stats.pending > 0 && (
+          <span className="text-rose-dark">
+            {' '}目前有 {stats.pending} 筆待確認（{formatNTD(stats.pendingRevenue)}）尚未計入。
+          </span>
+        )}
+      </p>
 
       {/* Owner: drill into one branch's performance for the selected range. */}
       {session.role === 'owner' && (
