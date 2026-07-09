@@ -14,19 +14,25 @@ export async function GET(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: 'Supabase 未設定' }, { status: 500 })
 
   let fixedQ = admin.from('fixed_bonuses').select('*').order('created_at', { ascending: false })
-  let perfQ = admin.from('performance_bonuses').select('*').order('created_at', { ascending: false })
+  // 業績獎金 is branch-level only — legacy stylist-scoped rows are never returned.
+  let perfQ = admin
+    .from('performance_bonuses')
+    .select('*')
+    .eq('scope', 'branch')
+    .order('created_at', { ascending: false })
 
   if (session.role === 'stylist') {
     fixedQ = fixedQ.eq('stylist_id_snapshot', session.stylistId)
-    perfQ = perfQ.eq('stylist_id_snapshot', session.stylistId)
   } else if (session.role === 'manager') {
-    // Manager sees branch-scoped performance bonuses; fixed bonuses are per-stylist,
-    // so filter those by the stylists currently at this branch.
     perfQ = perfQ.eq('branch_id_snapshot', session.branchId)
   }
 
   const [{ data: fixed }, { data: performance }] = await Promise.all([fixedQ, perfQ])
-  return NextResponse.json({ fixed: fixed || [], performance: performance || [] })
+  // Performance bonuses are a store-manager payout; stylists don't see them.
+  return NextResponse.json({
+    fixed: fixed || [],
+    performance: session.role === 'stylist' ? [] : performance || [],
+  })
 }
 
 // POST /api/checkout/bonuses — owner only. Create a fixed or performance bonus.
@@ -62,24 +68,22 @@ export async function POST(request: NextRequest) {
   }
 
   if (body.type === 'performance') {
-    const scope = body.scope === 'branch' ? 'branch' : 'stylist'
+    // 業績獎金 is branch-level only, awarded to that branch's store manager.
     const threshold = Math.trunc(Number(body.revenue_threshold))
     const bonus = Math.trunc(Number(body.bonus_amount))
+    const branchId = body.branch_id_snapshot ? String(body.branch_id_snapshot) : null
+    if (!branchId) {
+      return NextResponse.json({ error: '請選擇分店' }, { status: 400 })
+    }
     if (!Number.isFinite(threshold) || !Number.isFinite(bonus)) {
       return NextResponse.json({ error: '請輸入門檻與獎金金額' }, { status: 400 })
-    }
-    if (scope === 'stylist' && !body.stylist_id_snapshot) {
-      return NextResponse.json({ error: '請選擇美甲師' }, { status: 400 })
-    }
-    if (scope === 'branch' && !body.branch_id_snapshot) {
-      return NextResponse.json({ error: '請選擇分店' }, { status: 400 })
     }
     const { data, error } = await admin
       .from('performance_bonuses')
       .insert({
-        scope,
-        stylist_id_snapshot: scope === 'stylist' ? String(body.stylist_id_snapshot) : null,
-        branch_id_snapshot: scope === 'branch' ? String(body.branch_id_snapshot) : null,
+        scope: 'branch',
+        stylist_id_snapshot: null,
+        branch_id_snapshot: branchId,
         revenue_threshold: threshold,
         bonus_amount: bonus,
         set_by: session.accountId === 'owner-bootstrap' ? null : session.accountId,

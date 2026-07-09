@@ -85,38 +85,48 @@ export async function GET(request: NextRequest) {
   // Bonuses only apply to the monthly view (fixed = monthly; performance = period revenue).
   let totalBonus = 0
   if (!date) {
-    const [{ data: fixed }, { data: perf }] = await Promise.all([
+    const [{ data: fixed }, { data: perf }, { data: managers }] = await Promise.all([
       admin.from('fixed_bonuses').select('*').eq('is_active', true),
-      admin.from('performance_bonuses').select('*').eq('is_active', true),
+      // Performance bonuses are branch-level only; any legacy stylist-scoped
+      // rows are ignored so they can never pay out.
+      admin.from('performance_bonuses').select('*').eq('is_active', true).eq('scope', 'branch'),
+      admin.from('accounts').select('branch_id, stylist_id').eq('role', 'manager').eq('is_active', true),
     ])
 
     const stylistRows = Array.from(byStylist.values())
     const branchRows = Array.from(byBranch.values())
 
-    // Fixed bonus: flat amount per stylist, every month.
+    // Fixed bonus: flat amount for any stylist or manager, every month.
     for (const fb of fixed || []) {
       for (const s of stylistRows) {
         if (s.stylist_id && s.stylist_id === fb.stylist_id_snapshot) s.bonus += fb.amount || 0
       }
     }
-    // Performance bonus: paid once the period revenue threshold is hit.
+
+    // Performance bonus: branch revenue threshold, paid to that branch's manager.
+    const managerStylistByBranch = new Map<string, string>()
+    for (const m of managers || []) {
+      if (m.branch_id && m.stylist_id) managerStylistByBranch.set(m.branch_id, m.stylist_id)
+    }
+    let unattributedBonus = 0
     for (const pb of perf || []) {
-      if (pb.scope === 'stylist') {
-        for (const s of stylistRows) {
-          if (s.stylist_id === pb.stylist_id_snapshot && s.revenue >= pb.revenue_threshold) {
-            s.bonus += pb.bonus_amount || 0
-          }
-        }
-      } else if (pb.scope === 'branch') {
-        for (const b of branchRows) {
-          if (b.branch_id === pb.branch_id_snapshot && b.revenue >= pb.revenue_threshold) {
-            b.bonus += pb.bonus_amount || 0
-          }
-        }
-      }
+      if (!pb.branch_id_snapshot) continue
+      const branchRow = branchRows.find((b) => b.branch_id === pb.branch_id_snapshot)
+      if (!branchRow || branchRow.revenue < pb.revenue_threshold) continue
+      const amount = pb.bonus_amount || 0
+      branchRow.bonus += amount // the store earned it
+      const mgrStylistId = managerStylistByBranch.get(pb.branch_id_snapshot)
+      const mgrRow = mgrStylistId
+        ? stylistRows.find((s) => s.stylist_id === mgrStylistId && s.branch_id === pb.branch_id_snapshot)
+        : undefined
+      if (mgrRow) mgrRow.bonus += amount // the store manager is paid it
+      else unattributedBonus += amount // manager had no orders this period
     }
 
+    // Branch rows carry the bonus for visibility only; the payout is counted once,
+    // on the manager's row (or as unattributed if they had no orders).
     for (const s of stylistRows) totalBonus += s.bonus
+    totalBonus += unattributedBonus
   }
 
   return NextResponse.json({
