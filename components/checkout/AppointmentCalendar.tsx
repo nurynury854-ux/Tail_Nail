@@ -42,6 +42,7 @@ export default function AppointmentCalendar({
   onSelect,
   branchName,
   stylistName,
+  stylistNames,
 }: {
   month: Date
   bookings: CalBooking[]
@@ -49,6 +50,8 @@ export default function AppointmentCalendar({
   onSelect: (b: CalBooking) => void
   branchName?: string
   stylistName?: string
+  /** Branch-wide view: stylist_id -> name. When set, each entry is labelled with its stylist. */
+  stylistNames?: Record<string, string>
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -134,6 +137,12 @@ export default function AppointmentCalendar({
                       <span className={`block text-[10px] leading-tight font-semibold ${cancelled ? 'text-warmgray line-through' : 'text-rose-dark'}`}>
                         {b.start_time}{cancelled ? ' 已取消' : ''}
                       </span>
+                      {/* Branch-wide view: show whose appointment this is. */}
+                      {stylistNames && b.stylist_id && stylistNames[b.stylist_id] && (
+                        <span className={`block text-[10px] leading-tight font-medium truncate ${cancelled ? 'text-warmgray line-through' : 'text-charcoal'}`}>
+                          {stylistNames[b.stylist_id]}
+                        </span>
+                      )}
                       <span className={`block text-[10px] leading-tight truncate ${cancelled ? 'text-warmgray line-through' : 'text-charcoal'}`}>
                         {serviceLabel(b)}
                       </span>

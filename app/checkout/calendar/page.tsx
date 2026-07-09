@@ -28,15 +28,20 @@ export default function CalendarPage() {
   const [bookings, setBookings] = useState<CalBooking[]>([])
   const [selected, setSelected] = useState<CalBooking | null>(null)
   const [importing, setImporting] = useState(false)
+  // 整店 = whole branch (all stylists) | 個人 = one selected stylist.
+  const [view, setView] = useState<'branch' | 'individual'>('branch')
 
   const role = session?.role
+  const canToggleView = role === 'owner' || role === 'manager'
+  const branchView = canToggleView && view === 'branch'
 
-  // Load the filter option lists.
+  // Load the filter option lists. Fetch ALL stylists (active=false) so branch view
+  // can still name an inactive stylist who has bookings.
   useEffect(() => {
     if (role === 'owner') {
       fetch('/api/branches').then((r) => (r.ok ? r.json() : [])).then(setBranches).catch(() => {})
     } else if (role === 'manager' && session?.branchId) {
-      fetch(`/api/stylists?branch_id=${session.branchId}&active=true`)
+      fetch(`/api/stylists?branch_id=${session.branchId}&active=false`)
         .then((r) => (r.ok ? r.json() : []))
         .then(setStylists)
         .catch(() => {})
@@ -50,30 +55,28 @@ export default function CalendarPage() {
       return
     }
     setStylistId('')
-    fetch(`/api/stylists?branch_id=${branchId}&active=true`)
+    fetch(`/api/stylists?branch_id=${branchId}&active=false`)
       .then((r) => (r.ok ? r.json() : []))
       .then(setStylists)
       .catch(() => {})
   }, [role, branchId])
 
   // Do we have enough filter selections to render a calendar?
-  const ready =
-    role === 'stylist' ||
-    (role === 'manager' && !!stylistId) ||
-    (role === 'owner' && !!branchId && !!stylistId)
+  const ready = branchView
+    ? role === 'manager' || (role === 'owner' && !!branchId)
+    : role === 'stylist' ||
+      (role === 'manager' && !!stylistId) ||
+      (role === 'owner' && !!branchId && !!stylistId)
 
   const load = useCallback(async () => {
     if (!ready) return
     const params = new URLSearchParams({ month: format(month, 'yyyy-MM') })
-    if (role === 'owner') {
-      params.set('branch_id', branchId)
-      params.set('stylist_id', stylistId)
-    } else if (role === 'manager') {
-      params.set('stylist_id', stylistId)
-    }
+    if (role === 'owner') params.set('branch_id', branchId)
+    // Branch view omits stylist_id, so the API returns every stylist at the branch.
+    if (!branchView && role !== 'stylist') params.set('stylist_id', stylistId)
     const res = await fetch(`/api/checkout/bookings?${params.toString()}`, { cache: 'no-store' })
     setBookings(res.ok ? await res.json() : [])
-  }, [ready, month, role, branchId, stylistId])
+  }, [ready, month, role, branchId, stylistId, branchView])
 
   useEffect(() => {
     load()
@@ -84,6 +87,12 @@ export default function CalendarPage() {
     () => (role === 'stylist' ? session?.displayName : stylists.find((s) => s.id === stylistId)?.name),
     [role, session?.displayName, stylists, stylistId],
   )
+  // Branch view labels each entry with its stylist.
+  const stylistNames = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const s of stylists) map[s.id] = s.name
+    return map
+  }, [stylists])
 
   const importBooking = async () => {
     if (!selected) return
@@ -131,8 +140,22 @@ export default function CalendarPage() {
     <div className="space-y-4">
       <h1 className="font-playfair text-2xl text-charcoal">行事曆</h1>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
+      {/* View toggle + filters */}
+      <div className="flex flex-wrap gap-2 items-center">
+        {canToggleView && (
+          <div className="inline-flex rounded-lg border border-blush overflow-hidden">
+            {(['branch', 'individual'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`px-4 py-2 text-sm ${view === v ? 'bg-rose text-white' : 'bg-white text-charcoal'}`}
+              >
+                {v === 'branch' ? '整店' : '個人'}
+              </button>
+            ))}
+          </div>
+        )}
+
         {role === 'owner' && (
           <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={selectCls}>
             <option value="">— 選擇分店 —</option>
@@ -141,7 +164,8 @@ export default function CalendarPage() {
             ))}
           </select>
         )}
-        {(role === 'owner' || role === 'manager') && (
+        {/* Stylist selector only in 個人 view — 整店 shows every stylist. */}
+        {canToggleView && !branchView && (
           <select
             value={stylistId}
             onChange={(e) => setStylistId(e.target.value)}
@@ -149,7 +173,7 @@ export default function CalendarPage() {
             disabled={role === 'owner' && !branchId}
           >
             <option value="">— 選擇美甲師 —</option>
-            {stylists.map((s) => (
+            {stylists.filter((s) => s.is_active).map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
@@ -163,11 +187,16 @@ export default function CalendarPage() {
           onMonthChange={setMonth}
           onSelect={setSelected}
           branchName={role === 'owner' ? branchName : undefined}
-          stylistName={stylistName}
+          stylistName={branchView ? '整店' : stylistName}
+          stylistNames={branchView ? stylistNames : undefined}
         />
       ) : (
         <p className="text-warmgray text-sm">
-          {role === 'owner' ? '請先選擇分店與美甲師以顯示行事曆。' : '請先選擇美甲師以顯示行事曆。'}
+          {branchView
+            ? '請先選擇分店以顯示整店行事曆。'
+            : role === 'owner'
+              ? '請先選擇分店與美甲師以顯示行事曆。'
+              : '請先選擇美甲師以顯示行事曆。'}
         </p>
       )}
 
@@ -180,6 +209,9 @@ export default function CalendarPage() {
               <button onClick={() => setSelected(null)} className="text-warmgray hover:text-rose-dark"><X size={18} /></button>
             </div>
             <div className="space-y-2 text-sm">
+              {branchView && selected.stylist_id && stylistNames[selected.stylist_id] && (
+                <Row label="美甲師" value={stylistNames[selected.stylist_id]} />
+              )}
               <Row label="客戶" value={selected.customer_name || '—'} />
               {selected.phone && <Row label="電話" value={selected.phone} />}
               <Row label="服務" value={(selected.selected_services || []).map((s) => s.service_name || s.service_id).join('、') || '—'} />
