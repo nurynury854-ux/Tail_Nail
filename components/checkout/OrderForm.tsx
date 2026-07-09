@@ -166,6 +166,8 @@ export default function OrderForm({
           const item = catalog.get(line.price_key)
           const price = lineUnitPrice(line)
           const tiers = item?.pricing_mode === 'tier' ? (line.category === 'foot' ? item.tiers_foot : item.tiers_hand) || [] : []
+          // What the 跳色 fingers become (e.g. base 單色 -> accent 貓眼).
+          const accentName = item?.accent_service_key ? catalog.get(item.accent_service_key)?.name : undefined
           const perUnitMax = item?.unit_full_qty || 10
           const perUnitCorrected =
             item?.pricing_mode === 'per_unit' &&
@@ -210,10 +212,10 @@ export default function OrderForm({
                 </div>
               )}
 
-              {/* 跳色 add-on — only appears on services with an accent rate (單色 / 貓眼) */}
+              {/* 跳色 add-on — only on services with an accent rate (單色 ↔ 貓眼) */}
               {item?.accent_price ? (
                 <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <label className="text-warmgray">跳色</label>
+                  <label className="text-warmgray">跳色{accentName ? `（${accentName}）` : ''}</label>
                   <select
                     className="w-24 rounded-lg border border-blush px-3 py-2 text-sm"
                     value={line.accent_count}

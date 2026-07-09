@@ -57,7 +57,13 @@ export default function PricesPage() {
             </div>
 
             {it.pricing_mode === 'fixed' && (
-              <FixedEditor item={it} busy={busyId === it.id} numCls={numCls} onSave={(p) => patch(it.id, p)} />
+              <FixedEditor
+                item={it}
+                busy={busyId === it.id}
+                numCls={numCls}
+                accentName={it.accent_service_key ? items.find((x) => x.key === it.accent_service_key)?.name : undefined}
+                onSave={(p) => patch(it.id, p)}
+              />
             )}
             {it.pricing_mode === 'tier' && (
               <TierEditor item={it} busy={busyId === it.id} onSave={(p) => patch(it.id, p)} />
@@ -75,7 +81,7 @@ export default function PricesPage() {
   )
 }
 
-function FixedEditor({ item, busy, numCls, onSave }: { item: PriceItem; busy: boolean; numCls: string; onSave: (p: object) => void }) {
+function FixedEditor({ item, busy, numCls, accentName, onSave }: { item: PriceItem; busy: boolean; numCls: string; accentName?: string; onSave: (p: object) => void }) {
   const [hand, setHand] = useState(String(item.price_hand ?? ''))
   const [foot, setFoot] = useState(String(item.price_foot ?? ''))
   const hasAccent = item.accent_price != null
@@ -85,7 +91,10 @@ function FixedEditor({ item, busy, numCls, onSave }: { item: PriceItem; busy: bo
       <label className="text-warmgray">手部 <input className={numCls} type="number" value={hand} onChange={(e) => setHand(e.target.value)} /></label>
       <label className="text-warmgray">足部 <input className={numCls} type="number" value={foot} onChange={(e) => setFoot(e.target.value)} /></label>
       {hasAccent && (
-        <label className="text-warmgray">跳色/指 <input className={numCls} type="number" value={accent} onChange={(e) => setAccent(e.target.value)} /></label>
+        <label className="text-warmgray">
+          跳色{accentName ? `（${accentName}）` : ''}/指{' '}
+          <input className={numCls} type="number" value={accent} onChange={(e) => setAccent(e.target.value)} />
+        </label>
       )}
       <button
         disabled={busy}

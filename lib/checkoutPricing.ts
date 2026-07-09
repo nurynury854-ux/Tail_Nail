@@ -22,6 +22,7 @@ export interface PriceItem {
   unit_full_qty?: number | null
   unit_full_price?: number | null
   accent_price?: number | null // 跳色 per-finger add-on rate (fixed services only)
+  accent_service_key?: string | null // catalog key of the service the accent fingers become
   booking_service_id?: string | null
   sort_order?: number
   is_active?: boolean
@@ -124,7 +125,10 @@ export function buildOrderItems(
           accentCount,
         }
         const unit_price = resolveUnitPrice(item, sel)
-        const name = accentCount > 0 ? `${item.name}（跳色×${accentCount}）` : item.name
+        // Name the accent service so the order reads e.g. 單色（跳色貓眼×3）.
+        const accentName = item.accent_service_key ? catalog.get(item.accent_service_key)?.name : undefined
+        const name =
+          accentCount > 0 ? `${item.name}（跳色${accentName ?? ''}×${accentCount}）` : item.name
         return {
           service_id: item.booking_service_id || null,
           price_key: item.key,
