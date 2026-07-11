@@ -64,22 +64,39 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (vis.phone && typeof body.customer_phone === 'string') update.customer_phone = body.customer_phone.trim() || null
   if ('payment_method' in body) update.payment_method = (body.payment_method as PaymentMethod) || null
 
-  // If items are supplied, replace them and recompute money (prices resolved
-  // server-side from the catalog so a tech can't override fixed prices).
+  // Order-level discounts (壽星 / 好評) — recompute money when items or discounts change.
+  const reviewDiscount = 'review_discount' in body ? Boolean(body.review_discount) : Boolean(before.review_discount)
+  const birthdayDiscount = 'birthday_discount' in body ? Boolean(body.birthday_discount) : Boolean(before.birthday_discount)
+  const discountsChanged =
+    reviewDiscount !== Boolean(before.review_discount) || birthdayDiscount !== Boolean(before.birthday_discount)
+  if ('review_discount' in body) update.review_discount = reviewDiscount
+  if ('birthday_discount' in body) update.birthday_discount = birthdayDiscount
+
+  // If items are supplied, replace them (prices resolved server-side so a tech
+  // can't override fixed prices). Recompute totals from items + discounts.
   let newItems: object[] = before.items || []
+  let itemsForTotals: Array<{ unit_price: number; quantity: number; discount: number }> = (before.items || []).map(
+    (it) => ({ unit_price: it.unit_price, quantity: it.quantity, discount: it.discount }),
+  )
   if (Array.isArray(body.items)) {
     const catalog = await fetchPriceCatalog(admin)
     const normalized = buildOrderItems(catalog, body.items as PricedItemInput[])
     if (!normalized.length) {
       return NextResponse.json({ error: '請至少保留一個項目' }, { status: 400 })
     }
-    const totals = computeOrderTotals(normalized, before.income_rate)
+    await replaceOrderItems(admin, before.id, normalized)
+    newItems = normalized.map((it, i) => ({ id: `tmp-${i}`, order_id: before.id, ...it }))
+    itemsForTotals = normalized
+  }
+  if (Array.isArray(body.items) || discountsChanged) {
+    const totals = computeOrderTotals(itemsForTotals, before.income_rate, {
+      review: reviewDiscount,
+      birthday: birthdayDiscount,
+    })
     update.gross_amount = totals.gross
     update.discount_total = totals.discountTotal
     update.revenue = totals.revenue
     update.stylist_income = totals.stylistIncome
-    await replaceOrderItems(admin, before.id, normalized)
-    newItems = normalized.map((it, i) => ({ id: `tmp-${i}`, order_id: before.id, ...it }))
   }
 
   const { data: after, error } = await admin

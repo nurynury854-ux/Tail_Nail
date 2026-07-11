@@ -87,6 +87,8 @@ export interface CheckoutOrder {
   stylist_income: number
   income_rate: number
   payment_method?: PaymentMethod | null
+  review_discount?: boolean
+  birthday_discount?: boolean
   status: OrderStatus
   stylist_confirmed: boolean
   submitted_at?: string | null
@@ -172,5 +174,8 @@ export interface BoardMessage {
 // The default stylist income share (业绩 = 50% of 营业额).
 export const DEFAULT_INCOME_RATE = 0.5
 
-// Flat NTD discount granted to customers who leave a positive review.
+// Flat NTD discount granted to customers who leave a positive review (客人留好評).
 export const REVIEW_INCENTIVE_AMOUNT = 50
+
+// Birthday (壽星優惠) discount multiplier — 10% off the order total.
+export const BIRTHDAY_DISCOUNT_RATE = 0.9

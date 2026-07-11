@@ -80,6 +80,8 @@ export async function POST(request: NextRequest) {
   const bookingId = body.booking_id ? String(body.booking_id) : null
   const paymentMethod = (body.payment_method as PaymentMethod) || null
   const businessDate = typeof body.business_date === 'string' ? body.business_date : today()
+  const reviewDiscount = Boolean(body.review_discount)
+  const birthdayDiscount = Boolean(body.birthday_discount)
 
   let customerName = typeof body.customer_name === 'string' ? body.customer_name.trim() : ''
   let customerPhone = typeof body.customer_phone === 'string' ? body.customer_phone.trim() : ''
@@ -168,7 +170,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '請至少新增一個項目' }, { status: 400 })
   }
 
-  const totals = computeOrderTotals(items, DEFAULT_INCOME_RATE)
+  const totals = computeOrderTotals(items, DEFAULT_INCOME_RATE, {
+    review: reviewDiscount,
+    birthday: birthdayDiscount,
+  })
 
   // Resolve snapshot names (frozen onto the order forever).
   const { data: branch } = await admin
@@ -195,6 +200,8 @@ export async function POST(request: NextRequest) {
       stylist_income: totals.stylistIncome,
       income_rate: DEFAULT_INCOME_RATE,
       payment_method: paymentMethod,
+      review_discount: reviewDiscount,
+      birthday_discount: birthdayDiscount,
       status: 'draft',
       business_date: businessDate,
       service_end_at: computeServiceEndAt({ source, businessDate, bookingDate, bookingEndTime }),

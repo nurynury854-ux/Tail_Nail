@@ -123,6 +123,8 @@ export default function OrderDetailPage() {
               customer_name: order.customer_name,
               customer_phone: order.customer_phone,
               payment_method: order.payment_method,
+              review_discount: order.review_discount,
+              birthday_discount: order.birthday_discount,
               items: order.items,
             }}
             onSubmit={saveEdit}
@@ -150,6 +152,14 @@ export default function OrderDetailPage() {
             ))}
           </div>
           <div className="border-t border-blush pt-3 space-y-1">
+            {(order.birthday_discount || order.review_discount) && (
+              <Row
+                label="優惠"
+                value={[order.birthday_discount ? '壽星9折' : '', order.review_discount ? '好評−$50' : '']
+                  .filter(Boolean)
+                  .join('、')}
+              />
+            )}
             <Row label="營業額" value={formatNTD(order.revenue)} strong />
             <Row label="業績（50%）" value={formatNTD(order.stylist_income)} />
             <Row label="付款" value={order.payment_method === 'cash' ? '現金' : order.payment_method === 'transfer' ? '轉帳' : '—'} />

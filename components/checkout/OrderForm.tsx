@@ -17,13 +17,14 @@ interface FormLine {
   accent_count: number
   custom_name: string
   discount: number
-  review_incentive: boolean
 }
 
 export type OrderFormPayload = {
   customer_name: string
   customer_phone: string
   payment_method: PaymentMethod | null
+  review_discount: boolean
+  birthday_discount: boolean
   items: PricedItemInput[]
 }
 
@@ -31,6 +32,8 @@ interface InitialData {
   customer_name?: string | null
   customer_phone?: string | null
   payment_method?: PaymentMethod | null
+  review_discount?: boolean
+  birthday_discount?: boolean
   items?: Array<{
     price_key?: string | null
     service_name_snapshot?: string
@@ -48,7 +51,7 @@ let counter = 0
 const newKey = () => `line-${counter++}`
 
 function emptyLine(): FormLine {
-  return { key: newKey(), price_key: '', category: 'hand', tier_index: 0, unit_count: 1, manual_price: 0, accent_count: 0, custom_name: '', discount: 0, review_incentive: false }
+  return { key: newKey(), price_key: '', category: 'hand', tier_index: 0, unit_count: 1, manual_price: 0, accent_count: 0, custom_name: '', discount: 0 }
 }
 
 export default function OrderForm({
@@ -69,6 +72,8 @@ export default function OrderForm({
   const [customerName, setCustomerName] = useState(initial?.customer_name || '')
   const [customerPhone, setCustomerPhone] = useState(initial?.customer_phone || '')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(initial?.payment_method || null)
+  const [reviewDiscount, setReviewDiscount] = useState(Boolean(initial?.review_discount))
+  const [birthdayDiscount, setBirthdayDiscount] = useState(Boolean(initial?.birthday_discount))
   const [confirmChecked, setConfirmChecked] = useState(false)
   const [lines, setLines] = useState<FormLine[]>(() => {
     if (initial?.items?.length) {
@@ -82,7 +87,6 @@ export default function OrderForm({
         accent_count: it.accent_count ?? 0,
         custom_name: it.price_key ? '' : it.service_name_snapshot || '',
         discount: it.discount,
-        review_incentive: it.discount_type === 'review_incentive',
       }))
     }
     return [emptyLine()]
@@ -103,23 +107,23 @@ export default function OrderForm({
     })
   }
 
-  const toggleReview = (key: string, on: boolean) =>
-    update(key, { review_incentive: on, discount: on ? REVIEW_INCENTIVE_AMOUNT : 0 })
-
   const totals = useMemo(
     () =>
       computeOrderTotals(
         lines.map((l) => ({ unit_price: lineUnitPrice(l), quantity: 1, discount: l.discount })),
         DEFAULT_INCOME_RATE,
+        { review: reviewDiscount, birthday: birthdayDiscount },
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lines, catalog],
+    [lines, catalog, reviewDiscount, birthdayDiscount],
   )
 
   const buildPayload = (): OrderFormPayload => ({
     customer_name: customerName.trim(),
     customer_phone: customerPhone.trim(),
     payment_method: paymentMethod,
+    review_discount: reviewDiscount,
+    birthday_discount: birthdayDiscount,
     items: lines
       .filter((l) => l.price_key || l.custom_name.trim())
       .map((l) => ({
@@ -131,7 +135,7 @@ export default function OrderForm({
         manual_price: l.manual_price,
         accent_count: l.accent_count,
         discount: l.discount,
-        discount_type: l.review_incentive ? 'review_incentive' : l.discount > 0 ? 'manual' : null,
+        discount_type: l.discount > 0 ? 'manual' : null,
       })),
   })
 
@@ -283,16 +287,10 @@ export default function OrderForm({
               )}
 
               <div className="flex items-center justify-between gap-2">
-                <label className="flex items-center gap-2 text-xs text-warmgray">
-                  <input type="checkbox" checked={line.review_incentive} onChange={(e) => toggleReview(line.key, e.target.checked)} />
-                  好評折扣 −{formatNTD(REVIEW_INCENTIVE_AMOUNT)}
-                </label>
-                {!line.review_incentive && (
-                  <div className="flex items-center gap-1 text-xs text-warmgray">
-                    <span>折扣</span>
-                    <input type="number" min={0} className="w-20 rounded-lg border border-blush px-2 py-1 text-sm" value={line.discount} onChange={(e) => update(line.key, { discount: Math.max(0, Number(e.target.value) || 0) })} />
-                  </div>
-                )}
+                <div className="flex items-center gap-1 text-xs text-warmgray">
+                  <span>單項折扣</span>
+                  <input type="number" min={0} className="w-20 rounded-lg border border-blush px-2 py-1 text-sm" value={line.discount} onChange={(e) => update(line.key, { discount: Math.max(0, Number(e.target.value) || 0) })} />
+                </div>
                 <span className="text-sm font-semibold text-charcoal">{formatNTD(Math.max(0, price - line.discount))}</span>
               </div>
             </div>
@@ -311,10 +309,31 @@ export default function OrderForm({
         </div>
       </div>
 
+      {/* Order-level checkout discounts (independent; 10% off then −NT$50). */}
+      <div>
+        <label className="block text-sm text-charcoal mb-1">優惠</label>
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-2 text-sm text-charcoal">
+            <input type="checkbox" checked={birthdayDiscount} onChange={(e) => setBirthdayDiscount(e.target.checked)} />
+            壽星優惠（9折）
+          </label>
+          <label className="flex items-center gap-2 text-sm text-charcoal">
+            <input type="checkbox" checked={reviewDiscount} onChange={(e) => setReviewDiscount(e.target.checked)} />
+            客人留好評（−{formatNTD(REVIEW_INCENTIVE_AMOUNT)}）
+          </label>
+        </div>
+      </div>
+
       <div className="rounded-xl bg-blush/60 border border-blush p-4 space-y-1 text-sm">
         <div className="flex justify-between text-warmgray"><span>小計</span><span>{formatNTD(totals.gross)}</span></div>
-        <div className="flex justify-between text-warmgray"><span>折扣</span><span>−{formatNTD(totals.discountTotal)}</span></div>
-        <div className="flex justify-between text-charcoal font-semibold text-base"><span>營業額</span><span>{formatNTD(totals.revenue)}</span></div>
+        {birthdayDiscount && (
+          <div className="flex justify-between text-warmgray"><span>壽星優惠 9折</span><span>×0.9</span></div>
+        )}
+        {reviewDiscount && (
+          <div className="flex justify-between text-warmgray"><span>客人留好評</span><span>−{formatNTD(REVIEW_INCENTIVE_AMOUNT)}</span></div>
+        )}
+        <div className="flex justify-between text-warmgray"><span>折扣合計</span><span>−{formatNTD(totals.discountTotal)}</span></div>
+        <div className="flex justify-between text-charcoal font-semibold text-base"><span>營業額（實收）</span><span>{formatNTD(totals.revenue)}</span></div>
         <div className="flex justify-between text-rose-dark font-semibold"><span>業績（50%）</span><span>{formatNTD(totals.stylistIncome)}</span></div>
       </div>
 
