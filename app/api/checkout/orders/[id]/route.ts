@@ -59,7 +59,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   // Only let the editor touch identity fields they can currently see — otherwise
   // a redacted (null) form value would wipe PII the owner/manager still needs.
-  const vis = customerVisibility(session.role, orderServiceEnd(before))
+  const vis = customerVisibility(session.role, orderServiceEnd(before), before.business_date ?? null)
   if (vis.name && typeof body.customer_name === 'string') update.customer_name = body.customer_name.trim() || null
   if (vis.phone && typeof body.customer_phone === 'string') update.customer_phone = body.customer_phone.trim() || null
   if ('payment_method' in body) update.payment_method = (body.payment_method as PaymentMethod) || null

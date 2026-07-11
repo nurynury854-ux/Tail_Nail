@@ -32,10 +32,18 @@ export interface CustomerVisibility {
   phone: boolean
 }
 
-/** Decide whether a given role may currently see the customer's name / phone. */
+/**
+ * Decide whether a given role may currently see the customer's name / phone.
+ *  - owner:   always (permanent).
+ *  - manager: name + phone until service end + 1 day.
+ *  - stylist: phone NEVER; name until midnight ending the service DATE, so the
+ *             name is available all shift for keying in orders, then destroyed
+ *             at 00:00 that night.
+ */
 export function customerVisibility(
   role: CheckoutRole,
   serviceEndAt: string | null,
+  serviceDate?: string | null,
   now: Date = new Date(),
 ): CustomerVisibility {
   if (role === 'owner') return { name: true, phone: true } // owner = admin, permanent
@@ -46,8 +54,10 @@ export function customerVisibility(
     return { name: ok, phone: ok }
   }
 
-  // stylist: phone never; name only until service end.
-  return { name: end === null ? true : now.getTime() <= end, phone: false }
+  // Stylist: phone never; name until midnight at the end of the service date.
+  const dateStr = serviceDate || (serviceEndAt ? serviceEndAt.slice(0, 10) : null)
+  const cutoff = dateStr ? new Date(`${dateStr}T23:59:59${TW_OFFSET}`).getTime() : null
+  return { name: cutoff === null ? true : now.getTime() <= cutoff, phone: false }
 }
 
 /** Service-end fallback for a checkout order (older rows may lack the snapshot). */
@@ -63,7 +73,7 @@ export function redactOrder<T extends { customer_name?: string | null; customer_
   role: CheckoutRole,
   now?: Date,
 ): T {
-  const vis = customerVisibility(role, orderServiceEnd(order), now)
+  const vis = customerVisibility(role, orderServiceEnd(order), order.business_date ?? null, now)
   return {
     ...order,
     customer_name: vis.name ? order.customer_name ?? null : null,
@@ -80,7 +90,7 @@ export function redactBooking<T extends { customer_name?: string | null; phone?:
   const serviceEnd = booking.date
     ? `${booking.date}T${(booking.end_time && booking.end_time.length === 5 ? `${booking.end_time}:00` : booking.end_time) || '23:59:59'}${TW_OFFSET}`
     : null
-  const vis = customerVisibility(role, serviceEnd, now)
+  const vis = customerVisibility(role, serviceEnd, booking.date ?? null, now)
   return {
     ...booking,
     customer_name: vis.name ? booking.customer_name ?? null : null,
