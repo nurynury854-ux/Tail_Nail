@@ -6,6 +6,7 @@ import { replaceOrderItems } from '@/lib/checkoutOrders'
 import { buildOrderItems, fetchPriceCatalog, PricedItemInput } from '@/lib/checkoutPricing.server'
 import { logOrderEvent } from '@/lib/orderEditLog'
 import { computeServiceEndAt, redactOrder } from '@/lib/checkoutPrivacy'
+import { monthRange } from '@/lib/monthRange'
 import { DEFAULT_INCOME_RATE, PaymentMethod } from '@/lib/checkoutTypes'
 
 export const runtime = 'nodejs'
@@ -39,7 +40,10 @@ export async function GET(request: NextRequest) {
   }
 
   if (date) query = query.eq('business_date', date)
-  if (month) query = query.gte('business_date', `${month}-01`).lte('business_date', `${month}-31`)
+  if (month) {
+    const { start, endExclusive } = monthRange(month)
+    query = query.gte('business_date', start).lt('business_date', endExclusive)
+  }
   if (status) query = query.eq('status', status)
 
   query = query.order('created_at', { ascending: false })

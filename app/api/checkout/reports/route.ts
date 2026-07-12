@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { getCheckoutSession } from '@/lib/checkoutAuth'
+import { monthRange } from '@/lib/monthRange'
 
 export const runtime = 'nodejs'
 
@@ -31,8 +32,12 @@ export async function GET(request: NextRequest) {
   // Draft and submitted orders are visible elsewhere but never counted here.
   query = query.eq('status', 'confirmed')
 
-  if (date) query = query.eq('business_date', date)
-  else query = query.gte('business_date', `${month}-01`).lte('business_date', `${month}-31`)
+  if (date) {
+    query = query.eq('business_date', date)
+  } else {
+    const { start, endExclusive } = monthRange(month)
+    query = query.gte('business_date', start).lt('business_date', endExclusive)
+  }
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

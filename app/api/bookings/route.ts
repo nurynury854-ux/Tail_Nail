@@ -686,7 +686,15 @@ export async function POST(request: NextRequest) {
         ? getBranchLineConfig(line_source_branch_id)
         : null) || lineConfig
     let lineNotificationSent = false
-    if (normalizedLineId && customerLineConfig) {
+    if (!normalizedLineId) {
+      console.warn('LINE confirmation skipped: no customer LINE userId on this booking.')
+    } else if (!customerLineConfig) {
+      // Silently doing nothing here is why "the customer gets no confirmation".
+      console.warn(
+        `LINE confirmation skipped: no channel config for branch ${line_source_branch_id || branch_id}. ` +
+          `Set LINE_BRANCH_${line_source_branch_id || branch_id}_CHANNEL_ACCESS_TOKEN.`,
+      )
+    } else {
       try {
         await sendLinePushMessage(normalizedLineId, confirmationMessage, customerLineConfig.channelAccessToken)
         lineNotificationSent = true

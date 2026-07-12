@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { getCheckoutSession } from '@/lib/checkoutAuth'
 import { redactBooking } from '@/lib/checkoutPrivacy'
+import { monthRange } from '@/lib/monthRange'
 
 export const runtime = 'nodejs'
 
@@ -27,6 +28,14 @@ export async function GET(request: NextRequest) {
     .select('id, branch_id, stylist_id, customer_name, phone, selected_services, category, date, start_time, end_time, total_duration, status')
 
   if (session.role === 'stylist') {
+    // An unlinked stylist account has no stylist_id — querying eq(null) silently
+    // returns nothing, which looks like "the calendar is broken". Say so instead.
+    if (!session.stylistId) {
+      return NextResponse.json(
+        { error: '此帳號尚未連結美甲師，請聯絡老闆設定後才能看到行事曆' },
+        { status: 409 },
+      )
+    }
     query = query.eq('stylist_id', session.stylistId)
   } else if (session.role === 'manager') {
     query = query.eq('branch_id', session.branchId)
@@ -36,8 +45,12 @@ export async function GET(request: NextRequest) {
     if (stylistId) query = query.eq('stylist_id', stylistId)
   }
 
-  if (month) query = query.gte('date', `${month}-01`).lte('date', `${month}-31`)
-  else if (date) query = query.eq('date', date)
+  if (month) {
+    const { start, endExclusive } = monthRange(month)
+    query = query.gte('date', start).lt('date', endExclusive)
+  } else if (date) {
+    query = query.eq('date', date)
+  }
 
   // Cancelled appointments stay on everyone's calendar (greyed, non-importable).
   query = query
