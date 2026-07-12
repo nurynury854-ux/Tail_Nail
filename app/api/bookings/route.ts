@@ -59,6 +59,37 @@ async function sendLinePushMessage(userId: string, message: string, accessToken:
   }
 }
 
+/**
+ * Send the customer confirmation, trying each candidate branch's LINE channel in
+ * order until one succeeds.
+ *
+ * A push only works through an OA the customer has actually added as a friend.
+ * They befriended the OA whose link they clicked (srcBranch) — which may not be
+ * the branch they ended up booking. If we push through the booked branch's OA
+ * instead, LINE rejects it with 400 ("user hasn't added the OA as a friend") and
+ * the customer silently gets nothing. Relying on srcBranch alone is brittle:
+ * links issued before it existed don't carry it. So try the most likely channel
+ * first, then fall back to the others.
+ */
+async function sendCustomerConfirmation(
+  userId: string,
+  message: string,
+  candidateBranchIds: string[],
+): Promise<{ sent: boolean; viaBranchId?: string; errors: string[] }> {
+  const errors: string[] = []
+  for (const branchId of candidateBranchIds) {
+    const config = getBranchLineConfig(branchId)
+    if (!config) continue
+    try {
+      await sendLinePushMessage(userId, message, config.channelAccessToken)
+      return { sent: true, viaBranchId: branchId, errors }
+    } catch (err) {
+      errors.push(`branch ${branchId}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  return { sent: false, errors }
+}
+
 function normalizeSupabaseError(errorMessage: string): string {
   if (errorMessage.includes('<!DOCTYPE html>')) {
     return 'Supabase configuration looks invalid. Use NEXT_PUBLIC_SUPABASE_URL like https://<project-ref>.supabase.co (not dashboard URL).'
@@ -678,28 +709,31 @@ export async function POST(request: NextRequest) {
     })
 
     const lineConfig = getBranchLineConfig(branch_id)
-    // LINE user IDs are scoped per channel. If the customer's userId came from a
-    // different branch's OA (cross-branch booking), the confirmation must be sent
-    // via that originating channel, not the booked branch's channel.
-    const customerLineConfig =
-      (line_source_branch_id && line_source_branch_id !== branch_id
-        ? getBranchLineConfig(line_source_branch_id)
-        : null) || lineConfig
+
+    // Try the OA that issued the customer's userId first (they're a friend of it),
+    // then the booked branch, then any other configured branch. A push through an
+    // OA the customer hasn't added fails with 400, so we can't assume which one
+    // works — especially for older links that carry no srcBranch.
+    const candidateBranchIds = Array.from(
+      new Set([...(line_source_branch_id ? [line_source_branch_id] : []), branch_id, ...BRANCHES.map((b) => b.id)]),
+    )
+
     let lineNotificationSent = false
     if (!normalizedLineId) {
       console.warn('LINE confirmation skipped: no customer LINE userId on this booking.')
-    } else if (!customerLineConfig) {
-      // Silently doing nothing here is why "the customer gets no confirmation".
-      console.warn(
-        `LINE confirmation skipped: no channel config for branch ${line_source_branch_id || branch_id}. ` +
-          `Set LINE_BRANCH_${line_source_branch_id || branch_id}_CHANNEL_ACCESS_TOKEN.`,
-      )
     } else {
-      try {
-        await sendLinePushMessage(normalizedLineId, confirmationMessage, customerLineConfig.channelAccessToken)
-        lineNotificationSent = true
-      } catch (lineError) {
-        console.warn(`Failed to send to customer LINE ID ${normalizedLineId}:`, lineError)
+      const result = await sendCustomerConfirmation(normalizedLineId, confirmationMessage, candidateBranchIds)
+      lineNotificationSent = result.sent
+      if (result.sent) {
+        console.log(
+          `LINE confirmation sent to ${normalizedLineId} via branch ${result.viaBranchId} ` +
+            `(booked ${branch_id}, src ${line_source_branch_id ?? 'none'})`,
+        )
+      } else {
+        console.warn(
+          `LINE confirmation FAILED for ${normalizedLineId} (booked ${branch_id}, src ${line_source_branch_id ?? 'none'}). ` +
+            `Tried: ${result.errors.join(' | ')}`,
+        )
       }
     }
 

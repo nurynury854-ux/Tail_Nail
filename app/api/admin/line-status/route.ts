@@ -66,9 +66,8 @@ export async function GET(request: NextRequest) {
       const used = consumption.ok && typeof consumption.data.totalUsage === 'number' ? consumption.data.totalUsage : null
 
       const problems: string[] = []
-      if (chatMode && chatMode !== 'bot') {
-        problems.push(`chat_mode is "${chatMode}" — LINE will NOT deliver webhooks. Set the OA response mode to Bot (機器人).`)
-      }
+      // NOTE: chat_mode only reports whether the OA's manual Chat feature is on.
+      // It does NOT disable webhooks — `webhook_active` is the authoritative signal.
       if (webhook.ok && webhook.data.active === false) {
         problems.push('Webhook is DISABLED for this channel — enable "Use webhook" in LINE Developers.')
       }
@@ -91,7 +90,7 @@ export async function GET(request: NextRequest) {
         branch: branch.name,
         configured: true,
         oa_name: info.ok ? info.data.displayName : undefined,
-        chat_mode: chatMode, // must be "bot"
+        chat_mode: chatMode, // informational only — does not affect webhook delivery
         webhook_url: webhook.ok ? webhook.data.endpoint : undefined,
         webhook_active: webhook.ok ? webhook.data.active : undefined,
         oa_id_matches: config.oaId && botUserId ? config.oaId === botUserId : false,
