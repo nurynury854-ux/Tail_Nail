@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   addMonths,
@@ -53,8 +53,6 @@ export default function AppointmentCalendar({
   /** Branch-wide view: stylist_id -> name. When set, each entry is labelled with its stylist. */
   stylistNames?: Record<string, string>
 }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
-
   const byDate = useMemo(() => {
     const map: Record<string, CalBooking[]> = {}
     for (const b of bookings) (map[b.date] ||= []).push(b)
@@ -70,13 +68,6 @@ export default function AppointmentCalendar({
     for (let i = 0; i < days.length; i += 7) rows.push(days.slice(i, i + 7))
     return rows
   }, [month])
-
-  const toggle = (dateStr: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      next.has(dateStr) ? next.delete(dateStr) : next.add(dateStr)
-      return next
-    })
 
   return (
     <div className="rounded-2xl border border-blush bg-white p-3 sm:p-4">
@@ -109,8 +100,6 @@ export default function AppointmentCalendar({
           const dateStr = format(day, 'yyyy-MM-dd')
           const appts = byDate[dateStr] || []
           const inMonth = isSameMonth(day, month)
-          const isExpanded = expanded.has(dateStr)
-          const shown = isExpanded ? appts : appts.slice(0, 3)
           return (
             <div
               key={dateStr}
@@ -118,11 +107,19 @@ export default function AppointmentCalendar({
                 inMonth ? 'border-blush bg-white' : 'border-transparent bg-blush/20'
               }`}
             >
-              <div className={`text-xs mb-0.5 ${inMonth ? 'text-charcoal' : 'text-warmgray/50'}`}>
-                {format(day, 'd')}
+              {/* Day number + how many appointments it has, so a missing entry is obvious. */}
+              <div className="flex items-center justify-between mb-0.5">
+                <span className={`text-xs ${inMonth ? 'text-charcoal' : 'text-warmgray/50'}`}>
+                  {format(day, 'd')}
+                </span>
+                {appts.length > 0 && (
+                  <span className="text-[10px] text-warmgray tabular-nums">{appts.length}</span>
+                )}
               </div>
-              <div className="space-y-0.5">
-                {shown.map((b) => {
+              {/* Render EVERY appointment — never hide any. A very busy day scrolls
+                  inside its own cell instead of collapsing entries out of sight. */}
+              <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                {appts.map((b) => {
                   const cancelled = b.status === 'cancelled'
                   return (
                     <button
@@ -152,11 +149,6 @@ export default function AppointmentCalendar({
                     </button>
                   )
                 })}
-                {appts.length > 3 && (
-                  <button onClick={() => toggle(dateStr)} className="text-[10px] text-rose-dark hover:underline">
-                    {isExpanded ? '收合' : `+${appts.length - 3} 更多`}
-                  </button>
-                )}
               </div>
             </div>
           )
