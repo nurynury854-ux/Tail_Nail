@@ -56,10 +56,21 @@ export async function GET(request: NextRequest) {
   query = query
     .order('date', { ascending: true })
     .order('start_time', { ascending: true })
+    .order('id', { ascending: true }) // deterministic tiebreak across pages
 
-  const { data, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // PostgREST caps a single response at 1000 rows. A busy month easily exceeds
+  // that, and since rows come back date-ascending the tail of the month would be
+  // silently dropped. Page through until a short batch comes back.
+  const PAGE_SIZE = 1000
+  const rows: Record<string, unknown>[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await query.range(from, from + PAGE_SIZE - 1)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    const batch = data || []
+    rows.push(...batch)
+    if (batch.length < PAGE_SIZE) break
+  }
 
   // Redact customer identity per the requesting role + timers.
-  return NextResponse.json((data || []).map((b) => redactBooking(b, session.role)))
+  return NextResponse.json(rows.map((b) => redactBooking(b, session.role)))
 }
