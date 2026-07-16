@@ -320,7 +320,10 @@ export async function POST(request: NextRequest) {
     const defaultTotalDuration = Number(body.total_duration || 0) || selectedServices.reduce((sum, item) => sum + (item.duration_minutes || 0), 0) || 120
     const fallbackEndTime = calculateEndTime(start_time, defaultTotalDuration)
 
-    const normalizedLineId = (line_id || process.env.LINE_DEMO_USER_ID || '').trim()
+    // Only the customer's real LINE userId. Do NOT fall back to LINE_DEMO_USER_ID:
+    // in production that silently routes real customers' confirmations to the demo
+    // inbox and stores the wrong line_id on the booking. Empty => no push is sent.
+    const normalizedLineId = (line_id || '').trim()
     const preferredStylistId = stylist_id?.trim() || null
     let assignedStylistId: string | null = preferredStylistId
     let assignedStylistName: string | undefined
