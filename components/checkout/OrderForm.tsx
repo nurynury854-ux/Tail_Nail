@@ -299,9 +299,9 @@ export default function OrderForm({
       </div>
 
       <div>
-        <label className="block text-sm text-charcoal mb-1">付款方式</label>
+        <label className="block text-sm text-charcoal mb-1">付款方式 <span className="text-rose-dark">*</span></label>
         <div className="flex gap-2">
-          {([['cash', '現金'], ['transfer', '轉帳']] as const).map(([value, label]) => (
+          {([['cash', '現金'], ['transfer', '匯款']] as const).map(([value, label]) => (
             <button key={value} type="button" onClick={() => setPaymentMethod(value)} className={`px-4 py-2 rounded-lg text-sm border transition ${paymentMethod === value ? 'bg-rose text-white border-rose' : 'bg-white text-charcoal border-blush hover:border-rose/50'}`}>
               {label}
             </button>
@@ -347,7 +347,8 @@ export default function OrderForm({
             <button type="button" disabled={busy || !hasItems} onClick={() => onSubmit(buildPayload(), false)} className="flex-1 py-2.5 rounded-lg border border-rose text-rose-dark font-semibold hover:bg-rose/5 disabled:opacity-50">
               儲存草稿
             </button>
-            <button type="button" disabled={busy || !hasItems || !confirmChecked} onClick={() => onSubmit(buildPayload(), true)} className="flex-1 py-2.5 rounded-lg bg-rose text-white font-semibold hover:opacity-90 disabled:opacity-50">
+            {/* Payment method is required to finalize — button stays inactive until chosen. */}
+            <button type="button" disabled={busy || !hasItems || !confirmChecked || !paymentMethod} onClick={() => onSubmit(buildPayload(), true)} className="flex-1 py-2.5 rounded-lg bg-rose text-white font-semibold hover:opacity-90 disabled:opacity-50">
               確認結帳並送出
             </button>
           </div>

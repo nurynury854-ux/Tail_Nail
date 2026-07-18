@@ -162,7 +162,7 @@ export default function OrderDetailPage() {
             )}
             <Row label="營業額" value={formatNTD(order.revenue)} strong />
             <Row label="業績（50%）" value={formatNTD(order.stylist_income)} />
-            <Row label="付款" value={order.payment_method === 'cash' ? '現金' : order.payment_method === 'transfer' ? '轉帳' : '—'} />
+            <Row label="付款" value={order.payment_method === 'cash' ? '現金' : order.payment_method === 'transfer' ? '匯款' : '—'} />
           </div>
 
           <div className="flex flex-wrap gap-2 pt-2">

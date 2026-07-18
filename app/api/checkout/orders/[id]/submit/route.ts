@@ -40,6 +40,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: '請先勾選確認方框' }, { status: 400 })
   }
 
+  // Payment method is required to finalize an order (feeds 現金/匯款 breakdown).
+  if (order.payment_method !== 'cash' && order.payment_method !== 'transfer') {
+    return NextResponse.json({ error: '請先選擇付款方式（現金／匯款）' }, { status: 400 })
+  }
+
   const { data: updated, error } = await admin
     .from('checkout_orders')
     .update({

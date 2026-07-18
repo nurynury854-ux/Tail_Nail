@@ -65,7 +65,7 @@ export default function ReportsPage() {
             <Stat label="總業績" value={formatNTD(data.totals.income)} />
             {mode === 'month' && <Stat label="總獎金" value={formatNTD(data.totals.bonus || 0)} />}
             <Stat label="訂單數" value={String(data.totals.orderCount)} />
-            <Stat label="現金 / 轉帳" value={`${formatNTD(data.payment.cash)} / ${formatNTD(data.payment.transfer)}`} small />
+            <Stat label="現金 / 匯款" value={`${formatNTD(data.payment.cash)} / ${formatNTD(data.payment.transfer)}`} small />
           </div>
 
           {session?.role === 'owner' && data.byBranch.length > 0 && (

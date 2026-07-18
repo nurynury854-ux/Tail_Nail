@@ -121,7 +121,7 @@ export default function OrdersPage() {
                     </span>
                   </td>
                   <td className="px-3 py-2 text-warmgray">
-                    {o.payment_method === 'cash' ? '現金' : o.payment_method === 'transfer' ? '轉帳' : '—'}
+                    {o.payment_method === 'cash' ? '現金' : o.payment_method === 'transfer' ? '匯款' : '—'}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex gap-2 justify-end">
