@@ -72,28 +72,31 @@ export default function CleaningPage() {
         </select>
       )}
 
+      <p className="text-sm text-warmgray">
+        系統每日自動指派值日生，排除當天休假的美甲師，並優先指派最久沒輪到的人。店長可於下方手動調整（會記錄給老闆）。
+      </p>
+
       {canAssign && (
         <div className="rounded-2xl border border-blush bg-white p-5 space-y-3">
-          <h2 className="font-playfair text-lg text-charcoal">指派</h2>
+          <h2 className="font-playfair text-lg text-charcoal">手動調整</h2>
           <div className="flex flex-wrap gap-2 items-center">
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
-            <button onClick={() => assign()} className="bg-rose text-white px-4 py-2 rounded-lg text-sm hover:opacity-90">
-              自動指派
-            </button>
-            <span className="text-warmgray text-sm">或手動：</span>
             <select value={manualId} onChange={(e) => setManualId(e.target.value)} className={inputCls}>
-              <option value="">— 美甲師 —</option>
+              <option value="">— 指定美甲師 —</option>
               {stylists.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <button
               onClick={() => manualId && assign(manualId)}
               disabled={!manualId}
-              className="border border-rose text-rose-dark px-4 py-2 rounded-lg text-sm hover:bg-rose/5 disabled:opacity-50"
+              className="bg-rose text-white px-4 py-2 rounded-lg text-sm hover:opacity-90 disabled:opacity-50"
             >
-              指派
+              指定
+            </button>
+            <span className="text-warmgray text-sm">或</span>
+            <button onClick={() => assign()} className="border border-rose text-rose-dark px-4 py-2 rounded-lg text-sm hover:bg-rose/5">
+              重新自動指派
             </button>
           </div>
-          <p className="text-xs text-warmgray">自動指派會排除當天休假的美甲師，並盡量避免連續重複同一人。</p>
         </div>
       )}
 

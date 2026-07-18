@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { canViewBranch, getCheckoutSession } from '@/lib/checkoutAuth'
+import { autoAssignCleaning, ensureCleaningAssigned } from '@/lib/cleaning'
+import { logOrderEvent } from '@/lib/orderEditLog'
 
 export const runtime = 'nodejs'
 
@@ -20,6 +22,7 @@ function resolveBranchId(session: { role: string; branchId: string | null }, par
 }
 
 // GET /api/checkout/cleaning?branch_id=&from=&to=
+// Auto-assigns today's duty on first read of the day (no button needed), then lists.
 export async function GET(request: NextRequest) {
   const session = await getCheckoutSession(request)
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -32,7 +35,12 @@ export async function GET(request: NextRequest) {
   if (!branchId) return NextResponse.json({ error: '缺少分店' }, { status: 400 })
   if (!canViewBranch(session, branchId)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
-  const from = url.searchParams.get('from') || todayStr()
+  // The daily assignment happens automatically — the first person to view the
+  // schedule that day triggers it if the cron hasn't already.
+  const today = todayStr()
+  await ensureCleaningAssigned(admin, branchId, today)
+
+  const from = url.searchParams.get('from') || today
   const to = url.searchParams.get('to') || addDays(from, 13)
 
   const { data, error } = await admin
@@ -47,9 +55,10 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(data || [])
 }
 
-// POST /api/checkout/cleaning — assign duty for a date.
-//   { branch_id?, date, stylist_id? }  — stylist_id present = manual override, else auto-assign.
-// Manager (own store) or owner.
+// POST /api/checkout/cleaning — manager/owner.
+//   { branch_id?, date, stylist_id? }
+//   stylist_id present = manual override (logged to the owner's audit feed);
+//   absent = re-run the auto-assignment for that date.
 export async function POST(request: NextRequest) {
   const session = await getCheckoutSession(request)
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -64,72 +73,56 @@ export async function POST(request: NextRequest) {
   if (!branchId) return NextResponse.json({ error: '缺少分店' }, { status: 400 })
   if (!canViewBranch(session, branchId)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
-  // Active stylists at this branch.
-  const { data: stylists } = await admin
-    .from('stylists')
-    .select('id, name')
-    .eq('branch_id', branchId)
-    .eq('is_active', true)
-  const candidates = stylists || []
-  if (candidates.length === 0) {
-    return NextResponse.json({ error: '此分店沒有在職美甲師' }, { status: 400 })
-  }
-
-  let chosen: { id: string; name: string } | undefined
-
+  // Manual override: manager picks a specific stylist.
   if (body.stylist_id) {
-    // Manual override.
-    chosen = candidates.find((c) => c.id === String(body.stylist_id))
-    if (!chosen) return NextResponse.json({ error: '找不到該美甲師' }, { status: 400 })
-  } else {
-    // Exclude technicians who are off that day (weekly off or a day-off override).
-    const dow = new Date(`${date}T00:00:00`).getDay() // 0=Sunday
-    const ids = candidates.map((c) => c.id)
-
-    const [{ data: weekly }, { data: overrides }] = await Promise.all([
-      admin.from('stylist_weekly_hours').select('stylist_id, is_working').eq('day_of_week', dow).in('stylist_id', ids),
-      admin.from('stylist_day_overrides').select('stylist_id, is_off').eq('date', date).in('stylist_id', ids),
-    ])
-    const offIds = new Set<string>()
-    for (const w of weekly || []) if (w.is_working === false) offIds.add(w.stylist_id)
-    for (const o of overrides || []) if (o.is_off === true) offIds.add(o.stylist_id)
-
-    const available = candidates.filter((c) => !offIds.has(c.id))
-    if (available.length === 0) {
-      return NextResponse.json({ error: '當天沒有可排班的美甲師' }, { status: 400 })
-    }
-
-    // Weight against recent assignments to reduce repeats (strict fairness not required).
-    const since = addDays(date, -14)
-    const { data: recent } = await admin
-      .from('cleaning_duty')
-      .select('stylist_id')
+    const { data: stylist } = await admin
+      .from('stylists')
+      .select('id, name')
+      .eq('id', String(body.stylist_id))
       .eq('branch_id', branchId)
-      .gte('duty_date', since)
-      .lt('duty_date', date)
-    const counts = new Map<string, number>()
-    for (const r of recent || []) if (r.stylist_id) counts.set(r.stylist_id, (counts.get(r.stylist_id) || 0) + 1)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (!stylist) return NextResponse.json({ error: '找不到該美甲師' }, { status: 400 })
 
-    const minCount = Math.min(...available.map((c) => counts.get(c.id) || 0))
-    const leastUsed = available.filter((c) => (counts.get(c.id) || 0) === minCount)
-    chosen = leastUsed[Math.floor(Math.random() * leastUsed.length)]
+    // Capture who was previously on duty for the log.
+    const { data: prev } = await admin
+      .from('cleaning_duty')
+      .select('stylist_name_snapshot')
+      .eq('branch_id', branchId)
+      .eq('duty_date', date)
+      .maybeSingle()
+
+    const { data, error } = await admin
+      .from('cleaning_duty')
+      .upsert(
+        {
+          branch_id: branchId,
+          duty_date: date,
+          stylist_id: stylist.id,
+          stylist_name_snapshot: stylist.name,
+          assigned_at: new Date().toISOString(),
+        },
+        { onConflict: 'branch_id,duty_date' },
+      )
+      .select()
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Manual changes are visible to the owner in 修改記錄.
+    await logOrderEvent(admin, {
+      orderId: null,
+      orderIdText: `cleaning:${branchId}:${date}`,
+      branchId,
+      actor: session,
+      action: 'cleaning_override',
+      reason: `值日生改為 ${stylist.name}（${date}）${prev?.stylist_name_snapshot ? `，原為 ${prev.stylist_name_snapshot}` : ''}`,
+    })
+
+    return NextResponse.json(data, { status: 201 })
   }
 
-  const { data, error } = await admin
-    .from('cleaning_duty')
-    .upsert(
-      {
-        branch_id: branchId,
-        duty_date: date,
-        stylist_id: chosen!.id,
-        stylist_name_snapshot: chosen!.name,
-        assigned_at: new Date().toISOString(),
-      },
-      { onConflict: 'branch_id,duty_date' },
-    )
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data, { status: 201 })
+  // Re-run auto-assignment for the date.
+  const row = await autoAssignCleaning(admin, branchId, date)
+  if (!row) return NextResponse.json({ error: '當天沒有可排班的美甲師' }, { status: 400 })
+  return NextResponse.json(row, { status: 201 })
 }

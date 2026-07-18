@@ -35,6 +35,7 @@ export default function CheckoutHome() {
   const [mode, setMode] = useState<'day' | 'month'>('day')
   const [day, setDay] = useState(todayStr())
   const [month, setMonth] = useState(todayStr().slice(0, 7))
+  const [dutyToday, setDutyToday] = useState<string | null>(null)
 
   const rangeQuery = mode === 'day' ? `date=${day}` : `month=${month}`
 
@@ -49,6 +50,17 @@ export default function CheckoutHome() {
       .then(setOrders)
       .catch(() => setOrders([]))
   }, [session, rangeQuery])
+
+  // Today's 值日生 for a branch-bound account. Fetching this also triggers the
+  // automatic daily assignment (first activity of the day) and displays it, so the
+  // manager never has to assign or announce it manually.
+  useEffect(() => {
+    if (!session || session.role === 'owner') return
+    fetch(`/api/checkout/cleaning?from=${todayStr()}&to=${todayStr()}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => setDutyToday(rows[0]?.stylist_name_snapshot ?? null))
+      .catch(() => setDutyToday(null))
+  }, [session])
 
   // Owner can drill into any one branch's or stylist's performance from the dashboard.
   useEffect(() => {
@@ -86,6 +98,14 @@ export default function CheckoutHome() {
           <span className="text-sm text-warmgray ml-2">{ROLE_LABELS[session.role]}</span>
         </h1>
       </div>
+
+      {/* Today's cleaning duty — auto-assigned, shown to everyone at the branch. */}
+      {session.role !== 'owner' && dutyToday && (
+        <div className="rounded-xl border border-rose/30 bg-rose/5 px-4 py-3 text-sm">
+          <span className="text-warmgray">今日值日生（{todayStr()}）：</span>
+          <span className="font-semibold text-rose-dark ml-1">{dutyToday}</span>
+        </div>
+      )}
 
       {/* Date / month range picker driving the stats below. */}
       <div className="flex flex-wrap items-center gap-2">

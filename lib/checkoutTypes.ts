@@ -15,6 +15,7 @@ export type EditLogAction =
   | 'delete'
   | 'actual_amount_adjust'
   | 'cancel_appointment'
+  | 'cleaning_override'
 
 export interface Account {
   id: string
