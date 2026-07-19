@@ -25,7 +25,7 @@ export default function CalendarPage() {
   const [stylists, setStylists] = useState<Stylist[]>([])
   const [branchId, setBranchId] = useState('')
   const [stylistId, setStylistId] = useState('')
-  const [bookings, setBookings] = useState<CalBooking[]>([])
+  const [allBookings, setAllBookings] = useState<CalBooking[]>([])
   const [selected, setSelected] = useState<CalBooking | null>(null)
   const [importing, setImporting] = useState(false)
   // 整店 = whole branch (all stylists) | 個人 = one selected stylist.
@@ -61,26 +61,43 @@ export default function CalendarPage() {
       .catch(() => {})
   }, [role, branchId])
 
-  // Do we have enough filter selections to render a calendar?
+  // The branch a manager/owner is viewing (a stylist uses their own scope).
+  const activeBranchId = role === 'owner' ? branchId : role === 'manager' ? session?.branchId ?? '' : ''
+
+  // Both views are slices of ONE fetch: always pull the WHOLE branch (never a
+  // per-stylist query). The individual view is that same data filtered to one
+  // stylist client-side, so it can only ever be a subset of the branch view —
+  // the two can never diverge, regardless of transfers or timing.
+  const load = useCallback(async () => {
+    const params = new URLSearchParams({ month: format(month, 'yyyy-MM') })
+    if (role !== 'stylist') {
+      if (!activeBranchId) {
+        setAllBookings([])
+        return
+      }
+      params.set('branch_id', activeBranchId)
+    }
+    // stylist: no branch param — the API self-scopes to their own stylist_id.
+    const res = await fetch(`/api/checkout/bookings?${params.toString()}`, { cache: 'no-store' })
+    setAllBookings(res.ok ? await res.json() : [])
+  }, [month, role, activeBranchId])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  // 整店 shows the whole branch; 個人 is the identical data filtered to one stylist.
+  const displayed = useMemo(() => {
+    if (role === 'stylist' || branchView) return allBookings
+    return stylistId ? allBookings.filter((b) => b.stylist_id === stylistId) : []
+  }, [allBookings, role, branchView, stylistId])
+
+  // Whether we have enough selections to render the calendar.
   const ready = branchView
     ? role === 'manager' || (role === 'owner' && !!branchId)
     : role === 'stylist' ||
       (role === 'manager' && !!stylistId) ||
       (role === 'owner' && !!branchId && !!stylistId)
-
-  const load = useCallback(async () => {
-    if (!ready) return
-    const params = new URLSearchParams({ month: format(month, 'yyyy-MM') })
-    if (role === 'owner') params.set('branch_id', branchId)
-    // Branch view omits stylist_id, so the API returns every stylist at the branch.
-    if (!branchView && role !== 'stylist') params.set('stylist_id', stylistId)
-    const res = await fetch(`/api/checkout/bookings?${params.toString()}`, { cache: 'no-store' })
-    setBookings(res.ok ? await res.json() : [])
-  }, [ready, month, role, branchId, stylistId, branchView])
-
-  useEffect(() => {
-    load()
-  }, [load])
 
   const branchName = useMemo(() => branches.find((b) => b.id === branchId)?.name, [branches, branchId])
   const stylistName = useMemo(
@@ -183,7 +200,7 @@ export default function CalendarPage() {
       {ready ? (
         <AppointmentCalendar
           month={month}
-          bookings={bookings}
+          bookings={displayed}
           onMonthChange={setMonth}
           onSelect={setSelected}
           branchName={role === 'owner' ? branchName : undefined}
