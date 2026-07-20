@@ -44,6 +44,18 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .eq('id', booking.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // PII-free signal so every open calendar gets a websocket push and re-fetches
+  // through the redacting API. Never blocks the cancellation itself.
+  try {
+    await admin.from('booking_events').insert({
+      booking_id: booking.id,
+      branch_id: booking.branch_id,
+      action: 'cancelled',
+    })
+  } catch (err) {
+    console.warn('booking_events insert failed (realtime push skipped)', err)
+  }
+
   // Do not put customer identity in the log (PII stays out of the audit feed).
   await logOrderEvent(admin, {
     orderId: null,

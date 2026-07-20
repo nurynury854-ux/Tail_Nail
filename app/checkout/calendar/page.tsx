@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -8,6 +8,7 @@ import { X } from 'lucide-react'
 import type { Branch, Stylist } from '@/lib/types'
 import AppointmentCalendar, { CalBooking } from '@/components/checkout/AppointmentCalendar'
 import { useCheckoutSession } from '@/components/checkout/session'
+import { supabase } from '@/lib/supabase'
 
 const STATUS_LABELS: Record<string, string> = {
   confirmed: '已確認',
@@ -82,9 +83,37 @@ export default function CalendarPage() {
     setAllBookings(res.ok ? await res.json() : [])
   }, [month, role, activeBranchId])
 
+  // Latest load() without making the websocket resubscribe on every change.
+  const loadRef = useRef(load)
+  useEffect(() => {
+    loadRef.current = load
+  }, [load])
+
   useEffect(() => {
     load()
   }, [load])
+
+  // Realtime: the server writes a PII-free row to booking_events on every change,
+  // and Supabase pushes it over a websocket. On arrival we re-fetch through the
+  // redacting API — so other devices update instantly without polling, and no
+  // customer data ever travels over the socket.
+  const watchBranchId = role === 'stylist' ? session?.branchId ?? '' : activeBranchId
+  useEffect(() => {
+    if (!supabase || !watchBranchId) return
+    const channel = supabase
+      .channel(`booking-events-${watchBranchId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'booking_events', filter: `branch_id=eq.${watchBranchId}` },
+        () => {
+          loadRef.current()
+        },
+      )
+      .subscribe()
+    return () => {
+      supabase?.removeChannel(channel)
+    }
+  }, [watchBranchId])
 
   // 整店 shows the whole branch; 個人 is the identical data filtered to one stylist.
   const displayed = useMemo(() => {
@@ -136,19 +165,32 @@ export default function CalendarPage() {
     if (!selected) return
     if (!confirm('確定取消此預約？')) return
     const reason = prompt('取消原因（選填）') || ''
-    const res = await fetch(`/api/checkout/bookings/${selected.id}/cancel`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason }),
-    })
-    if (res.ok) {
-      toast.success('已取消預約')
-      setSelected(null)
-      load()
-    } else {
+    const id = selected.id
+    const prevStatus = selected.status
+
+    // Instant: flip the entry to 已取消 in place the moment it's confirmed — no
+    // waiting on the round-trip. Both 整店 and 個人 are slices of this same array,
+    // so they update in the same render.
+    setAllBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status: 'cancelled' } : b)))
+    setSelected(null)
+
+    try {
+      const res = await fetch(`/api/checkout/bookings/${id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      })
+      if (res.ok) {
+        toast.success('已取消預約')
+        return
+      }
       const e = await res.json().catch(() => ({}))
       toast.error(e.error || '取消失敗')
+    } catch {
+      toast.error('取消失敗')
     }
+    // Failed — put it back so the calendar never shows a cancellation that didn't happen.
+    setAllBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status: prevStatus } : b)))
   }
 
   const selectCls = 'rounded-lg border border-blush px-3 py-2 text-sm'
