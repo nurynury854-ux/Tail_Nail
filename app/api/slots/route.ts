@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase, hasSupabaseConfig } from '@/lib/supabase'
 import { BRANCHES, SERVICES, Booking, Stylist, StylistGrade, TimeSlot } from '@/lib/types'
 import { defaultWorkingHoursByDay, timeToMinutes, minutesToTime } from '@/lib/bookingUtils'
-import { getAvailableStylistsForSlot, resolveBranchWindow, resolveStylistWindow } from '@/lib/scheduleUtils'
+import { buildStylistOverrideMap, effectiveBranchClose, getAvailableStylistsForSlot, resolveBranchWindow, resolveStylistWindow } from '@/lib/scheduleUtils'
 import { stylistMeetsGrade } from '@/lib/serviceGrades'
 
 export const dynamic = 'force-dynamic'
@@ -121,9 +121,9 @@ export async function GET(request: NextRequest) {
       return jsonNoStore({ slots: [], source: 'database' })
     }
     const LATEST_START = 19 * 60 // 7pm — last slot that can start
-    // Effective close is always at least 22:30 so services finishing after 9pm aren't blocked.
-    // The displayed/stored close time stays as-is (9pm), but the finishing deadline extends to 10:30pm.
-    const EFFECTIVE_CLOSE = Math.max(rawBranchWindow.close, 22 * 60)
+    // Regular hours get a grace period so services finishing after the 9pm display
+    // close aren't blocked. A day override (holiday/early close) is honoured exactly.
+    const EFFECTIVE_CLOSE = effectiveBranchClose(rawBranchWindow)
     const branchWindow = {
       open: Math.max(rawBranchWindow.open, 11 * 60),
       close: EFFECTIVE_CLOSE,
@@ -147,14 +147,7 @@ export async function GET(request: NextRequest) {
       weeklyMap[row.stylist_id].push(row)
     }
 
-    const overrideMap: Record<string, { start_time?: string | null; end_time?: string | null; is_off?: boolean }> = {}
-    for (const row of stylistOverrides || []) {
-      const existing = overrideMap[row.stylist_id]
-      // If duplicate rows exist, prefer is_off:true (most restrictive)
-      if (!existing || row.is_off) {
-        overrideMap[row.stylist_id] = row
-      }
-    }
+    const overrideMap = buildStylistOverrideMap(stylistOverrides || [])
 
     const bookingsByStylist: Record<string, Booking[]> = {}
     for (const booking of (existingBookings || []) as Booking[]) {

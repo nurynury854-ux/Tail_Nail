@@ -14,7 +14,9 @@ import {
   timeToMinutes,
 } from '@/lib/bookingUtils'
 import {
+  buildStylistOverrideMap,
   chooseWeightedStylist,
+  effectiveBranchClose,
   getAvailableStylistsForSlot,
   resolveBranchWindow,
   resolveStylistWindow,
@@ -469,14 +471,7 @@ export async function POST(request: NextRequest) {
       weeklyMap[row.stylist_id].push(row)
     }
 
-    const overrideMap: Record<string, { start_time?: string | null; end_time?: string | null; is_off?: boolean }> = {}
-    for (const row of stylistOverrides || []) {
-      const existing = overrideMap[row.stylist_id]
-      // Prefer is_off:true (most restrictive), then prefer rows that actually have times set
-      if (!existing || row.is_off || (!existing.is_off && existing.start_time == null && row.start_time != null)) {
-        overrideMap[row.stylist_id] = row
-      }
-    }
+    const overrideMap = buildStylistOverrideMap(stylistOverrides || [])
 
     const rawBranchWindow = resolveBranchWindow(dateObj, branchHours, branchOverride)
     if (!rawBranchWindow) {
@@ -484,7 +479,7 @@ export async function POST(request: NextRequest) {
     }
     const branchWindow = {
       open: rawBranchWindow.open,
-      close: Math.max(rawBranchWindow.close, 22 * 60),
+      close: effectiveBranchClose(rawBranchWindow),
     }
 
     const dayOfWeek = dateObj.getDay()

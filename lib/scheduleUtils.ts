@@ -42,6 +42,63 @@ type StylistOverrideRow = {
   is_off?: boolean
 }
 
+/** Where a branch's window for a given date came from. */
+export type BranchWindowSource = 'override' | 'weekly' | 'default'
+
+export type BranchWindow = WorkingWindow & { source: BranchWindowSource }
+
+/**
+ * A service may run past the posted closing time up to this hard stop, so a
+ * booking that ends after the 9pm display close isn't blocked outright.
+ */
+export const AFTER_HOURS_GRACE_CLOSE = 22 * 60
+
+/**
+ * The deadline by which a service must finish.
+ *
+ * Regular weekly/default hours get the after-hours grace above. An explicit day
+ * override is the owner's deliberate decision for that one date (holiday hours,
+ * early close), so it is honoured exactly — extending it would let the shop be
+ * booked hours after it actually shuts.
+ */
+export function effectiveBranchClose(window: BranchWindow): number {
+  return window.source === 'override'
+    ? window.close
+    : Math.max(window.close, AFTER_HOURS_GRACE_CLOSE)
+}
+
+/**
+ * Collapses stylist_day_overrides rows down to one per stylist.
+ *
+ * Duplicate rows exist in production despite UNIQUE (stylist_id, date), so the
+ * pick has to be deterministic: a day off wins (most restrictive), and between
+ * two working rows the one that actually carries hours beats a blank one.
+ */
+export function buildStylistOverrideMap<T extends StylistOverrideRow>(
+  rows: Array<T & { stylist_id: string }>
+): Record<string, T> {
+  const map: Record<string, T> = {}
+
+  for (const row of rows) {
+    const existing = map[row.stylist_id]
+    if (!existing) {
+      map[row.stylist_id] = row
+      continue
+    }
+    if (existing.is_off) continue
+    if (row.is_off) {
+      map[row.stylist_id] = row
+      continue
+    }
+    // Neither row is a day off — prefer whichever one has hours set.
+    if (existing.start_time == null && row.start_time != null) {
+      map[row.stylist_id] = row
+    }
+  }
+
+  return map
+}
+
 const dayColumns = [
   ['sunday_open', 'sunday_close'],
   ['monday_open', 'monday_close'],
@@ -56,30 +113,32 @@ export function resolveBranchWindow(
   date: Date,
   branchHours?: BranchHoursRow | null,
   dayOverride?: BranchOverrideRow | null
-): WorkingWindow | null {
+): BranchWindow | null {
   if (dayOverride?.is_closed) return null
 
   if (dayOverride?.open_time && dayOverride?.close_time) {
     return {
       open: timeToMinutes(dayOverride.open_time),
       close: timeToMinutes(dayOverride.close_time),
+      source: 'override',
     }
   }
 
   const day = date.getDay()
   const defaultWindow = defaultWorkingHoursByDay(day)
+  const asDefault = defaultWindow ? { ...defaultWindow, source: 'default' as const } : null
 
-  if (!branchHours) return defaultWindow
+  if (!branchHours) return asDefault
 
   const [openKey, closeKey] = dayColumns[day]
   const open = branchHours[openKey]
   const close = branchHours[closeKey]
 
   if (open && close) {
-    return { open: timeToMinutes(open), close: timeToMinutes(close) }
+    return { open: timeToMinutes(open), close: timeToMinutes(close), source: 'weekly' }
   }
 
-  return defaultWindow
+  return asDefault
 }
 
 export function resolveStylistWindow(
