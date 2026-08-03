@@ -5,7 +5,9 @@ import { getCheckoutSession, requireRole } from '@/lib/checkoutAuth'
 export const runtime = 'nodejs'
 
 // GET /api/checkout/bonuses — { fixed, performance }, scoped by role.
-//   owner -> all    manager -> own store    stylist -> own
+//   owner   -> every bonus, active or not (this is the editor's data source)
+//   manager -> own active fixed bonus + own branch's active performance bonuses
+//   stylist -> own active fixed bonus only
 export async function GET(request: NextRequest) {
   const session = await getCheckoutSession(request)
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -21,10 +23,17 @@ export async function GET(request: NextRequest) {
     .eq('scope', 'branch')
     .order('created_at', { ascending: false })
 
-  if (session.role === 'stylist') {
-    fixedQ = fixedQ.eq('stylist_id_snapshot', session.stylistId)
-  } else if (session.role === 'manager') {
-    perfQ = perfQ.eq('branch_id_snapshot', session.branchId)
+  if (session.role !== 'owner') {
+    // Staff see only their own bonuses, and only ones currently in effect —
+    // a disabled row is Kenny's bookkeeping, not something they are owed.
+    // A fixed bonus is keyed by the account's linked technician row, so an
+    // account without one matches nothing ('' is never a real stylist id).
+    fixedQ = fixedQ.eq('stylist_id_snapshot', session.stylistId || '').eq('is_active', true)
+    perfQ = perfQ.eq('is_active', true)
+  }
+
+  if (session.role === 'manager') {
+    perfQ = perfQ.eq('branch_id_snapshot', session.branchId || '')
   }
 
   const [{ data: fixed }, { data: performance }] = await Promise.all([fixedQ, perfQ])
@@ -51,6 +60,21 @@ export async function POST(request: NextRequest) {
     const amount = Math.trunc(Number(body.amount))
     if (!body.stylist_id_snapshot || !Number.isFinite(amount)) {
       return NextResponse.json({ error: '請選擇美甲師並輸入金額' }, { status: 400 })
+    }
+    // One active fixed bonus per technician. The monthly report sums every
+    // active row, so a second one silently doubles the payout — adjust the
+    // existing row's amount instead of stacking another on top.
+    const { data: clash } = await admin
+      .from('fixed_bonuses')
+      .select('id')
+      .eq('stylist_id_snapshot', String(body.stylist_id_snapshot))
+      .eq('is_active', true)
+      .limit(1)
+    if (clash && clash.length > 0) {
+      return NextResponse.json(
+        { error: '此美甲師已有啟用中的固定獎金，請直接修改金額' },
+        { status: 409 },
+      )
     }
     const { data, error } = await admin
       .from('fixed_bonuses')
@@ -113,9 +137,17 @@ export async function PATCH(request: NextRequest) {
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (typeof body.is_active === 'boolean') update.is_active = body.is_active
-  if ('amount' in body) update.amount = Math.trunc(Number(body.amount))
-  if ('revenue_threshold' in body) update.revenue_threshold = Math.trunc(Number(body.revenue_threshold))
-  if ('bonus_amount' in body) update.bonus_amount = Math.trunc(Number(body.bonus_amount))
+
+  // Amounts are edited in place, so a bad value must be rejected rather than
+  // written as NaN.
+  for (const field of ['amount', 'revenue_threshold', 'bonus_amount'] as const) {
+    if (!(field in body)) continue
+    const value = Math.trunc(Number(body[field]))
+    if (!Number.isFinite(value) || value < 0) {
+      return NextResponse.json({ error: '金額必須為 0 以上的數字' }, { status: 400 })
+    }
+    update[field] = value
+  }
 
   const { data, error } = await admin.from(table).update(update).eq('id', body.id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

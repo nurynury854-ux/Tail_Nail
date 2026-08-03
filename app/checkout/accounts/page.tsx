@@ -116,6 +116,9 @@ export default function AccountsPage() {
           </select>
           <input className={`${inputCls} sm:col-span-2`} placeholder="副標題 / 備註（例如：店長）" value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} />
         </div>
+        <p className="text-xs text-warmgray">
+          店長與美甲師請務必「連結美甲師」，固定獎金以此連結發放；未連結者無法設定固定獎金。
+        </p>
         <button onClick={create} disabled={busy} className="bg-rose text-white px-5 py-2 rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50">
           建立帳號
         </button>

@@ -21,7 +21,8 @@ function NavBar() {
     { href: '/checkout/reconcile', label: '對帳', roles: ['manager'] },
     { href: '/checkout/cleaning', label: '值日生', roles: ['owner', 'manager', 'stylist'] },
     { href: '/checkout/messages', label: '留言板', roles: ['owner', 'manager'] },
-    { href: '/checkout/bonuses', label: '獎金', roles: ['owner'] },
+    // Staff land on a read-only view of their own bonuses; the owner gets the editor.
+    { href: '/checkout/bonuses', label: '獎金', roles: ['owner', 'manager', 'stylist'] },
     { href: '/checkout/prices', label: '價格', roles: ['owner'] },
     { href: '/checkout/logs', label: '修改記錄', roles: ['owner', 'manager'] },
   ].filter((l) => l.roles.includes(session.role))
