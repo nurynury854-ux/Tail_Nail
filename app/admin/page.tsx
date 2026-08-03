@@ -35,6 +35,8 @@ type ManualBooking = {
   branch_id: string
   service_id: string
   stylist_id: string
+  // 手部／足部 — required; the booking API rejects an unspecified 部位.
+  category: '' | 'hand' | 'foot'
   date: string
   start_time: string
   customer_name: string
@@ -152,6 +154,7 @@ export default function AdminPage() {
     branch_id: '',
     service_id: '',
     stylist_id: '',
+    category: '',
     date: '',
     start_time: '',
     customer_name: '',
@@ -373,8 +376,8 @@ export default function AdminPage() {
   }
 
   const handleAddBooking = async () => {
-    const { branch_id, service_id, date, start_time, customer_name, line_id } = addForm
-    if (!branch_id || !service_id || !date || !start_time || !customer_name || !line_id) {
+    const { branch_id, service_id, category, date, start_time, customer_name, line_id } = addForm
+    if (!branch_id || !service_id || !category || !date || !start_time || !customer_name || !line_id) {
       toast.error('請填寫必填的預約欄位')
       return
     }
@@ -411,6 +414,7 @@ export default function AdminPage() {
         branch_id: '',
         service_id: '',
         stylist_id: '',
+        category: '',
         date: '',
         start_time: '',
         customer_name: '',
@@ -1511,6 +1515,19 @@ export default function AdminPage() {
                   >
                     <option value="">選擇分店...</option>
                     {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-charcoal mb-1.5 uppercase tracking-wide">部位 *</label>
+                  <select
+                    value={addForm.category}
+                    onChange={(e) => setAddForm((f) => ({ ...f, category: e.target.value as ManualBooking['category'] }))}
+                    className="w-full px-4 py-2.5 rounded-xl border-2 border-blush focus:outline-none focus:border-rose text-sm bg-cream"
+                  >
+                    <option value="">選擇部位...</option>
+                    <option value="hand">手部</option>
+                    <option value="foot">足部</option>
                   </select>
                 </div>
 

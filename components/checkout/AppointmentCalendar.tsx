@@ -35,6 +35,13 @@ function serviceLabel(b: CalBooking): string {
   return names[0] || '—'
 }
 
+/** 手部／足部. Null for legacy rows booked before the field was recorded. */
+export function categoryLabel(category?: string | null): string | null {
+  if (category === 'hand') return '手部'
+  if (category === 'foot') return '足部'
+  return null
+}
+
 export default function AppointmentCalendar({
   month,
   bookings,
@@ -99,6 +106,9 @@ export default function AppointmentCalendar({
         {weeks.flat().map((day) => {
           const dateStr = format(day, 'yyyy-MM-dd')
           const appts = byDate[dateStr] || []
+          // Cancelled entries stay listed as a record, but the count is the
+          // day's actual workload, so they are excluded from it.
+          const activeCount = appts.reduce((n, b) => (b.status === 'cancelled' ? n : n + 1), 0)
           const inMonth = isSameMonth(day, month)
           return (
             <div
@@ -107,13 +117,13 @@ export default function AppointmentCalendar({
                 inMonth ? 'border-blush bg-white' : 'border-transparent bg-blush/20'
               }`}
             >
-              {/* Day number + how many appointments it has, so a missing entry is obvious. */}
+              {/* Day number + how many live appointments it has, so a missing entry is obvious. */}
               <div className="flex items-center justify-between mb-0.5">
                 <span className={`text-xs ${inMonth ? 'text-charcoal' : 'text-warmgray/50'}`}>
                   {format(day, 'd')}
                 </span>
-                {appts.length > 0 && (
-                  <span className="text-[10px] text-warmgray tabular-nums">{appts.length}</span>
+                {activeCount > 0 && (
+                  <span className="text-[10px] text-warmgray tabular-nums">{activeCount}</span>
                 )}
               </div>
               {/* Render EVERY appointment — never hide any. A very busy day scrolls
@@ -140,7 +150,22 @@ export default function AppointmentCalendar({
                           {stylistNames[b.stylist_id]}
                         </span>
                       )}
+                      {/* 手部／足部 sits with the service name so it reads at a
+                          glance without opening the appointment. */}
                       <span className={`block text-[10px] leading-tight truncate ${cancelled ? 'text-warmgray line-through' : 'text-charcoal'}`}>
+                        {categoryLabel(b.category) && (
+                          <span
+                            className={`mr-1 rounded px-1 py-px font-semibold ${
+                              cancelled
+                                ? 'bg-warmgray/15 text-warmgray'
+                                : b.category === 'foot'
+                                  ? 'bg-charcoal/10 text-charcoal'
+                                  : 'bg-rose/20 text-rose-dark'
+                            }`}
+                          >
+                            {categoryLabel(b.category)}
+                          </span>
+                        )}
                         {serviceLabel(b)}
                       </span>
                       {b.customer_name && (

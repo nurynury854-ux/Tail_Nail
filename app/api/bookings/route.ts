@@ -280,7 +280,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const bookingCategory = category || 'hand'
+    // 手部／足部 is recorded at booking time, never inferred. It drives the
+    // single-foot-equipment-per-branch rule and is shown on the calendar, so a
+    // silent default would quietly mislabel the appointment.
+    if (category !== 'hand' && category !== 'foot') {
+      return NextResponse.json({ error: '請選擇手部或足部' }, { status: 400 })
+    }
+    const bookingCategory = category
 
     const normalizedSelected = normalizeSelectedServices(body.selected_services)
     const selectedServices = normalizedSelected.length > 0

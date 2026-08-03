@@ -6,7 +6,7 @@ import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import { X } from 'lucide-react'
 import type { Branch, Stylist } from '@/lib/types'
-import AppointmentCalendar, { CalBooking } from '@/components/checkout/AppointmentCalendar'
+import AppointmentCalendar, { CalBooking, categoryLabel } from '@/components/checkout/AppointmentCalendar'
 import { useCheckoutSession } from '@/components/checkout/session'
 import { supabase } from '@/lib/supabase'
 
@@ -268,12 +268,15 @@ export default function CalendarPage() {
               <button onClick={() => setSelected(null)} className="text-warmgray hover:text-rose-dark"><X size={18} /></button>
             </div>
             <div className="space-y-2 text-sm">
+              {/* 部位 and 服務 lead the panel — they are what the technician needs
+                  first, not a detail to hunt for at the bottom. */}
+              <Row label="部位" value={categoryLabel(selected.category) || '未指定'} emphasis />
+              <Row label="服務" value={(selected.selected_services || []).map((s) => s.service_name || s.service_id).join('、') || '—'} emphasis />
               {branchView && selected.stylist_id && stylistNames[selected.stylist_id] && (
                 <Row label="美甲師" value={stylistNames[selected.stylist_id]} />
               )}
               <Row label="客戶" value={selected.customer_name || '—'} />
               {selected.phone && <Row label="電話" value={selected.phone} />}
-              <Row label="服務" value={(selected.selected_services || []).map((s) => s.service_name || s.service_id).join('、') || '—'} />
               <Row label="時間" value={`${selected.date} ${selected.start_time}`} />
               <Row label="預估時長" value={selected.total_duration ? `${selected.total_duration} 分鐘` : '—'} />
               <Row label="狀態" value={STATUS_LABELS[selected.status] || selected.status} />
@@ -309,11 +312,11 @@ export default function CalendarPage() {
   )
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }) {
   return (
     <div className="flex justify-between gap-3">
       <span className="text-warmgray shrink-0">{label}</span>
-      <span className="text-charcoal text-right">{value}</span>
+      <span className={`text-right ${emphasis ? 'text-charcoal font-semibold' : 'text-charcoal'}`}>{value}</span>
     </div>
   )
 }
