@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { formatNTD, useCheckoutSession } from '@/components/checkout/session'
+import { taipeiMonth, taipeiToday } from '@/lib/dateTW'
 
 interface ReportData {
   range: { month?: string; date?: string }
@@ -11,14 +12,11 @@ interface ReportData {
   byBranch: Array<{ branch_name: string; orderCount: number; revenue: number; income: number; bonus?: number }>
 }
 
-const monthStr = () => new Date().toISOString().slice(0, 7)
-const dayStr = () => new Date().toISOString().slice(0, 10)
-
 export default function ReportsPage() {
   const { session } = useCheckoutSession()
   const [mode, setMode] = useState<'month' | 'day'>('month')
-  const [month, setMonth] = useState(monthStr())
-  const [day, setDay] = useState(dayStr())
+  const [month, setMonth] = useState(taipeiMonth())
+  const [day, setDay] = useState(taipeiToday())
   const [data, setData] = useState<ReportData | null>(null)
 
   const load = useCallback(async () => {

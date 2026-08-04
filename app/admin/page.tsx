@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Search,
   Plus,
@@ -241,45 +241,80 @@ export default function AdminPage() {
     } catch { /* non-fatal */ }
   }, [])
 
+  // Every filter change fires its own request, and a phone's native date picker
+  // fires one per spinner stop — so responses can arrive out of order and an
+  // older date's rows can land last and overwrite the filter the admin actually
+  // chose. Each run claims a sequence number; only the newest run may touch
+  // state, and the previous run's in-flight GET is aborted.
+  const bookingsRequestId = useRef(0)
+  const bookingsAbort = useRef<AbortController | null>(null)
+
   const fetchBookings = useCallback(async () => {
+    bookingsAbort.current?.abort()
+    const controller = new AbortController()
+    bookingsAbort.current = controller
+    const requestId = ++bookingsRequestId.current
+    const isStale = () => bookingsRequestId.current !== requestId
+
     setLoading(true)
     try {
       const params = new URLSearchParams()
       if (filters.branch_id) params.set('branch_id', filters.branch_id)
       if (filters.date) params.set('date', filters.date)
       if (filters.status) params.set('status', filters.status)
-      const res = await fetch(`/api/bookings?${params.toString()}`)
-      if (res.ok) {
-        const data = await res.json()
-        const bookingList: Booking[] = Array.isArray(data) ? data : []
-        const now = new Date()
-        const pastConfirmed = bookingList.filter((b) => {
-          if (b.status !== 'confirmed') return false
-          return new Date(`${b.date}T${b.end_time}`) < now
-        })
-        if (pastConfirmed.length > 0) {
-          await Promise.all(
-            pastConfirmed.map((b) =>
-              fetch(`/api/bookings/${b.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'completed' }),
-              })
-            )
-          )
-          const res2 = await fetch(`/api/bookings?${params.toString()}`)
-          if (res2.ok) {
-            const data2 = await res2.json()
-            setBookings(Array.isArray(data2) ? data2 : [])
-          }
-        } else {
-          setBookings(bookingList)
-        }
+      const query = params.toString()
+      const get = () => fetch(`/api/bookings?${query}`, { cache: 'no-store', signal: controller.signal })
+
+      const res = await get()
+      if (isStale()) return
+      if (!res.ok) {
+        // Never leave the previous filter's rows on screen — that reads as a
+        // successful filter showing some other date's bookings.
+        setBookings([])
+        toast.error(res.status === 401 ? '管理員登入已過期，請重新登入' : '載入預約失敗')
+        return
+      }
+
+      const data = await res.json()
+      if (isStale()) return
+      const bookingList: Booking[] = Array.isArray(data) ? data : []
+      const now = new Date()
+      const pastConfirmed = bookingList.filter((b) => {
+        if (b.status !== 'confirmed') return false
+        return new Date(`${b.date}T${b.end_time}`) < now
+      })
+      if (pastConfirmed.length === 0) {
+        setBookings(bookingList)
+        return
+      }
+
+      await Promise.all(
+        pastConfirmed.map((b) =>
+          fetch(`/api/bookings/${b.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'completed' }),
+          })
+        )
+      )
+      if (isStale()) return
+      const res2 = await get()
+      if (isStale()) return
+      if (res2.ok) {
+        const data2 = await res2.json()
+        if (isStale()) return
+        setBookings(Array.isArray(data2) ? data2 : [])
+      } else {
+        // The status updates went through; show the pre-update list rather than
+        // wiping the table.
+        setBookings(bookingList)
       }
     } catch {
+      if (isStale()) return
+      setBookings([])
       toast.error('載入預約失敗')
     } finally {
-      setLoading(false)
+      if (!isStale()) setLoading(false)
     }
   }, [filters.branch_id, filters.date, filters.status])
 

@@ -4,13 +4,12 @@ import { useCallback, useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import type { ActualAmountAdjustment } from '@/lib/checkoutTypes'
 import { formatNTD } from '@/components/checkout/session'
-
-const todayStr = () => new Date().toISOString().slice(0, 10)
+import { taipeiToday } from '@/lib/dateTW'
 
 // 對帳（實收金額）is a store-manager-only function; the API scopes it to the
 // manager's own branch, so no branch selector is needed here.
 export default function ReconcilePage() {
-  const [date, setDate] = useState(todayStr())
+  const [date, setDate] = useState(taipeiToday())
   const [systemTotal, setSystemTotal] = useState(0)
   const [adjustments, setAdjustments] = useState<ActualAmountAdjustment[]>([])
   const [actual, setActual] = useState('')

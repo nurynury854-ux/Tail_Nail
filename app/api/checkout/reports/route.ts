@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { getCheckoutSession } from '@/lib/checkoutAuth'
 import { monthRange } from '@/lib/monthRange'
+import { taipeiMonth } from '@/lib/dateTW'
 
 export const runtime = 'nodejs'
 
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
 
   const url = new URL(request.url)
   const date = url.searchParams.get('date')
-  const month = url.searchParams.get('month') || new Date().toISOString().slice(0, 7)
+  const month = url.searchParams.get('month') || taipeiMonth()
 
   let query = admin
     .from('checkout_orders')

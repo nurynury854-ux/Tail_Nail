@@ -7,13 +7,10 @@ import { buildOrderItems, fetchPriceCatalog, PricedItemInput } from '@/lib/check
 import { logOrderEvent } from '@/lib/orderEditLog'
 import { computeServiceEndAt, redactOrder } from '@/lib/checkoutPrivacy'
 import { monthRange } from '@/lib/monthRange'
+import { taipeiToday } from '@/lib/dateTW'
 import { DEFAULT_INCOME_RATE, PaymentMethod } from '@/lib/checkoutTypes'
 
 export const runtime = 'nodejs'
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 // GET /api/checkout/orders — scoped list.
 //   stylist  -> own orders        manager -> own store        owner -> all
@@ -83,7 +80,7 @@ export async function POST(request: NextRequest) {
   const source = body.source === 'calendar' ? 'calendar' : 'manual'
   const bookingId = body.booking_id ? String(body.booking_id) : null
   const paymentMethod = (body.payment_method as PaymentMethod) || null
-  const businessDate = typeof body.business_date === 'string' ? body.business_date : today()
+  const businessDate = typeof body.business_date === 'string' ? body.business_date : taipeiToday()
   const reviewDiscount = Boolean(body.review_discount)
   const birthdayDiscount = Boolean(body.birthday_discount)
 

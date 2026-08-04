@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { getCheckoutSession } from '@/lib/checkoutAuth'
+import { taipeiToday } from '@/lib/dateTW'
 
 export const runtime = 'nodejs'
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 async function systemTotal(
   admin: ReturnType<typeof createAdminClient>,
@@ -35,7 +32,7 @@ export async function GET(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: 'Supabase 未設定' }, { status: 500 })
 
   const url = new URL(request.url)
-  const date = url.searchParams.get('date') || today()
+  const date = url.searchParams.get('date') || taipeiToday()
   const branchId = session.branchId
   if (!branchId) return NextResponse.json({ error: '缺少分店' }, { status: 400 })
 
@@ -61,7 +58,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: 'Supabase 未設定' }, { status: 500 })
 
   const body = await request.json().catch(() => ({}))
-  const date = typeof body.date === 'string' ? body.date : today()
+  const date = typeof body.date === 'string' ? body.date : taipeiToday()
   const branchId = session.branchId
   const actualTotal = Math.trunc(Number(body.actual_total))
   const reason = typeof body.reason === 'string' ? body.reason.trim() : ''

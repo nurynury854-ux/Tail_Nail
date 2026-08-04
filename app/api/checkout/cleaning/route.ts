@@ -3,12 +3,9 @@ import { createAdminClient } from '@/lib/supabase'
 import { canViewBranch, getCheckoutSession } from '@/lib/checkoutAuth'
 import { autoAssignCleaning, ensureCleaningAssigned } from '@/lib/cleaning'
 import { logOrderEvent } from '@/lib/orderEditLog'
+import { taipeiToday } from '@/lib/dateTW'
 
 export const runtime = 'nodejs'
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00`)
@@ -37,7 +34,7 @@ export async function GET(request: NextRequest) {
 
   // The daily assignment happens automatically — the first person to view the
   // schedule that day triggers it if the cron hasn't already.
-  const today = todayStr()
+  const today = taipeiToday()
   await ensureCleaningAssigned(admin, branchId, today)
 
   const from = url.searchParams.get('from') || today
@@ -69,7 +66,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}))
   const branchId = resolveBranchId(session, body.branch_id ? String(body.branch_id) : null)
-  const date = typeof body.date === 'string' ? body.date : todayStr()
+  const date = typeof body.date === 'string' ? body.date : taipeiToday()
   if (!branchId) return NextResponse.json({ error: '缺少分店' }, { status: 400 })
   if (!canViewBranch(session, branchId)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 

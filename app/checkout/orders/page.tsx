@@ -7,12 +7,11 @@ import { Plus } from 'lucide-react'
 import type { CheckoutOrder } from '@/lib/checkoutTypes'
 import OrderStatusBadge from '@/components/checkout/OrderStatusBadge'
 import { formatNTD, useCheckoutSession } from '@/components/checkout/session'
-
-const todayStr = () => new Date().toISOString().slice(0, 10)
+import { taipeiToday } from '@/lib/dateTW'
 
 export default function OrdersPage() {
   const { session } = useCheckoutSession()
-  const [date, setDate] = useState(todayStr())
+  const [date, setDate] = useState(taipeiToday())
   const [orders, setOrders] = useState<CheckoutOrder[]>([])
   const [loading, setLoading] = useState(false)
 

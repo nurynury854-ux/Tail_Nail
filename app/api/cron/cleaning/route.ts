@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { ensureAllBranchesAssigned } from '@/lib/cleaning'
+import { taipeiToday } from '@/lib/dateTW'
 
 export const runtime = 'nodejs'
 
@@ -9,13 +10,6 @@ export const runtime = 'nodejs'
 // manually. Requires CRON_SECRET: Vercel Cron sends it as a Bearer token.
 // If CRON_SECRET is unset the endpoint is disabled (the on-read fallback in the
 // cleaning GET still assigns today when anyone opens the app).
-function todayStrTW(): string {
-  // Taiwan is UTC+8; derive the local calendar date regardless of server TZ.
-  const now = new Date()
-  const tw = new Date(now.getTime() + 8 * 60 * 60 * 1000)
-  return tw.toISOString().slice(0, 10)
-}
-
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET
   if (!secret) {
@@ -29,7 +23,7 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient()
   if (!admin) return NextResponse.json({ error: 'Supabase 未設定' }, { status: 500 })
 
-  const date = todayStrTW()
+  const date = taipeiToday()
   const results = await ensureAllBranchesAssigned(admin, date)
   return NextResponse.json({ date, results })
 }

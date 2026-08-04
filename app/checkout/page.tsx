@@ -7,8 +7,7 @@ import { CalendarDays, ClipboardList, Plus } from 'lucide-react'
 import type { CheckoutOrder } from '@/lib/checkoutTypes'
 import type { Branch, Stylist } from '@/lib/types'
 import { formatNTD, ROLE_LABELS, useCheckoutSession } from '@/components/checkout/session'
-
-const todayStr = () => new Date().toISOString().slice(0, 10)
+import { taipeiMonth, taipeiToday } from '@/lib/dateTW'
 
 // Revenue/業績 only count orders the store manager has confirmed. Unconfirmed
 // orders are still surfaced (count + amount) but flagged as not yet counted.
@@ -33,8 +32,8 @@ export default function CheckoutHome() {
   const [branches, setBranches] = useState<Branch[]>([])
   const [selectedBranchId, setSelectedBranchId] = useState('')
   const [mode, setMode] = useState<'day' | 'month'>('day')
-  const [day, setDay] = useState(todayStr())
-  const [month, setMonth] = useState(todayStr().slice(0, 7))
+  const [day, setDay] = useState(taipeiToday())
+  const [month, setMonth] = useState(taipeiMonth())
   const [dutyToday, setDutyToday] = useState<string | null>(null)
 
   const rangeQuery = mode === 'day' ? `date=${day}` : `month=${month}`
@@ -56,7 +55,7 @@ export default function CheckoutHome() {
   // manager never has to assign or announce it manually.
   useEffect(() => {
     if (!session || session.role === 'owner') return
-    fetch(`/api/checkout/cleaning?from=${todayStr()}&to=${todayStr()}`, { cache: 'no-store' })
+    fetch(`/api/checkout/cleaning?from=${taipeiToday()}&to=${taipeiToday()}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : []))
       .then((rows) => setDutyToday(rows[0]?.stylist_name_snapshot ?? null))
       .catch(() => setDutyToday(null))
@@ -102,7 +101,7 @@ export default function CheckoutHome() {
       {/* Today's cleaning duty — auto-assigned, shown to everyone at the branch. */}
       {session.role !== 'owner' && dutyToday && (
         <div className="rounded-xl border border-rose/30 bg-rose/5 px-4 py-3 text-sm">
-          <span className="text-warmgray">今日值日生（{todayStr()}）：</span>
+          <span className="text-warmgray">今日值日生（{taipeiToday()}）：</span>
           <span className="font-semibold text-rose-dark ml-1">{dutyToday}</span>
         </div>
       )}
