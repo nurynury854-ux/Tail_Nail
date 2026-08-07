@@ -14,7 +14,7 @@ export const runtime = 'nodejs'
 
 // GET /api/checkout/orders — scoped list.
 //   stylist  -> own orders        manager -> own store        owner -> all
-// Optional query: ?date=YYYY-MM-DD  ?month=YYYY-MM  ?status=
+// Optional query: ?date=YYYY-MM-DD  ?month=YYYY-MM  ?status=  ?branch_id=
 export async function GET(request: NextRequest) {
   const session = await getCheckoutSession(request)
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -26,14 +26,19 @@ export async function GET(request: NextRequest) {
   const date = url.searchParams.get('date')
   const month = url.searchParams.get('month')
   const status = url.searchParams.get('status')
+  const branchId = url.searchParams.get('branch_id')
 
   let query = admin.from('checkout_orders').select('*')
 
   // Scope by role using SNAPSHOT columns (never the live stylists row).
+  // branch_id only ever NARROWS: the role scope is applied first, so a manager
+  // passing another branch's id still gets their own branch and nothing else.
   if (session.role === 'stylist') {
     query = query.eq('stylist_id_snapshot', session.stylistId)
   } else if (session.role === 'manager') {
     query = query.eq('branch_id_snapshot', session.branchId)
+  } else if (branchId) {
+    query = query.eq('branch_id_snapshot', branchId)
   }
 
   if (date) query = query.eq('business_date', date)
