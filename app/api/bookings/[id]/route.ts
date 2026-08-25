@@ -1,26 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
-import { getBranchLineConfig } from '@/lib/lineConfig'
+import { buildCandidateBranchIds, lookupOaBranch, sendCustomerPush } from '@/lib/lineNotify'
 import { generateCancellationMessage } from '@/lib/bookingUtils'
 import { isAdminRequest } from '@/lib/adminAuth'
-
-async function sendLinePushMessage(userId: string, message: string, accessToken: string): Promise<void> {
-  const response = await fetch('https://api.line.me/v2/bot/message/push', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      to: userId,
-      messages: [{ type: 'text', text: message }],
-    }),
-  })
-
-  if (!response.ok) {
-    throw new Error(`LINE push failed with status ${response.status}`)
-  }
-}
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   if (!(await isAdminRequest(request))) {
@@ -69,6 +51,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
     }
 
+    let lineNotificationSent = false
     if (status === 'cancelled' && currentBooking.line_id) {
       try {
         const branchName = (currentBooking.branches as { name?: string } | null)?.name || '小尾巴美甲'
@@ -77,18 +60,31 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           date: currentBooking.date,
           startTime: currentBooking.start_time,
         })
-        const lineConfig = getBranchLineConfig(currentBooking.branch_id)
-        if (lineConfig) {
-          await sendLinePushMessage(currentBooking.line_id, message, lineConfig.channelAccessToken)
-        } else {
-          console.warn(`No LINE config for branch ${currentBooking.branch_id} — cancellation message not sent`)
+        // Never assume the booked branch's OA can reach this customer: a push
+        // through an OA they haven't added fails with 400. Start with the
+        // channel their confirmation actually went out through, then walk the
+        // rest — the same way the confirmation itself is sent.
+        const provenBranchId = await lookupOaBranch(admin, currentBooking.id)
+        const result = await sendCustomerPush(
+          currentBooking.line_id,
+          message,
+          buildCandidateBranchIds(provenBranchId, currentBooking.branch_id),
+        )
+        lineNotificationSent = result.sent
+        if (!result.sent) {
+          console.warn(
+            `Cancellation LINE message FAILED for booking ${currentBooking.id} ` +
+              `(branch ${currentBooking.branch_id}). Tried: ${result.errors.join(' | ')}`,
+          )
         }
       } catch (lineError) {
         console.warn('Failed to send cancellation LINE message:', lineError)
       }
     }
 
-    return NextResponse.json(data)
+    // Surfaced so the admin UI can say whether the customer was actually told,
+    // instead of implying it from a successful status update.
+    return NextResponse.json({ ...data, line_notification_sent: lineNotificationSent })
   } catch (err) {
     console.error('PATCH error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

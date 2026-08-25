@@ -181,7 +181,15 @@ export default function CalendarPage() {
         body: JSON.stringify({ reason }),
       })
       if (res.ok) {
-        toast.success('已取消預約')
+        // Say plainly whether the customer was reached. A push only lands through
+        // an OA they've added as a friend, so it can fail even when the
+        // cancellation itself succeeded — the store needs to know to call them.
+        const data = await res.json().catch(() => ({}))
+        if (data.line_notification_sent) {
+          toast.success('已取消預約，並已通知客人')
+        } else {
+          toast('已取消預約，但 LINE 通知未送達，請自行聯繫客人', { icon: '⚠️' })
+        }
         return
       }
       const e = await res.json().catch(() => ({}))

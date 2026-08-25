@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { getBranchLineConfig } from '@/lib/lineConfig'
+import {
+  buildCandidateBranchIds,
+  rememberOaBranch,
+  sendCustomerPush,
+  sendLinePushMessage,
+} from '@/lib/lineNotify'
 import { BRANCHES, SERVICES, Booking, SelectedServiceItem, Service, Stylist } from '@/lib/types'
 import { getMinRequiredGrade, stylistMeetsGrade } from '@/lib/serviceGrades'
 import { UNIVERSAL_DURATIONS } from '@/lib/serviceDurations'
@@ -40,56 +46,6 @@ type BookingRequestBody = {
   status?: 'pending' | 'confirmed' | 'cancelled' | 'completed'
   note?: string
   line_source_branch_id?: string | null
-}
-
-async function sendLinePushMessage(userId: string, message: string, accessToken: string): Promise<void> {
-  const response = await fetch('https://api.line.me/v2/bot/message/push', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      to: userId,
-      messages: [{ type: 'text', text: message }],
-    }),
-  })
-
-  if (!response.ok) {
-    const errorBody = await response.text()
-    throw new Error(`LINE push failed (${response.status}): ${errorBody}`)
-  }
-}
-
-/**
- * Send the customer confirmation, trying each candidate branch's LINE channel in
- * order until one succeeds.
- *
- * A push only works through an OA the customer has actually added as a friend.
- * They befriended the OA whose link they clicked (srcBranch) — which may not be
- * the branch they ended up booking. If we push through the booked branch's OA
- * instead, LINE rejects it with 400 ("user hasn't added the OA as a friend") and
- * the customer silently gets nothing. Relying on srcBranch alone is brittle:
- * links issued before it existed don't carry it. So try the most likely channel
- * first, then fall back to the others.
- */
-async function sendCustomerConfirmation(
-  userId: string,
-  message: string,
-  candidateBranchIds: string[],
-): Promise<{ sent: boolean; viaBranchId?: string; errors: string[] }> {
-  const errors: string[] = []
-  for (const branchId of candidateBranchIds) {
-    const config = getBranchLineConfig(branchId)
-    if (!config) continue
-    try {
-      await sendLinePushMessage(userId, message, config.channelAccessToken)
-      return { sent: true, viaBranchId: branchId, errors }
-    } catch (err) {
-      errors.push(`branch ${branchId}: ${err instanceof Error ? err.message : String(err)}`)
-    }
-  }
-  return { sent: false, errors }
 }
 
 function normalizeSupabaseError(errorMessage: string): string {
@@ -367,16 +323,15 @@ export async function POST(request: NextRequest) {
       })
 
       let lineNotificationSent = false
-      const fallbackLineConfig =
-        (line_source_branch_id && line_source_branch_id !== branch_id
-          ? getBranchLineConfig(line_source_branch_id)
-          : null) || getBranchLineConfig(branch_id)
-      if (normalizedLineId && fallbackLineConfig) {
-        try {
-          await sendLinePushMessage(normalizedLineId, confirmationMessage, fallbackLineConfig.channelAccessToken)
-          lineNotificationSent = true
-        } catch (err) {
-          console.warn('LINE push failed in fallback mode:', err)
+      if (normalizedLineId) {
+        const result = await sendCustomerPush(
+          normalizedLineId,
+          confirmationMessage,
+          buildCandidateBranchIds(line_source_branch_id, branch_id),
+        )
+        lineNotificationSent = result.sent
+        if (!result.sent && result.errors.length > 0) {
+          console.warn('LINE push failed in fallback mode:', result.errors.join(' | '))
         }
       }
 
@@ -718,21 +673,25 @@ export async function POST(request: NextRequest) {
     // then the booked branch, then any other configured branch. A push through an
     // OA the customer hasn't added fails with 400, so we can't assume which one
     // works — especially for older links that carry no srcBranch.
-    const candidateBranchIds = Array.from(
-      new Set([...(line_source_branch_id ? [line_source_branch_id] : []), branch_id, ...BRANCHES.map((b) => b.id)]),
-    )
+    const candidateBranchIds = buildCandidateBranchIds(line_source_branch_id, branch_id)
 
     let lineNotificationSent = false
     if (!normalizedLineId) {
       console.warn('LINE confirmation skipped: no customer LINE userId on this booking.')
     } else {
-      const result = await sendCustomerConfirmation(normalizedLineId, confirmationMessage, candidateBranchIds)
+      const result = await sendCustomerPush(normalizedLineId, confirmationMessage, candidateBranchIds)
       lineNotificationSent = result.sent
       if (result.sent) {
         console.log(
           `LINE confirmation sent to ${normalizedLineId} via branch ${result.viaBranchId} ` +
             `(booked ${branch_id}, src ${line_source_branch_id ?? 'none'})`,
         )
+        // Remember the channel that worked so the cancellation message — which
+        // has no srcBranch to lean on — starts with a proven one instead of
+        // guessing the booked branch and failing silently.
+        if (result.viaBranchId) {
+          await rememberOaBranch(admin, data.id, result.viaBranchId)
+        }
       } else {
         console.warn(
           `LINE confirmation FAILED for ${normalizedLineId} (booked ${branch_id}, src ${line_source_branch_id ?? 'none'}). ` +

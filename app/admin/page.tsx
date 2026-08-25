@@ -386,7 +386,14 @@ export default function AdminPage() {
         body: JSON.stringify({ status: 'cancelled' }),
       })
       if (res.ok) {
-        toast.success('預約已取消')
+        // The status change and the customer's LINE notice can succeed
+        // independently — don't let one imply the other.
+        const data = await res.json().catch(() => ({}))
+        if (data.line_notification_sent) {
+          toast.success('預約已取消，並已通知客人')
+        } else {
+          toast('預約已取消，但 LINE 通知未送達，請自行聯繫客人', { icon: '⚠️' })
+        }
         fetchBookings()
       }
     } catch {
