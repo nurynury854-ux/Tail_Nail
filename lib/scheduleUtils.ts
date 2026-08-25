@@ -234,8 +234,20 @@ export function weightMultiplier(weight: StylistWeightSetting): number {
  * Picks a stylist for a "no preference" booking using a weighted random draw
  * that blends the Owner's manual weight with same-day load balancing:
  *
- *   score(t) = weightMultiplier(t) / (bookingsToday(t) + 1)
+ *   score(t) = weightMultiplier(t)^2 / (bookingsToday(t) + weightMultiplier(t))
  *   P(t)     = score(t) / Σ score
+ *
+ * Load is normalized by the stylist's own weight (equivalent to dividing
+ * bookingsToday by weightMultiplier) rather than simply weight / (load + 1).
+ * With the plain "weight / (load + 1)" formula, a stylist's long-run share of
+ * assignments converges toward sqrt(weight) rather than weight itself, since
+ * a Low-weight stylist naturally accumulates fewer bookings, which in turn
+ * keeps inflating her own score back up on later draws — silently
+ * cancelling out most of the intended reduction. Normalizing load by weight
+ * fixes that: a Low-weight stylist's bookings count more heavily against her
+ * own future odds (and a High-weight stylist's count less), so the long-run
+ * share tracks the configured weight directly and the effect compounds
+ * instead of self-correcting.
  *
  * A busier stylist gets lower odds (preserving the old least-booked spirit),
  * while the Owner's High/Low nudge biases the result. When the Owner has set no
@@ -255,8 +267,9 @@ export function chooseWeightedStylist(args: {
   if (candidateIds.length === 1) return candidateIds[0]
 
   const scored = candidateIds.map((id) => {
+    const weight = weightMultiplier(weightByStylist[id])
     const load = (bookingsByStylist[id] || []).length
-    const score = weightMultiplier(weightByStylist[id]) / (load + 1)
+    const score = (weight * weight) / (load + weight)
     return { id, score }
   })
 
