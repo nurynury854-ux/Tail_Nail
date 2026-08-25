@@ -2,8 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { getCheckoutSession } from '@/lib/checkoutAuth'
 import { logOrderEvent } from '@/lib/orderEditLog'
+import { getBranchLineConfig } from '@/lib/lineConfig'
+import { generateCancellationMessage } from '@/lib/bookingUtils'
 
 export const runtime = 'nodejs'
+
+async function sendLinePushMessage(userId: string, message: string, accessToken: string): Promise<void> {
+  const response = await fetch('https://api.line.me/v2/bot/message/push', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      to: userId,
+      messages: [{ type: 'text', text: message }],
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`LINE push failed with status ${response.status}`)
+  }
+}
 
 // POST /api/checkout/bookings/[id]/cancel
 // Store manager (own store only) or owner cancels an appointment.
@@ -20,7 +40,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const { data: booking } = await admin
     .from('bookings')
-    .select('id, branch_id, date, start_time, status')
+    .select('id, branch_id, date, start_time, status, line_id, branches(name)')
     .eq('id', params.id)
     .maybeSingle()
   if (!booking) return NextResponse.json({ error: '找不到該預約' }, { status: 404 })
@@ -43,6 +63,25 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .update({ status: 'cancelled' })
     .eq('id', booking.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (booking.line_id) {
+    try {
+      const branchName = (booking.branches as { name?: string } | null)?.name || '小尾巴美甲'
+      const message = generateCancellationMessage({
+        branchName,
+        date: booking.date,
+        startTime: booking.start_time,
+      })
+      const lineConfig = getBranchLineConfig(booking.branch_id)
+      if (lineConfig) {
+        await sendLinePushMessage(booking.line_id, message, lineConfig.channelAccessToken)
+      } else {
+        console.warn(`No LINE config for branch ${booking.branch_id} — cancellation message not sent`)
+      }
+    } catch (lineError) {
+      console.warn('Failed to send cancellation LINE message:', lineError)
+    }
+  }
 
   // PII-free signal so every open calendar gets a websocket push and re-fetches
   // through the redacting API. Never blocks the cancellation itself.
