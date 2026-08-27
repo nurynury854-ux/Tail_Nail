@@ -37,12 +37,34 @@ export async function GET(request: NextRequest) {
       )
     }
     query = query.eq('stylist_id', session.stylistId)
+  } else if (stylistId) {
+    // Individual-stylist view (owner or manager looking at one person's full
+    // schedule): scope by stylist_id ALONE. bookings.branch_id is a permanent
+    // creation-time snapshot, not "this stylist's branch right now" — a
+    // stylist who was transferred between branches keeps her pre-transfer
+    // bookings stamped with the old branch forever. Also filtering on
+    // branch_id here (as before) silently dropped those older appointments
+    // from exactly the accounts that most need to see her full calendar,
+    // even though her own stylist-role view (which only ever filters by
+    // stylist_id) showed them fine — the two views disagreed permanently,
+    // not just briefly.
+    if (session.role === 'manager') {
+      const { data: stylistRow } = await admin
+        .from('stylists')
+        .select('branch_id')
+        .eq('id', stylistId)
+        .maybeSingle()
+      if (!stylistRow || stylistRow.branch_id !== session.branchId) {
+        return NextResponse.json({ error: '無法查看其他分店的美甲師' }, { status: 403 })
+      }
+    }
+    query = query.eq('stylist_id', stylistId)
   } else if (session.role === 'manager') {
+    // 整店 (whole-branch) view: what's physically happening at this store,
+    // so this one legitimately stays scoped by the booking's own branch_id.
     query = query.eq('branch_id', session.branchId)
-    if (stylistId) query = query.eq('stylist_id', stylistId)
-  } else {
-    if (branchId) query = query.eq('branch_id', branchId)
-    if (stylistId) query = query.eq('stylist_id', stylistId)
+  } else if (branchId) {
+    query = query.eq('branch_id', branchId)
   }
 
   if (month) {

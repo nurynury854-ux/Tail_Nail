@@ -65,23 +65,35 @@ export default function CalendarPage() {
   // The branch a manager/owner is viewing (a stylist uses their own scope).
   const activeBranchId = role === 'owner' ? branchId : role === 'manager' ? session?.branchId ?? '' : ''
 
-  // Both views are slices of ONE fetch: always pull the WHOLE branch (never a
-  // per-stylist query). The individual view is that same data filtered to one
-  // stylist client-side, so it can only ever be a subset of the branch view —
-  // the two can never diverge, regardless of transfers or timing.
+  // 整店 fetches the whole branch (scoped by each booking's own branch_id —
+  // "what's physically happening at this store"). 個人 fetches that one
+  // person's full schedule directly by stylist_id instead of deriving it by
+  // filtering the branch fetch: a booking's branch_id is a permanent
+  // creation-time snapshot, so after a stylist transfers between branches it
+  // no longer matches her current branch, and deriving 個人 from a
+  // branch-scoped fetch used to silently hide her pre-transfer appointments
+  // from the owner/manager even though her own stylist-role view (always
+  // stylist_id-scoped) showed them fine.
   const load = useCallback(async () => {
     const params = new URLSearchParams({ month: format(month, 'yyyy-MM') })
-    if (role !== 'stylist') {
+    if (role === 'stylist') {
+      // no params — the API self-scopes to their own stylist_id.
+    } else if (branchView) {
       if (!activeBranchId) {
         setAllBookings([])
         return
       }
       params.set('branch_id', activeBranchId)
+    } else {
+      if (!stylistId) {
+        setAllBookings([])
+        return
+      }
+      params.set('stylist_id', stylistId)
     }
-    // stylist: no branch param — the API self-scopes to their own stylist_id.
     const res = await fetch(`/api/checkout/bookings?${params.toString()}`, { cache: 'no-store' })
     setAllBookings(res.ok ? await res.json() : [])
-  }, [month, role, activeBranchId])
+  }, [month, role, activeBranchId, branchView, stylistId])
 
   // Latest load() without making the websocket resubscribe on every change.
   const loadRef = useRef(load)
@@ -115,11 +127,9 @@ export default function CalendarPage() {
     }
   }, [watchBranchId])
 
-  // 整店 shows the whole branch; 個人 is the identical data filtered to one stylist.
-  const displayed = useMemo(() => {
-    if (role === 'stylist' || branchView) return allBookings
-    return stylistId ? allBookings.filter((b) => b.stylist_id === stylistId) : []
-  }, [allBookings, role, branchView, stylistId])
+  // allBookings is already scoped correctly by load() above for whichever
+  // view is active, so it can be rendered as-is.
+  const displayed = allBookings
 
   // Whether we have enough selections to render the calendar.
   const ready = branchView
