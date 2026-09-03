@@ -32,13 +32,31 @@ export interface CustomerVisibility {
   phone: boolean
 }
 
+/** "YYYY-MM-DD" + N months, clamping the day into the target month (no JS rollover). */
+function addMonthsToDateString(dateStr: string, months: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const total = (m - 1) + months
+  const targetYear = y + Math.floor(total / 12)
+  const targetMonth = ((total % 12) + 12) % 12 // 0-11
+  const daysInTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate()
+  const targetDay = Math.min(d, daysInTargetMonth)
+  return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`
+}
+
 /**
  * Decide whether a given role may currently see the customer's name / phone.
  *  - owner:   always (permanent).
- *  - manager: name + phone until service end + 1 day.
+ *  - manager: name + phone until 1 full month after the appointment DATE.
  *  - stylist: phone NEVER; name until midnight ending the service DATE, so the
  *             name is available all shift for keying in orders, then destroyed
  *             at 00:00 that night.
+ *
+ * Manager and stylist are deliberately independent branches, each computing
+ * its own cutoff from the appointment date — never share a timer or a
+ * deletion function. (Previously the manager branch derived its cutoff from
+ * serviceEndAt + 24h, which is *also* about one day — nearly identical to the
+ * stylist's same-day-midnight rule, so managers lost customer PII after
+ * ~1 day instead of the required 1 month.)
  */
 export function customerVisibility(
   role: CheckoutRole,
@@ -47,15 +65,16 @@ export function customerVisibility(
   now: Date = new Date(),
 ): CustomerVisibility {
   if (role === 'owner') return { name: true, phone: true } // owner = admin, permanent
-  const end = serviceEndAt ? new Date(serviceEndAt).getTime() : null
+
+  const dateStr = serviceDate || (serviceEndAt ? serviceEndAt.slice(0, 10) : null)
 
   if (role === 'manager') {
-    const ok = end === null ? true : now.getTime() <= end + 24 * 60 * 60 * 1000
+    const cutoff = dateStr ? new Date(`${addMonthsToDateString(dateStr, 1)}T23:59:59${TW_OFFSET}`).getTime() : null
+    const ok = cutoff === null ? true : now.getTime() <= cutoff
     return { name: ok, phone: ok }
   }
 
   // Stylist: phone never; name until midnight at the end of the service date.
-  const dateStr = serviceDate || (serviceEndAt ? serviceEndAt.slice(0, 10) : null)
   const cutoff = dateStr ? new Date(`${dateStr}T23:59:59${TW_OFFSET}`).getTime() : null
   return { name: cutoff === null ? true : now.getTime() <= cutoff, phone: false }
 }
