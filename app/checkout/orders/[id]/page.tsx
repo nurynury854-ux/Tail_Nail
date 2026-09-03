@@ -36,6 +36,7 @@ export default function OrderDetailPage() {
   const [logs, setLogs] = useState<OrderEditLog[]>([])
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const load = async () => {
     const res = await fetch(`/api/checkout/orders/${id}`, { cache: 'no-store' })
@@ -95,7 +96,7 @@ export default function OrderDetailPage() {
   }
 
   const remove = async () => {
-    if (!confirm('確定刪除此訂單？')) return
+    setConfirmingDelete(false)
     const res = await fetch(`/api/checkout/orders/${id}`, { method: 'DELETE' })
     if (res.ok) {
       toast.success('已刪除')
@@ -181,10 +182,22 @@ export default function OrderDetailPage() {
                 確認鎖定
               </button>
             )}
-            {editable && (
-              <button onClick={remove} className="px-4 py-2 rounded-lg border border-blush text-warmgray text-sm hover:text-rose-dark">
-                刪除
-              </button>
+            {editable && confirmingDelete ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-rose-dark">確定刪除此訂單？</span>
+                <button onClick={remove} className="px-4 py-2 rounded-lg bg-rose-dark text-white text-sm hover:opacity-90">
+                  確認刪除
+                </button>
+                <button onClick={() => setConfirmingDelete(false)} className="px-4 py-2 rounded-lg border border-blush text-warmgray text-sm hover:bg-blush/40">
+                  取消
+                </button>
+              </div>
+            ) : (
+              editable && (
+                <button onClick={() => setConfirmingDelete(true)} className="px-4 py-2 rounded-lg border border-blush text-warmgray text-sm hover:text-rose-dark">
+                  刪除
+                </button>
+              )
             )}
           </div>
         </div>
