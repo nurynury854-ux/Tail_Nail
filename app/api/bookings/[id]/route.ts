@@ -3,6 +3,7 @@ import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { buildCandidateBranchIds, lookupOaBranch, sendCustomerPush } from '@/lib/lineNotify'
 import { generateCancellationMessage } from '@/lib/bookingUtils'
 import { isAdminRequest } from '@/lib/adminAuth'
+import { emitBookingEvent } from '@/lib/bookingEvents'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   if (!(await isAdminRequest(request))) {
@@ -50,6 +51,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (!data) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
     }
+
+    // Every open stylist/manager/owner calendar refetches only on this signal —
+    // without it a status change made from /admin never appears there until
+    // someone happens to reload the page.
+    await emitBookingEvent(admin, { bookingId: data.id, branchId: currentBooking.branch_id, action: 'updated' })
 
     let lineNotificationSent = false
     if (status === 'cancelled' && currentBooking.line_id) {
@@ -104,12 +110,16 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     const admin = createAdminClient() ?? supabase!
+    const { data: existing } = await admin.from('bookings').select('branch_id').eq('id', id).maybeSingle()
     const { error } = await admin.from('bookings').delete().eq('id', id)
 
     if (error) {
       console.error('DELETE booking error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+
+    // Every open stylist/manager/owner calendar refetches only on this signal.
+    await emitBookingEvent(admin, { bookingId: id, branchId: existing?.branch_id, action: 'updated' })
 
     return NextResponse.json({ success: true })
   } catch (err) {

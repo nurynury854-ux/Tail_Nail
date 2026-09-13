@@ -105,6 +105,26 @@ export default function CalendarPage() {
     load()
   }, [load])
 
+  // Safety net, independent of the realtime channel below: refetch whenever
+  // the tab regains focus/visibility, and on a slow fixed interval regardless.
+  // A stylist who leaves this page open for days must never be stuck showing
+  // a stale snapshot just because one write path forgot to emit a
+  // booking_events row, or the websocket silently dropped — this bounds the
+  // staleness to minutes no matter what.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadRef.current()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    const interval = setInterval(() => loadRef.current(), 2 * 60 * 1000)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+      clearInterval(interval)
+    }
+  }, [])
+
   // Realtime: the server writes a PII-free row to booking_events on every change,
   // and Supabase pushes it over a websocket. On arrival we re-fetch through the
   // redacting API — so other devices update instantly without polling, and no

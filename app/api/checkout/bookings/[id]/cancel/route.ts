@@ -4,6 +4,7 @@ import { getCheckoutSession } from '@/lib/checkoutAuth'
 import { logOrderEvent } from '@/lib/orderEditLog'
 import { buildCandidateBranchIds, lookupOaBranch, sendCustomerPush } from '@/lib/lineNotify'
 import { generateCancellationMessage } from '@/lib/bookingUtils'
+import { emitBookingEvent } from '@/lib/bookingEvents'
 
 export const runtime = 'nodejs'
 
@@ -51,15 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   // PII-free signal so every open calendar gets a websocket push and re-fetches
   // through the redacting API. Never blocks the cancellation itself.
-  try {
-    await admin.from('booking_events').insert({
-      booking_id: booking.id,
-      branch_id: booking.branch_id,
-      action: 'cancelled',
-    })
-  } catch (err) {
-    console.warn('booking_events insert failed (realtime push skipped)', err)
-  }
+  await emitBookingEvent(admin, { bookingId: booking.id, branchId: booking.branch_id, action: 'cancelled' })
 
   // Do not put customer identity in the log (PII stays out of the audit feed).
   await logOrderEvent(admin, {

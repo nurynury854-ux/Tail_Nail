@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { getBranchLineConfig } from '@/lib/lineConfig'
+import { emitBookingEvent } from '@/lib/bookingEvents'
 import {
   buildCandidateBranchIds,
   rememberOaBranch,
@@ -653,6 +654,11 @@ export async function POST(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: normalizeSupabaseError(error.message) }, { status: 500 })
     }
+
+    // Every open stylist/manager/owner calendar refetches only on this signal —
+    // without it a brand-new appointment silently never appears until someone
+    // happens to reload the page or an unrelated event triggers a refetch.
+    await emitBookingEvent(admin, { bookingId: data.id, branchId: branch_id, action: 'created' })
 
     const serviceLine = formatSelectedServicesLine(finalSelected)
     const confirmationMessage = generateConfirmationMessage({
