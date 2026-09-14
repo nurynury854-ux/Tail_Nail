@@ -8,7 +8,7 @@ import { X } from 'lucide-react'
 import type { Branch, Stylist } from '@/lib/types'
 import AppointmentCalendar, { CalBooking, categoryLabel } from '@/components/checkout/AppointmentCalendar'
 import { useCheckoutSession } from '@/components/checkout/session'
-import { supabase } from '@/lib/supabase'
+import { useBookingEvents } from '@/lib/useBookingEvents'
 
 const STATUS_LABELS: Record<string, string> = {
   confirmed: '已確認',
@@ -74,6 +74,13 @@ export default function CalendarPage() {
   // branch-scoped fetch used to silently hide her pre-transfer appointments
   // from the owner/manager even though her own stylist-role view (always
   // stylist_id-scoped) showed them fine.
+  //
+  // load() also runs unattended (realtime push, tab focus, poll), so it must
+  // never blank the calendar on a transient failure, and a slow older response
+  // must not overwrite a newer one. Only a failure for a DIFFERENT scope than
+  // what's on screen clears it — never leave another filter's rows up.
+  const loadSeq = useRef(0)
+  const shownKey = useRef('')
   const load = useCallback(async () => {
     const params = new URLSearchParams({ month: format(month, 'yyyy-MM') })
     if (role === 'stylist') {
@@ -81,71 +88,49 @@ export default function CalendarPage() {
     } else if (branchView) {
       if (!activeBranchId) {
         setAllBookings([])
+        shownKey.current = ''
         return
       }
       params.set('branch_id', activeBranchId)
     } else {
       if (!stylistId) {
         setAllBookings([])
+        shownKey.current = ''
         return
       }
       params.set('stylist_id', stylistId)
     }
-    const res = await fetch(`/api/checkout/bookings?${params.toString()}`, { cache: 'no-store' })
-    setAllBookings(res.ok ? await res.json() : [])
+    const key = params.toString()
+    const seq = ++loadSeq.current
+    try {
+      const res = await fetch(`/api/checkout/bookings?${key}`, { cache: 'no-store' })
+      if (seq !== loadSeq.current) return
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const rows = await res.json()
+      if (seq !== loadSeq.current) return
+      setAllBookings(Array.isArray(rows) ? rows : [])
+      shownKey.current = key
+    } catch {
+      if (seq !== loadSeq.current) return
+      if (shownKey.current !== key) {
+        setAllBookings([])
+        shownKey.current = ''
+      }
+    }
   }, [month, role, activeBranchId, branchView, stylistId])
-
-  // Latest load() without making the websocket resubscribe on every change.
-  const loadRef = useRef(load)
-  useEffect(() => {
-    loadRef.current = load
-  }, [load])
 
   useEffect(() => {
     load()
   }, [load])
 
-  // Safety net, independent of the realtime channel below: refetch whenever
-  // the tab regains focus/visibility, and on a slow fixed interval regardless.
-  // A stylist who leaves this page open for days must never be stuck showing
-  // a stale snapshot just because one write path forgot to emit a
-  // booking_events row, or the websocket silently dropped — this bounds the
-  // staleness to minutes no matter what.
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') loadRef.current()
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('focus', onVisible)
-    const interval = setInterval(() => loadRef.current(), 2 * 60 * 1000)
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('focus', onVisible)
-      clearInterval(interval)
-    }
-  }, [])
-
-  // Realtime: the server writes a PII-free row to booking_events on every change,
-  // and Supabase pushes it over a websocket. On arrival we re-fetch through the
-  // redacting API — so other devices update instantly without polling, and no
-  // customer data ever travels over the socket.
-  const watchBranchId = role === 'stylist' ? session?.branchId ?? '' : activeBranchId
-  useEffect(() => {
-    if (!supabase || !watchBranchId) return
-    const channel = supabase
-      .channel(`booking-events-${watchBranchId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'booking_events', filter: `branch_id=eq.${watchBranchId}` },
-        () => {
-          loadRef.current()
-        },
-      )
-      .subscribe()
-    return () => {
-      supabase?.removeChannel(channel)
-    }
-  }, [watchBranchId])
+  // Realtime + fallbacks: re-fetch on every booking_events push, on websocket
+  // reconnect, when the phone wakes up, and on a slow safety-net poll — see
+  // useBookingEvents. 整店 data is branch-scoped, so watch that branch. 個人
+  // and a stylist's own view are stylist-scoped and can span branches after a
+  // transfer, so watch every branch (the signal rows are tiny and PII-free).
+  const watchBranchId =
+    role === 'stylist' ? null : branchView ? activeBranchId || undefined : stylistId ? null : undefined
+  useBookingEvents(watchBranchId, load)
 
   // allBookings is already scoped correctly by load() above for whichever
   // view is active, so it can be rendered as-is.

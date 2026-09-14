@@ -1,28 +1,42 @@
-// Single choke point for the booking_events realtime signal (see
-// supabase/checkout_realtime.sql). Every write to `bookings` — create,
-// status change, cancel, delete — MUST call this so every open calendar
-// (stylist/manager/owner) refetches promptly. A write path that forgets to
-// emit this is exactly how a customer's appointment silently fails to show
-// up on a stylist's calendar for days: the shared calendar has no polling,
-// it only refetches on receiving one of these events.
+// Realtime signal for booking changes.
 //
-// Best-effort by design: a failure here must never block or fail the
-// underlying booking write.
+// Every open calendar / booking list subscribes to `booking_events` over a
+// Supabase websocket (see lib/useBookingEvents.ts). Browsers must NOT watch the
+// `bookings` table itself — Realtime would push the full row (name + phone) to
+// every device, bypassing the role/timer redaction the API enforces. So each
+// route that changes a booking writes ONE PII-free row here instead, and the
+// clients re-fetch through the redacting API when it arrives.
+//
+// EVERY code path that inserts, updates or deletes a booking must call this,
+// or open calendars silently stay stale until someone reloads the page.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-export type BookingEventAction = 'created' | 'updated' | 'cancelled'
+export type BookingEventAction = 'created' | 'updated' | 'cancelled' | 'deleted'
 
-export async function emitBookingEvent(
-  admin: SupabaseClient,
-  args: { bookingId: string | null | undefined; branchId: string | null | undefined; action: BookingEventAction },
-): Promise<void> {
+export interface BookingEvent {
+  bookingId: string
+  branchId: string | null
+  action: BookingEventAction
+}
+
+/**
+ * Best-effort: never throws and never blocks the booking write it follows. A
+ * missed push only means a device stays stale until its safety-net poll.
+ *
+ * Note: supabase-js reports failures via `{ error }`, not by throwing — a bare
+ * try/catch around the insert would swallow them silently.
+ */
+export async function emitBookingEvent(admin: SupabaseClient, event: BookingEvent): Promise<void> {
   try {
-    await admin.from('booking_events').insert({
-      booking_id: args.bookingId ?? null,
-      branch_id: args.branchId ?? null,
-      action: args.action,
+    const { error } = await admin.from('booking_events').insert({
+      booking_id: event.bookingId,
+      branch_id: event.branchId,
+      action: event.action,
     })
+    if (error) {
+      console.warn(`booking_events insert failed (realtime push skipped): ${error.message}`)
+    }
   } catch (err) {
     console.warn('booking_events insert failed (realtime push skipped)', err)
   }

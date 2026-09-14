@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS booking_events (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id UUID,
   branch_id  TEXT,
-  action     TEXT NOT NULL,   -- 'cancelled' | 'created' | 'updated'
+  action     TEXT NOT NULL,   -- 'created' | 'updated' | 'cancelled' | 'deleted' (see lib/bookingEvents.ts)
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

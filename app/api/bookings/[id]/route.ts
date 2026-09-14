@@ -55,7 +55,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // Every open stylist/manager/owner calendar refetches only on this signal —
     // without it a status change made from /admin never appears there until
     // someone happens to reload the page.
-    await emitBookingEvent(admin, { bookingId: data.id, branchId: currentBooking.branch_id, action: 'updated' })
+    await emitBookingEvent(admin, {
+      bookingId: currentBooking.id,
+      branchId: currentBooking.branch_id,
+      action: status === 'cancelled' ? 'cancelled' : 'updated',
+    })
 
     let lineNotificationSent = false
     if (status === 'cancelled' && currentBooking.line_id) {
@@ -110,8 +114,13 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     const admin = createAdminClient() ?? supabase!
-    const { data: existing } = await admin.from('bookings').select('branch_id').eq('id', id).maybeSingle()
-    const { error } = await admin.from('bookings').delete().eq('id', id)
+    // Return the deleted row so we know which branch's calendars to signal.
+    const { data: deleted, error } = await admin
+      .from('bookings')
+      .delete()
+      .eq('id', id)
+      .select('id, branch_id')
+      .maybeSingle()
 
     if (error) {
       console.error('DELETE booking error:', error)
@@ -119,7 +128,9 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     // Every open stylist/manager/owner calendar refetches only on this signal.
-    await emitBookingEvent(admin, { bookingId: id, branchId: existing?.branch_id, action: 'updated' })
+    if (deleted) {
+      await emitBookingEvent(admin, { bookingId: deleted.id, branchId: deleted.branch_id, action: 'deleted' })
+    }
 
     return NextResponse.json({ success: true })
   } catch (err) {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useBookingEvents } from '@/lib/useBookingEvents'
 import {
   Search,
   Plus,
@@ -249,14 +250,17 @@ export default function AdminPage() {
   const bookingsRequestId = useRef(0)
   const bookingsAbort = useRef<AbortController | null>(null)
 
-  const fetchBookings = useCallback(async () => {
+  // `silent` is for unattended refreshes (realtime push, tab focus, poll): the
+  // table stays on screen and is swapped for the new rows in place, instead of
+  // flashing the loading spinner every time someone books.
+  const fetchBookings = useCallback(async ({ silent = false } = {}) => {
     bookingsAbort.current?.abort()
     const controller = new AbortController()
     bookingsAbort.current = controller
     const requestId = ++bookingsRequestId.current
     const isStale = () => bookingsRequestId.current !== requestId
 
-    setLoading(true)
+    if (!silent) setLoading(true)
     try {
       const params = new URLSearchParams()
       if (filters.branch_id) params.set('branch_id', filters.branch_id)
@@ -341,6 +345,11 @@ export default function AdminPage() {
   useEffect(() => {
     fetchBookings()
   }, [fetchBookings])
+
+  // Live updates: a new customer booking, a cancellation from the checkout
+  // calendar, etc. lands here without pressing 刷新. See useBookingEvents.
+  const refreshBookingsSilently = useCallback(() => fetchBookings({ silent: true }), [fetchBookings])
+  useBookingEvents(filters.branch_id || null, refreshBookingsSilently)
 
   useEffect(() => {
     if ((scheduleTarget === 'branch' && scheduleBranchId) || (scheduleTarget === 'stylist' && scheduleStylistId)) {
