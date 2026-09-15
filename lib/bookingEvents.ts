@@ -20,6 +20,14 @@ export interface BookingEvent {
   action: BookingEventAction
 }
 
+// Callers await this on the customer-facing booking-creation request. A slow
+// or hanging insert (network blip, connection pool exhaustion, ...) must
+// never be able to add meaningful latency to that response, let alone tip it
+// past a serverless function timeout and make the booking itself look like
+// it failed. Race it against a short timeout so it always settles quickly —
+// in the healthy case the insert itself finishes in a few ms anyway.
+const EMIT_TIMEOUT_MS = 1500
+
 /**
  * Best-effort: never throws and never blocks the booking write it follows. A
  * missed push only means a device stays stale until its safety-net poll.
@@ -29,11 +37,15 @@ export interface BookingEvent {
  */
 export async function emitBookingEvent(admin: SupabaseClient, event: BookingEvent): Promise<void> {
   try {
-    const { error } = await admin.from('booking_events').insert({
+    const insert = admin.from('booking_events').insert({
       booking_id: event.bookingId,
       branch_id: event.branchId,
       action: event.action,
     })
+    const timeout = new Promise<{ error: { message: string } }>((resolve) =>
+      setTimeout(() => resolve({ error: { message: 'timed out' } }), EMIT_TIMEOUT_MS),
+    )
+    const { error } = await Promise.race([insert, timeout])
     if (error) {
       console.warn(`booking_events insert failed (realtime push skipped): ${error.message}`)
     }
