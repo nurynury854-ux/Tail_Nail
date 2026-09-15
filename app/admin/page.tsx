@@ -523,7 +523,7 @@ export default function AdminPage() {
     fetchBookings()
   }
 
-  const handleAddStylist = async () => {
+  const handleAddStylist = async (force = false) => {
     if (!stylistForm.branch_id || !stylistForm.name.trim()) {
       toast.error('請選擇分店並輸入設計師姓名')
       return
@@ -536,11 +536,21 @@ export default function AdminPage() {
         branch_id: stylistForm.branch_id,
         name: stylistForm.name,
         bio: stylistForm.bio,
+        force,
       }),
     })
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: '新增設計師失敗' }))
+      // Duplicate-name guard: this is almost always someone transferring
+      // branches, which must go through 帳號管理 instead — see the API route
+      // for why adding a second row silently breaks her own calendar.
+      if (res.status === 409 && err.existing) {
+        if (confirm(`${err.error}\n\n如果確定是不同的人，按「確定」強制新增。`)) {
+          await handleAddStylist(true)
+        }
+        return
+      }
       toast.error(err.error || '新增設計師失敗')
       return
     }
@@ -1009,7 +1019,7 @@ export default function AdminPage() {
                 onChange={(e) => setStylistForm((f) => ({ ...f, bio: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border border-blush text-sm"
               />
-              <button onClick={handleAddStylist} className="w-full bg-charcoal text-white py-2 rounded-lg text-sm font-semibold">
+              <button onClick={() => handleAddStylist()} className="w-full bg-charcoal text-white py-2 rounded-lg text-sm font-semibold">
                 新增設計師
               </button>
             </div>

@@ -27,14 +27,42 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { name, branch_id, bio } = body as {
+  const { name, branch_id, bio, force } = body as {
     name?: string
     branch_id?: string
     bio?: string
+    force?: boolean
   }
 
   if (!name || !branch_id) {
     return NextResponse.json({ error: 'name and branch_id are required' }, { status: 400 })
+  }
+
+  // A stylist moving branches must go through the account-transfer feature
+  // (PATCH /api/checkout/accounts/[id]), which updates her EXISTING row's
+  // branch_id in place. "Add stylist" for someone who already has a row
+  // elsewhere instead creates a second, disconnected row — her checkout
+  // login's accounts.stylist_id still points at the old row, so any booking
+  // resolved against this new one becomes permanently invisible on her own
+  // calendar (self-view only ever queries by that one stylist_id) even
+  // though everything else about the booking, including the LINE
+  // confirmation, looks completely normal. Block the accidental case; a
+  // genuine same-name coincidence can still opt in with `force`.
+  if (!force) {
+    const { data: existing } = await admin
+      .from('stylists')
+      .select('id, branch_id')
+      .ilike('name', name.trim())
+      .eq('is_active', true)
+    if (existing && existing.length > 0) {
+      return NextResponse.json(
+        {
+          error: '已有同名美甲師存在，如果是分店異動請改用「帳號管理」的分店轉移功能，不要新增——否則她的行事曆將對不上她本人帳號看到的預約。若確定是不同的人，請重新提交並加上 force。',
+          existing,
+        },
+        { status: 409 },
+      )
+    }
   }
 
   const { data, error } = await admin

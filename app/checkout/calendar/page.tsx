@@ -81,6 +81,12 @@ export default function CalendarPage() {
   // what's on screen clears it — never leave another filter's rows up.
   const loadSeq = useRef(0)
   const shownKey = useRef('')
+  // A failed fetch must never look identical to "you have no appointments" —
+  // that's exactly how an unlinked/misconfigured stylist account (backend
+  // returns a clear 409 with a real message) went unnoticed as "完全沒上系統"
+  // until someone thought to check the network tab. Surface it plainly
+  // instead of swallowing it into an empty calendar.
+  const [loadError, setLoadError] = useState<string | null>(null)
   const load = useCallback(async () => {
     const params = new URLSearchParams({ month: format(month, 'yyyy-MM') })
     if (role === 'stylist') {
@@ -88,6 +94,7 @@ export default function CalendarPage() {
     } else if (branchView) {
       if (!activeBranchId) {
         setAllBookings([])
+        setLoadError(null)
         shownKey.current = ''
         return
       }
@@ -95,6 +102,7 @@ export default function CalendarPage() {
     } else {
       if (!stylistId) {
         setAllBookings([])
+        setLoadError(null)
         shownKey.current = ''
         return
       }
@@ -105,13 +113,18 @@ export default function CalendarPage() {
     try {
       const res = await fetch(`/api/checkout/bookings?${key}`, { cache: 'no-store' })
       if (seq !== loadSeq.current) return
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `讀取行事曆失敗（HTTP ${res.status}）`)
+      }
       const rows = await res.json()
       if (seq !== loadSeq.current) return
       setAllBookings(Array.isArray(rows) ? rows : [])
+      setLoadError(null)
       shownKey.current = key
-    } catch {
+    } catch (err) {
       if (seq !== loadSeq.current) return
+      setLoadError(err instanceof Error ? err.message : '讀取行事曆失敗')
       if (shownKey.current !== key) {
         setAllBookings([])
         shownKey.current = ''
@@ -261,6 +274,12 @@ export default function CalendarPage() {
           </select>
         )}
       </div>
+
+      {loadError && (
+        <p className="text-sm text-rose-dark bg-rose/10 border border-rose/30 rounded-lg px-3 py-2">
+          ⚠️ {loadError}
+        </p>
+      )}
 
       {ready ? (
         <AppointmentCalendar
