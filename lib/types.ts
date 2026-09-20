@@ -153,6 +153,13 @@ export interface BookingFormData {
 
 export const BRANCHES: Branch[] = [
   {
+    id: '5',
+    name: '八德興仁店',
+    address: '桃園市八德區興仁里',
+    staff_count: 2,
+    is_active: true,
+  },
+  {
     id: '4',
     name: '平鎮店',
     address: '桃園市平鎮區',
