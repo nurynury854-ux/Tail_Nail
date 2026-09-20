@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import { getLineConfigByOaId } from '@/lib/lineConfig'
+import { describeOaConfig, getLineConfigByOaId } from '@/lib/lineConfig'
 
 function verifyLineSignature(body: string, signature: string | null, channelSecret: string): boolean {
   if (!signature) return false
@@ -58,7 +58,9 @@ export async function POST(request: NextRequest) {
     const branchMatch = getLineConfigByOaId(destination)
 
     if (!branchMatch) {
-      console.warn(`[LINE webhook] Unknown OA destination: ${destination} — no matching branch config`)
+      console.warn(
+        `[LINE webhook] Unknown OA destination: ${destination} — no matching branch config. Configured: ${describeOaConfig()}`,
+      )
       // Return 200 so LINE doesn't keep retrying; we just don't process it
       return NextResponse.json({ message: 'Unknown OA' }, { status: 200 })
     }
