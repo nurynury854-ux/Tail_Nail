@@ -9,6 +9,7 @@ import type { Branch, Stylist } from '@/lib/types'
 import AppointmentCalendar, { CalBooking, categoryLabel } from '@/components/checkout/AppointmentCalendar'
 import { useCheckoutSession } from '@/components/checkout/session'
 import { useBookingEvents } from '@/lib/useBookingEvents'
+import { taipeiMonth } from '@/lib/dateTW'
 
 const STATUS_LABELS: Record<string, string> = {
   confirmed: '已確認',
@@ -17,11 +18,37 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: '已取消',
 }
 
+// Staff read the clock on the wall, not the one in their phone's settings.
+const TW_CLOCK = new Intl.DateTimeFormat('zh-TW', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  timeZone: 'Asia/Taipei',
+})
+
+/**
+ * The month to show by default: the current month in TAIPEI, not on the device.
+ * Anchored at noon on the 1st so no timezone shift can slide it into a
+ * neighbouring month.
+ */
+function currentMonthDate(): Date {
+  return new Date(`${taipeiMonth()}-01T12:00:00`)
+}
+
+/** A failed load, carrying the status so an expired session can be told apart. */
+class ApiError extends Error {
+  status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+  }
+}
+
 export default function CalendarPage() {
-  const { session } = useCheckoutSession()
+  const { session, loading: sessionLoading } = useCheckoutSession()
   const router = useRouter()
 
-  const [month, setMonth] = useState(() => new Date())
+  const [month, setMonth] = useState(currentMonthDate)
   const [branches, setBranches] = useState<Branch[]>([])
   const [stylists, setStylists] = useState<Stylist[]>([])
   const [branchId, setBranchId] = useState('')
@@ -31,10 +58,21 @@ export default function CalendarPage() {
   const [importing, setImporting] = useState(false)
   // 整店 = whole branch (all stylists) | 個人 = one selected stylist.
   const [view, setView] = useState<'branch' | 'individual'>('branch')
+  // When the calendar on screen was last confirmed current.
+  const [syncedAt, setSyncedAt] = useState<Date | null>(null)
+  const [expired, setExpired] = useState(false)
 
   const role = session?.role
   const canToggleView = role === 'owner' || role === 'manager'
   const branchView = canToggleView && view === 'branch'
+
+  // The checkout session is a 12-hour cookie. It is renewed whenever someone
+  // comes back to the tab (/api/checkout/me), but a device nobody touches for
+  // that long still reaches the end of it — and a calendar left open overnight
+  // is exactly that device. Catch both routes to it: this page's own fetch
+  // coming back 401, and the session provider's re-check clearing the session.
+  const loggedOut = !sessionLoading && !session
+  const sessionEnded = loggedOut || expired
 
   // Load the filter option lists. Fetch ALL stylists (active=false) so branch view
   // can still name an inactive stylist who has bookings.
@@ -88,6 +126,10 @@ export default function CalendarPage() {
   // instead of swallowing it into an empty calendar.
   const [loadError, setLoadError] = useState<string | null>(null)
   const load = useCallback(async () => {
+    // No session yet (first paint) or no longer one: leave the screen to the
+    // logged-out effect below rather than falling through to "nothing selected".
+    if (!role) return
+
     const params = new URLSearchParams({ month: format(month, 'yyyy-MM') })
     if (role === 'stylist') {
       // no params — the API self-scopes to their own stylist_id.
@@ -115,15 +157,29 @@ export default function CalendarPage() {
       if (seq !== loadSeq.current) return
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || `讀取行事曆失敗（HTTP ${res.status}）`)
+        throw new ApiError(res.status, body.error || `讀取行事曆失敗（HTTP ${res.status}）`)
       }
       const rows = await res.json()
       if (seq !== loadSeq.current) return
       setAllBookings(Array.isArray(rows) ? rows : [])
       setLoadError(null)
+      setExpired(false)
+      setSyncedAt(new Date())
       shownKey.current = key
     } catch (err) {
       if (seq !== loadSeq.current) return
+      if (err instanceof ApiError && err.status === 401) {
+        // Session gone. Every refetch from here on 401s too, so without this the
+        // page sits on its last snapshot looking perfectly healthy and days out
+        // of date. Customer names on screen — grid and open detail panel alike —
+        // were released to a role that no longer holds, so they go with it.
+        setExpired(true)
+        setLoadError(null)
+        setAllBookings([])
+        setSelected(null)
+        shownKey.current = ''
+        return
+      }
       setLoadError(err instanceof Error ? err.message : '讀取行事曆失敗')
       if (shownKey.current !== key) {
         setAllBookings([])
@@ -132,7 +188,35 @@ export default function CalendarPage() {
     }
   }, [month, role, activeBranchId, branchView, stylistId])
 
+  // The session provider re-checks on focus/visibility; if it comes back empty,
+  // the rows on screen are PII nobody is currently entitled to.
   useEffect(() => {
+    if (loggedOut) {
+      setAllBookings([])
+      setSelected(null)
+      shownKey.current = ''
+    }
+  }, [loggedOut])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  // The displayed month is picked once, at mount. A phone left open on the
+  // calendar for a week would otherwise still be showing the month it was
+  // opened in, with every new appointment landing outside the grid — so unless
+  // the user navigated somewhere deliberately, roll forward with the date.
+  const followsToday = useRef(true)
+  const changeMonth = useCallback((m: Date) => {
+    // Navigating back to the current month resumes following it.
+    followsToday.current = format(m, 'yyyy-MM') === taipeiMonth()
+    setMonth(m)
+  }, [])
+  const refresh = useCallback(() => {
+    if (followsToday.current) {
+      const now = currentMonthDate()
+      setMonth((prev) => (format(prev, 'yyyy-MM') === format(now, 'yyyy-MM') ? prev : now))
+    }
     load()
   }, [load])
 
@@ -143,18 +227,20 @@ export default function CalendarPage() {
   // transfer, so watch every branch (the signal rows are tiny and PII-free).
   const watchBranchId =
     role === 'stylist' ? null : branchView ? activeBranchId || undefined : stylistId ? null : undefined
-  useBookingEvents(watchBranchId, load)
+  const liveStatus = useBookingEvents(watchBranchId, refresh)
 
   // allBookings is already scoped correctly by load() above for whichever
   // view is active, so it can be rendered as-is.
   const displayed = allBookings
 
   // Whether we have enough selections to render the calendar.
-  const ready = branchView
-    ? role === 'manager' || (role === 'owner' && !!branchId)
-    : role === 'stylist' ||
-      (role === 'manager' && !!stylistId) ||
-      (role === 'owner' && !!branchId && !!stylistId)
+  const ready =
+    !sessionEnded &&
+    (branchView
+      ? role === 'manager' || (role === 'owner' && !!branchId)
+      : role === 'stylist' ||
+        (role === 'manager' && !!stylistId) ||
+        (role === 'owner' && !!branchId && !!stylistId))
 
   const branchName = useMemo(() => branches.find((b) => b.id === branchId)?.name, [branches, branchId])
   const stylistName = useMemo(
@@ -235,6 +321,24 @@ export default function CalendarPage() {
     <div className="space-y-4">
       <h1 className="font-playfair text-2xl text-charcoal">行事曆</h1>
 
+      {/* An expired session used to be invisible here: pushes kept arriving,
+          every refetch came back 401, and the page kept showing yesterday.
+          Say it outright and give them the way back. */}
+      {sessionEnded && (
+        <div className="rounded-xl border border-rose bg-rose/10 px-4 py-3 space-y-2">
+          <p className="text-sm font-semibold text-charcoal">登入已過期，行事曆已停止更新</p>
+          <p className="text-xs text-warmgray">
+            為保護客人資料，登入僅維持 12 小時。重新登入後即可看到最新預約。
+          </p>
+          <a
+            href="/checkout/login"
+            className="inline-block rounded-lg bg-rose px-4 py-2 text-sm font-semibold text-white"
+          >
+            重新登入
+          </a>
+        </div>
+      )}
+
       {/* View toggle + filters */}
       <div className="flex flex-wrap gap-2 items-center">
         {canToggleView && (
@@ -275,23 +379,35 @@ export default function CalendarPage() {
         )}
       </div>
 
-      {loadError && (
+      {!sessionEnded && loadError && (
         <p className="text-sm text-rose-dark bg-rose/10 border border-rose/30 rounded-lg px-3 py-2">
           ⚠️ {loadError}
         </p>
       )}
 
       {ready ? (
-        <AppointmentCalendar
-          month={month}
-          bookings={displayed}
-          onMonthChange={setMonth}
-          onSelect={setSelected}
-          branchName={role === 'owner' ? branchName : undefined}
-          stylistName={branchView ? '整店' : stylistName}
-          stylistNames={branchView ? stylistNames : undefined}
-        />
-      ) : (
+        <>
+          <AppointmentCalendar
+            month={month}
+            bookings={displayed}
+            onMonthChange={changeMonth}
+            onSelect={setSelected}
+            branchName={role === 'owner' ? branchName : undefined}
+            stylistName={branchView ? '整店' : stylistName}
+            stylistNames={branchView ? stylistNames : undefined}
+          />
+          {/* "Live" and "a minute behind" look identical on screen, and nobody
+              is reading a console on a phone — so state which one this is. */}
+          <p className="text-xs text-warmgray text-center">
+            {liveStatus === 'live'
+              ? '● 即時更新中'
+              : liveStatus === 'polling'
+                ? '○ 自動更新（每分鐘）'
+                : '○ 連線中…'}
+            {syncedAt ? `・上次更新 ${TW_CLOCK.format(syncedAt)}` : ''}
+          </p>
+        </>
+      ) : sessionEnded ? null : (
         <p className="text-warmgray text-sm">
           {branchView
             ? '請先選擇分店以顯示整店行事曆。'

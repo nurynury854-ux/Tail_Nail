@@ -44,9 +44,23 @@ export function CheckoutSessionProvider({ children }: { children: React.ReactNod
     refresh()
     // Re-check the live role/scope when the tab regains focus, so an account-type
     // switch (or transfer/deactivation) reflects in the UI without a re-login.
+    //
+    // This is also what keeps a working device logged in: /api/checkout/me
+    // renews the session cookie, so the 12-hour window runs from the last time
+    // someone came back to the tab, not from login. Phones need
+    // visibilitychange for that — returning from a locked screen does not
+    // reliably fire `focus`, and a stylist whose session quietly ended is
+    // exactly the case where the calendar appears to stop updating.
     const onFocus = () => refresh()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
     window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
