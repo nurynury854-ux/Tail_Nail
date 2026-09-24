@@ -15,7 +15,12 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export type BookingEventAction = 'created' | 'updated' | 'cancelled' | 'deleted'
 
 export interface BookingEvent {
-  bookingId: string
+  /**
+   * Null for a change that alters a day's availability without touching a
+   * booking row — staff leave, for one. Subscribers re-fetch on any push and
+   * do not read this field, and the column is a nullable UUID with no FK.
+   */
+  bookingId: string | null
   branchId: string | null
   action: BookingEventAction
 }

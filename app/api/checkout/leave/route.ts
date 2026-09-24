@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { canViewBranch, getCheckoutSession } from '@/lib/checkoutAuth'
 import { logOrderEvent } from '@/lib/orderEditLog'
+import { emitBookingEvent } from '@/lib/bookingEvents'
 import { taipeiBusinessDate } from '@/lib/dateTW'
 import type { CheckoutSession, StylistLeave } from '@/lib/checkoutTypes'
 
@@ -227,6 +228,11 @@ export async function POST(request: NextRequest) {
       (data.reason ? `，原因：${data.reason}` : ''),
   })
 
+  // Leave changes what every open calendar should be showing for that day, so
+  // it rides the same realtime channel as a booking change. Carries no
+  // booking id — subscribers just re-fetch.
+  await emitBookingEvent(admin, { bookingId: null, branchId, action: 'updated' })
+
   return NextResponse.json({ ...data, stylist_name: stylist.name, booking_count: bookingCount }, { status: 201 })
 }
 
@@ -273,6 +279,8 @@ export async function DELETE(request: NextRequest) {
     action: 'leave_remove',
     reason: `取消 ${stylist.name} ${row.date} 的排休`,
   })
+
+  await emitBookingEvent(admin, { bookingId: null, branchId: stylist.branch_id, action: 'updated' })
 
   return NextResponse.json({ success: true })
 }

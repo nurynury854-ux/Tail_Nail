@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { format } from 'date-fns'
+import { addDays, endOfMonth, format, startOfMonth } from 'date-fns'
 import toast from 'react-hot-toast'
 import { X } from 'lucide-react'
 import type { Branch, Stylist } from '@/lib/types'
-import AppointmentCalendar, { CalBooking, categoryLabel } from '@/components/checkout/AppointmentCalendar'
+import AppointmentCalendar, { CalBooking, CalLeave, categoryLabel } from '@/components/checkout/AppointmentCalendar'
 import { useCheckoutSession } from '@/components/checkout/session'
 import { useBookingEvents } from '@/lib/useBookingEvents'
 import { taipeiMonth } from '@/lib/dateTW'
@@ -55,6 +55,7 @@ export default function CalendarPage() {
   const [stylistId, setStylistId] = useState('')
   const [allBookings, setAllBookings] = useState<CalBooking[]>([])
   const [selected, setSelected] = useState<CalBooking | null>(null)
+  const [leaves, setLeaves] = useState<CalLeave[]>([])
   const [importing, setImporting] = useState(false)
   // 整店 = whole branch (all stylists) | 個人 = one selected stylist.
   const [view, setView] = useState<'branch' | 'individual'>('branch')
@@ -188,6 +189,43 @@ export default function CalendarPage() {
     }
   }, [month, role, activeBranchId, branchView, stylistId])
 
+  // Full-day leave for the visible grid, so a thin day reads as "she's off"
+  // rather than "nobody booked". Owner/manager only: the leave API does not
+  // serve technicians. Padded a week each side to cover the grid's spill days.
+  const loadLeaves = useCallback(async () => {
+    if (role !== 'owner' && role !== 'manager') {
+      setLeaves([])
+      return
+    }
+    if (!activeBranchId) {
+      setLeaves([])
+      return
+    }
+    const params = new URLSearchParams({
+      branch_id: activeBranchId,
+      from: format(addDays(startOfMonth(month), -7), 'yyyy-MM-dd'),
+      to: format(addDays(endOfMonth(month), 7), 'yyyy-MM-dd'),
+    })
+    try {
+      const res = await fetch(`/api/checkout/leave?${params}`, { cache: 'no-store' })
+      if (!res.ok) return // non-fatal: the appointments still render
+      const data = await res.json()
+      setLeaves(
+        ((data.leaves || []) as Array<{ date: string; stylist_id: string; stylist_name: string }>).map((l) => ({
+          date: l.date,
+          stylist_id: l.stylist_id,
+          stylist_name: l.stylist_name,
+        })),
+      )
+    } catch {
+      /* non-fatal */
+    }
+  }, [role, activeBranchId, month])
+
+  useEffect(() => {
+    loadLeaves()
+  }, [loadLeaves])
+
   // The session provider re-checks on focus/visibility; if it comes back empty,
   // the rows on screen are PII nobody is currently entitled to.
   useEffect(() => {
@@ -218,7 +256,8 @@ export default function CalendarPage() {
       setMonth((prev) => (format(prev, 'yyyy-MM') === format(now, 'yyyy-MM') ? prev : now))
     }
     load()
-  }, [load])
+    loadLeaves()
+  }, [load, loadLeaves])
 
   // Realtime + fallbacks: re-fetch on every booking_events push, on websocket
   // reconnect, when the phone wakes up, and on a slow safety-net poll — see
@@ -395,6 +434,7 @@ export default function CalendarPage() {
             branchName={role === 'owner' ? branchName : undefined}
             stylistName={branchView ? '整店' : stylistName}
             stylistNames={branchView ? stylistNames : undefined}
+            leaves={branchView ? leaves : leaves.filter((l) => l.stylist_id === stylistId)}
           />
           {/* "Live" and "a minute behind" look identical on screen, and nobody
               is reading a console on a phone — so state which one this is. */}

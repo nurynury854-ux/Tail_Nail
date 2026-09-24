@@ -42,6 +42,13 @@ export function categoryLabel(category?: string | null): string | null {
   return null
 }
 
+/** One technician off for one whole day, drawn as a chip on that day's cell. */
+export interface CalLeave {
+  date: string
+  stylist_id: string
+  stylist_name: string
+}
+
 export default function AppointmentCalendar({
   month,
   bookings,
@@ -50,6 +57,7 @@ export default function AppointmentCalendar({
   branchName,
   stylistName,
   stylistNames,
+  leaves,
 }: {
   month: Date
   bookings: CalBooking[]
@@ -59,6 +67,8 @@ export default function AppointmentCalendar({
   stylistName?: string
   /** Branch-wide view: stylist_id -> name. When set, each entry is labelled with its stylist. */
   stylistNames?: Record<string, string>
+  /** Full-day leave to mark on the grid. Scoped by the caller to what's on screen. */
+  leaves?: CalLeave[]
 }) {
   const byDate = useMemo(() => {
     const map: Record<string, CalBooking[]> = {}
@@ -66,6 +76,13 @@ export default function AppointmentCalendar({
     for (const k of Object.keys(map)) map[k].sort((a, b) => a.start_time.localeCompare(b.start_time))
     return map
   }, [bookings])
+
+  const leavesByDate = useMemo(() => {
+    const map: Record<string, CalLeave[]> = {}
+    for (const l of leaves || []) (map[l.date] ||= []).push(l)
+    for (const k of Object.keys(map)) map[k].sort((a, b) => a.stylist_name.localeCompare(b.stylist_name))
+    return map
+  }, [leaves])
 
   const weeks = useMemo(() => {
     const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 })
@@ -106,6 +123,7 @@ export default function AppointmentCalendar({
         {weeks.flat().map((day) => {
           const dateStr = format(day, 'yyyy-MM-dd')
           const appts = byDate[dateStr] || []
+          const dayLeaves = leavesByDate[dateStr] || []
           // Cancelled entries stay listed as a record, but the count is the
           // day's actual workload, so they are excluded from it.
           const activeCount = appts.reduce((n, b) => (b.status === 'cancelled' ? n : n + 1), 0)
@@ -126,6 +144,21 @@ export default function AppointmentCalendar({
                   <span className="text-[10px] text-warmgray tabular-nums">{activeCount}</span>
                 )}
               </div>
+              {/* Who is off. Sits above the appointments because it explains a
+                  thin day rather than being another thing happening on it. */}
+              {dayLeaves.length > 0 && (
+                <div className="space-y-0.5 mb-0.5">
+                  {dayLeaves.map((l) => (
+                    <span
+                      key={`${l.date}:${l.stylist_id}`}
+                      className="block rounded px-1 py-px text-[10px] leading-tight font-medium truncate bg-charcoal/10 text-charcoal"
+                      title={`${l.stylist_name} 休假`}
+                    >
+                      休 {l.stylist_name}
+                    </span>
+                  ))}
+                </div>
+              )}
               {/* Render EVERY appointment — never hide any. A very busy day scrolls
                   inside its own cell instead of collapsing entries out of sight. */}
               <div className="space-y-0.5 max-h-40 overflow-y-auto">

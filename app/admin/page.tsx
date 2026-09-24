@@ -348,7 +348,15 @@ export default function AdminPage() {
 
   // Live updates: a new customer booking, a cancellation from the checkout
   // calendar, etc. lands here without pressing 刷新. See useBookingEvents.
-  const refreshBookingsSilently = useCallback(() => fetchBookings({ silent: true }), [fetchBookings])
+  // A store manager scheduling 排休 from the checkout side changes this panel's
+  // 休假 list too, and it rides the same booking_events channel — so pull the
+  // schedule back as well, under the same condition the effect below uses.
+  const refreshBookingsSilently = useCallback(() => {
+    fetchBookings({ silent: true })
+    if ((scheduleTarget === 'branch' && scheduleBranchId) || (scheduleTarget === 'stylist' && scheduleStylistId)) {
+      fetchSchedules()
+    }
+  }, [fetchBookings, fetchSchedules, scheduleTarget, scheduleBranchId, scheduleStylistId])
   useBookingEvents(filters.branch_id || null, refreshBookingsSilently)
 
   useEffect(() => {
