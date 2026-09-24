@@ -14,11 +14,19 @@ import 'react-day-picker/dist/style.css'
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6
 
+// 卸甲 is no longer one checkbox among the addons. Every booking must carry an
+// explicit 卸甲 / 不卸甲 answer, so it gets its own required section in step 2
+// and is filtered out of the addon list below.
+const REMOVAL_SERVICE_ID = 'svc-addon-remove'
+type RemovalChoice = 'yes' | 'no'
+
 type BookingState = {
   branch: Branch | null
   category: 'hand' | 'foot'
   mainServiceId: string | null
   addonServiceIds: string[]
+  // null = the customer has not answered yet; step 2 will not let them past it.
+  removal: RemovalChoice | null
   stylist: Stylist | null
   noPreference: boolean
   date: Date | null
@@ -55,6 +63,7 @@ function BookingContent() {
     category: 'hand',
     mainServiceId: null,
     addonServiceIds: [],
+    removal: null,
     stylist: null,
     noPreference: true,
     date: null,
@@ -125,7 +134,28 @@ function BookingContent() {
   )
 
   const mainServices = useMemo(() => services.filter((s) => s.service_type === 'main' && s.is_active), [services])
-  const addonServices = useMemo(() => services.filter((s) => s.service_type === 'addon' && s.is_active), [services])
+  const addonServices = useMemo(
+    () => services.filter((s) => s.service_type === 'addon' && s.is_active && s.id !== REMOVAL_SERVICE_ID),
+    [services]
+  )
+
+  const removalService = useMemo(() => services.find((s) => s.id === REMOVAL_SERVICE_ID) || null, [services])
+
+  // Mirrors the choice into addonServiceIds so everything downstream — the
+  // grade requirement sent to /api/slots, the duration total, the booking
+  // payload — keeps treating 卸甲 as the ordinary addon it still is.
+  const setRemoval = (choice: RemovalChoice) =>
+    setState((prev) => ({
+      ...prev,
+      removal: choice,
+      addonServiceIds:
+        choice === 'yes'
+          ? prev.addonServiceIds.includes(REMOVAL_SERVICE_ID)
+            ? prev.addonServiceIds
+            : [...prev.addonServiceIds, REMOVAL_SERVICE_ID]
+          : prev.addonServiceIds.filter((id) => id !== REMOVAL_SERVICE_ID),
+      timeSlot: null,
+    }))
 
   const selectedMain = useMemo(
     () => (state.mainServiceId ? services.find((s) => s.id === state.mainServiceId) || null : null),
@@ -133,7 +163,7 @@ function BookingContent() {
   )
 
   const selectedAddons = useMemo(
-    () => services.filter((s) => state.addonServiceIds.includes(s.id)),
+    () => services.filter((s) => s.id !== REMOVAL_SERVICE_ID && state.addonServiceIds.includes(s.id)),
     [services, state.addonServiceIds]
   )
 
@@ -163,8 +193,20 @@ function BookingContent() {
       })
     }
 
+    if (state.removal === 'yes') {
+      const dur = stylistDurations[REMOVAL_SERVICE_ID] ?? removalService?.duration_minutes ?? null
+      result.push({
+        service_id: REMOVAL_SERVICE_ID,
+        service_name: removalService?.name || '卸甲',
+        service_type: 'addon',
+        category: state.category,
+        duration_minutes: dur || 35,
+        is_pending: dur === null,
+      })
+    }
+
     return result
-  }, [selectedMain, selectedAddons, state.category, stylistDurations])
+  }, [selectedMain, selectedAddons, state.category, state.removal, removalService, stylistDurations])
 
   const totalDuration = useMemo(
     () => selectedServices.reduce((sum, item) => sum + item.duration_minutes, 0),
@@ -310,6 +352,12 @@ function BookingContent() {
 
     if (!isValidTaiwanMobile(state.phone.trim())) {
       toast.error('手機格式需為 09xxxxxxxx')
+      return
+    }
+
+    if (state.removal === null) {
+      toast.error('請選擇「卸甲」或「不卸甲」')
+      setStep(2)
       return
     }
 
@@ -519,8 +567,36 @@ function BookingContent() {
                 })}
               </div>
 
+              <h3 className="section-title text-lg mt-8 mb-1">
+                卸甲 <span className="text-rose font-semibold">（必選）</span>
+              </h3>
+              <p className="text-sm text-warmgray mb-2">請選擇本次是否需要卸甲，兩者擇一，未選擇無法進行下一步。</p>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {([
+                  { value: 'yes' as const, label: removalService?.name || '卸甲', hint: '需要卸除原有的指甲' },
+                  { value: 'no' as const, label: '不卸甲', hint: '不需要卸甲' },
+                ]).map((option) => {
+                  const active = state.removal === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => setRemoval(option.value)}
+                      className={`border-2 rounded-2xl p-4 sm:p-5 text-left transition-all duration-200 relative ${active ? 'border-rose bg-rose/10 text-charcoal shadow-lg -translate-y-0.5' : 'border-[#DDD5C8] bg-[#FAF7F2] text-charcoal hover:border-rose/60 hover:shadow-md hover:-translate-y-0.5'}`}
+                    >
+                      <p className="font-medium">{option.label}</p>
+                      <p className="text-xs text-warmgray mt-0.5">{option.hint}</p>
+                      {active && <span className="absolute top-3 right-3 text-rose text-base leading-none font-bold">✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+              {state.removal === null && (
+                <p className="text-xs text-rose mt-2">尚未選擇，請先選擇「卸甲」或「不卸甲」。</p>
+              )}
+
               <div className="mt-6 p-5 rounded-2xl bg-white/80 border border-[#DDD5C8] text-sm shadow-md">
                 <p className="text-charcoal">已選服務：{selectedServicesLabel}</p>
+                <p className="text-charcoal mt-1">卸甲：{state.removal === null ? '尚未選擇' : state.removal === 'yes' ? '卸甲' : '不卸甲'}</p>
                 <p className="text-warmgray mt-1">
                   預估總時間：{Object.keys(stylistDurations).length > 0 ? `${totalDuration} 分鐘` : '依美甲師而定'}
                 </p>
@@ -528,6 +604,10 @@ function BookingContent() {
 
               <button
                 onClick={() => {
+                  if (state.removal === null) {
+                    toast.error('請選擇「卸甲」或「不卸甲」')
+                    return
+                  }
                   if (selectedServices.length === 0) {
                     toast.error('請先選擇至少一項服務')
                     return
@@ -710,6 +790,7 @@ function BookingContent() {
                 <p>分店：{state.branch?.name}</p>
                 <p>部位：{state.category === 'hand' ? '手部' : '足部'}</p>
                 <p>服務：{selectedServicesLabel}</p>
+                <p>卸甲：{state.removal === 'yes' ? '卸甲' : '不卸甲'}</p>
                 <p>美甲師：{state.noPreference ? '不指定' : state.stylist?.name}</p>
                 <p>日期：{state.date ? formatDisplayDate(formatDate(state.date)) : '-'}</p>
                 <p>
@@ -738,6 +819,7 @@ function BookingContent() {
                 <p>分店：{state.branch?.name}</p>
                 <p>部位：{state.category === 'hand' ? '手部' : '足部'}</p>
                 <p>服務：{selectedServicesLabel}</p>
+                <p>卸甲：{state.removal === 'yes' ? '卸甲' : '不卸甲'}</p>
                 <p>美甲師：{state.assignedStylistName || (state.noPreference ? '不指定' : state.stylist?.name || '-')}</p>
                 <p>日期：{state.date ? format(state.date, 'yyyy-MM-dd') : '-'}</p>
                 <p>
