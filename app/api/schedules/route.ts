@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hasSupabaseConfig, supabase, createAdminClient } from '@/lib/supabase'
+import { isAdminRequest } from '@/lib/adminAuth'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -61,6 +62,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // This route writes branch hours and per-stylist day overrides (including
+  // leave) for ANY branch, and middleware does not cover /api/schedules — so
+  // the guard has to live here. Only Kenny's /admin panel calls it; a store
+  // manager schedules leave through /api/checkout/leave, which is scoped to
+  // their own branch.
+  if (!(await isAdminRequest(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const admin = createAdminClient()
   if (!hasSupabaseConfig || !admin) {
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })
@@ -198,6 +208,9 @@ export async function POST(request: NextRequest) {
         end_time: end_time || null,
         is_off: Boolean(is_off),
         reason: reason?.trim() || null,
+        // Only the owner reaches this route, so anything written here outranks
+        // a manager's entry and cannot be removed from the 排休 screen.
+        created_by_role: 'owner',
       })
       .select()
       .single()
@@ -210,6 +223,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  if (!(await isAdminRequest(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const admin = createAdminClient()
   if (!hasSupabaseConfig || !admin) {
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })

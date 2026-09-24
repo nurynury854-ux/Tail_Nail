@@ -14,6 +14,8 @@ const ACTION_LABELS: Record<string, string> = {
   actual_amount_adjust: '實收金額調整',
   cancel_appointment: '取消預約',
   cleaning_override: '值日生調整',
+  leave_add: '新增排休',
+  leave_remove: '取消排休',
 }
 
 export default function LogsPage() {

@@ -20,6 +20,7 @@ function NavBar() {
     { href: '/checkout/reports', label: '報表', roles: ['owner', 'manager'] },
     { href: '/checkout/reconcile', label: '對帳', roles: ['manager'] },
     { href: '/checkout/cleaning', label: '值日生', roles: ['owner', 'manager', 'stylist'] },
+    { href: '/checkout/leave', label: '排休', roles: ['owner', 'manager'] },
     { href: '/checkout/messages', label: '留言板', roles: ['owner', 'manager'] },
     // Staff land on a read-only view of their own bonuses; the owner gets the editor.
     { href: '/checkout/bonuses', label: '獎金', roles: ['owner', 'manager', 'stylist'] },

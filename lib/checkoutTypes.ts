@@ -16,6 +16,28 @@ export type EditLogAction =
   | 'actual_amount_adjust'
   | 'cancel_appointment'
   | 'cleaning_override'
+  | 'leave_add'
+  | 'leave_remove'
+
+/**
+ * One full-day leave entry for a technician, as the manager's 排休 screen sees
+ * it. Persisted as a stylist_day_overrides row with is_off = true — the same
+ * row the calendar, 值日生 rotation and assignment pool already read.
+ */
+export interface StylistLeave {
+  id: string
+  stylist_id: string
+  stylist_name: string
+  branch_id: string
+  date: string
+  reason?: string | null
+  created_by_role?: CheckoutRole | null
+  created_by_name?: string | null
+  /** True when the viewer may not remove it (a manager looking at Kenny's entry). */
+  locked: boolean
+  /** Confirmed appointments the technician still has that day. */
+  booking_count: number
+}
 
 export interface Account {
   id: string
