@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     { service_id: 'svc-main-french', hand: 90, foot: 80 },
     { service_id: 'svc-main-mirror', hand: 90, foot: 90 },
     { service_id: 'svc-main-store-style', hand: 90, foot: 90 },
-    { service_id: 'svc-main-custom-style', hand: 120, foot: 120 },
+    { service_id: 'svc-main-custom-style', hand: 150, foot: 150 },
     { service_id: 'svc-addon-remove', hand: 30, foot: 30 },
     { service_id: 'svc-addon-care', hand: 40, foot: 60 },
     { service_id: 'svc-addon-shape', hand: 20, foot: 30 },

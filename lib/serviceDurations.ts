@@ -5,7 +5,7 @@ export const UNIVERSAL_DURATIONS: Record<string, { hand: number; foot: number }>
   'svc-main-french':       { hand: 90,  foot: 90  },
   'svc-main-mirror':       { hand: 90,  foot: 90  },
   'svc-main-store-style':  { hand: 120, foot: 90  },
-  'svc-main-custom-style': { hand: 120, foot: 120 },
+  'svc-main-custom-style': { hand: 150, foot: 150 },
   'svc-addon-remove':      { hand: 35,  foot: 35  },
   'svc-addon-care':        { hand: 40,  foot: 60  },
   'svc-addon-shape':       { hand: 20,  foot: 30  },

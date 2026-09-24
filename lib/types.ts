@@ -203,7 +203,7 @@ export const SERVICES: Service[] = [
   { id: 'svc-main-french', name: '法式', service_type: 'main', is_addon: false, is_active: true, duration_minutes: 90, price: 0 },
   { id: 'svc-main-mirror', name: '鏡面', service_type: 'main', is_addon: false, is_active: true, duration_minutes: 90, price: 0 },
   { id: 'svc-main-store-style', name: '店內款式', service_type: 'main', is_addon: false, is_active: true, duration_minutes: 120, price: 0 },
-  { id: 'svc-main-custom-style', name: '自帶圖款式', service_type: 'main', is_addon: false, is_active: true, duration_minutes: 120, price: 0 },
+  { id: 'svc-main-custom-style', name: '自帶圖款式', service_type: 'main', is_addon: false, is_active: true, duration_minutes: 150, price: 0 },
   { id: 'svc-addon-remove', name: '卸甲', service_type: 'addon', is_addon: true, is_active: true, duration_minutes: 35, price: 0 },
   { id: 'svc-addon-care', name: '保養＊', service_type: 'addon', is_addon: true, is_active: true, duration_minutes: 40, price: 0 },
   { id: 'svc-addon-shape', name: '純修甲＊', service_type: 'addon', is_addon: true, is_active: true, duration_minutes: 20, price: 0 },
