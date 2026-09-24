@@ -6,7 +6,7 @@ import { Lock, Trash2 } from 'lucide-react'
 import type { Branch, Stylist } from '@/lib/types'
 import type { StylistLeave } from '@/lib/checkoutTypes'
 import { useCheckoutSession } from '@/components/checkout/session'
-import { taipeiBusinessDate } from '@/lib/dateTW'
+import { taipeiToday } from '@/lib/dateTW'
 
 export default function LeavePage() {
   const { session } = useCheckoutSession()
@@ -20,7 +20,7 @@ export default function LeavePage() {
   const [saving, setSaving] = useState(false)
 
   const [stylistId, setStylistId] = useState('')
-  const [date, setDate] = useState(taipeiBusinessDate())
+  const [date, setDate] = useState(taipeiToday())
   const [reason, setReason] = useState('')
 
   // Kenny picks a store; a manager never sees a branch control at all — theirs

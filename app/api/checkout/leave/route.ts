@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase'
 import { canViewBranch, getCheckoutSession } from '@/lib/checkoutAuth'
 import { logOrderEvent } from '@/lib/orderEditLog'
 import { emitBookingEvent } from '@/lib/bookingEvents'
-import { taipeiBusinessDate } from '@/lib/dateTW'
+import { taipeiToday } from '@/lib/dateTW'
 import type { CheckoutSession, StylistLeave } from '@/lib/checkoutTypes'
 
 export const runtime = 'nodejs'
@@ -88,7 +88,9 @@ export async function GET(request: NextRequest) {
   if (!branchId) return NextResponse.json({ error: '缺少分店' }, { status: 400 })
   if (!canViewBranch(session, branchId)) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
-  const today = taipeiBusinessDate()
+  // Calendar today in Taipei, not the 04:00-cutoff business day: this is only
+  // the default start of the listed range, and leave is picked by date.
+  const today = taipeiToday()
   const from = isDateString(url.searchParams.get('from')) ? url.searchParams.get('from')! : today
   const to = isDateString(url.searchParams.get('to')) ? url.searchParams.get('to')! : addDays(from, 59)
 
