@@ -6,6 +6,7 @@
 // Financial fields are never touched.
 
 import type { CheckoutRole } from './checkoutTypes'
+import { businessDayEndAt } from './dateTW'
 
 // Taiwan is UTC+8, no DST — anchor all wall-clock times to that offset so the
 // "end of business day" / appointment-end instants are correct regardless of
@@ -23,8 +24,9 @@ export function computeServiceEndAt(opts: {
     const t = opts.bookingEndTime.length === 5 ? `${opts.bookingEndTime}:00` : opts.bookingEndTime
     return `${opts.bookingDate}T${t}${TW_OFFSET}`
   }
-  // Manual walk-in: end of that business day (user-chosen rule).
-  return `${opts.businessDate}T23:59:59${TW_OFFSET}`
+  // Manual walk-in: end of that business day — 04:00 the next calendar day,
+  // not midnight, or a 03:00 order would be stamped as already over.
+  return businessDayEndAt(opts.businessDate)
 }
 
 export interface CustomerVisibility {
@@ -47,16 +49,16 @@ function addMonthsToDateString(dateStr: string, months: number): string {
  * Decide whether a given role may currently see the customer's name / phone.
  *  - owner:   always (permanent).
  *  - manager: name + phone until 1 full month after the appointment DATE.
- *  - stylist: phone NEVER; name until midnight ending the service DATE, so the
- *             name is available all shift for keying in orders, then destroyed
- *             at 00:00 that night.
+ *  - stylist: phone NEVER; name until the service day's shift ends (04:00 the
+ *             next calendar day), so the name is available for the whole
+ *             shift for keying in orders, then destroyed when it closes.
  *
  * Manager and stylist are deliberately independent branches, each computing
  * its own cutoff from the appointment date — never share a timer or a
  * deletion function. (Previously the manager branch derived its cutoff from
  * serviceEndAt + 24h, which is *also* about one day — nearly identical to the
- * stylist's same-day-midnight rule, so managers lost customer PII after
- * ~1 day instead of the required 1 month.)
+ * stylist's same-day rule, so managers lost customer PII after ~1 day
+ * instead of the required 1 month.)
  */
 export function customerVisibility(
   role: CheckoutRole,
@@ -74,15 +76,15 @@ export function customerVisibility(
     return { name: ok, phone: ok }
   }
 
-  // Stylist: phone never; name until midnight at the end of the service date.
-  const cutoff = dateStr ? new Date(`${dateStr}T23:59:59${TW_OFFSET}`).getTime() : null
+  // Stylist: phone never; name until the end of the service day's shift.
+  const cutoff = dateStr ? new Date(businessDayEndAt(dateStr)).getTime() : null
   return { name: cutoff === null ? true : now.getTime() <= cutoff, phone: false }
 }
 
 /** Service-end fallback for a checkout order (older rows may lack the snapshot). */
 export function orderServiceEnd(order: { service_end_at?: string | null; business_date?: string | null }): string | null {
   if (order.service_end_at) return order.service_end_at
-  if (order.business_date) return `${order.business_date}T23:59:59${TW_OFFSET}`
+  if (order.business_date) return businessDayEndAt(order.business_date)
   return null
 }
 

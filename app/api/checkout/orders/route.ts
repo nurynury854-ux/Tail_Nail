@@ -7,7 +7,7 @@ import { buildOrderItems, fetchPriceCatalog, PricedItemInput } from '@/lib/check
 import { logOrderEvent } from '@/lib/orderEditLog'
 import { computeServiceEndAt, redactOrder } from '@/lib/checkoutPrivacy'
 import { monthRange } from '@/lib/monthRange'
-import { taipeiToday } from '@/lib/dateTW'
+import { taipeiBusinessDate } from '@/lib/dateTW'
 import { DEFAULT_INCOME_RATE, PaymentMethod } from '@/lib/checkoutTypes'
 
 export const runtime = 'nodejs'
@@ -85,7 +85,9 @@ export async function POST(request: NextRequest) {
   const source = body.source === 'calendar' ? 'calendar' : 'manual'
   const bookingId = body.booking_id ? String(body.booking_id) : null
   const paymentMethod = (body.payment_method as PaymentMethod) || null
-  const businessDate = typeof body.business_date === 'string' ? body.business_date : taipeiToday()
+  // 04:00 cutoff: an order rung up at 03:00 belongs to the previous day's
+  // shift. created_at still records the true clock time.
+  const businessDate = typeof body.business_date === 'string' ? body.business_date : taipeiBusinessDate()
   const reviewDiscount = Boolean(body.review_discount)
   const birthdayDiscount = Boolean(body.birthday_discount)
 

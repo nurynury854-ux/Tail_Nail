@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import type { Branch, Stylist } from '@/lib/types'
 import type { CleaningDuty } from '@/lib/checkoutTypes'
 import { useCheckoutSession } from '@/components/checkout/session'
-import { taipeiToday } from '@/lib/dateTW'
+import { taipeiBusinessDate } from '@/lib/dateTW'
 
 export default function CleaningPage() {
   const { session } = useCheckoutSession()
@@ -13,7 +13,7 @@ export default function CleaningPage() {
   const [branches, setBranches] = useState<Branch[]>([])
   const [stylists, setStylists] = useState<Stylist[]>([])
   const [duties, setDuties] = useState<CleaningDuty[]>([])
-  const [date, setDate] = useState(taipeiToday())
+  const [date, setDate] = useState(taipeiBusinessDate())
   const [manualId, setManualId] = useState('')
 
   const canAssign = session?.role === 'owner' || session?.role === 'manager'

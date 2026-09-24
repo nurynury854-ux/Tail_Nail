@@ -8,11 +8,11 @@ import type { CheckoutOrder } from '@/lib/checkoutTypes'
 import type { Branch, Stylist } from '@/lib/types'
 import OrderStatusBadge from '@/components/checkout/OrderStatusBadge'
 import { formatNTD, useCheckoutSession } from '@/components/checkout/session'
-import { taipeiToday } from '@/lib/dateTW'
+import { taipeiBusinessDate } from '@/lib/dateTW'
 
 export default function OrdersPage() {
   const { session } = useCheckoutSession()
-  const [date, setDate] = useState(taipeiToday())
+  const [date, setDate] = useState(taipeiBusinessDate())
   const [orders, setOrders] = useState<CheckoutOrder[]>([])
   const [loading, setLoading] = useState(false)
   const [branches, setBranches] = useState<Branch[]>([])

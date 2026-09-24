@@ -7,7 +7,7 @@ import { CalendarDays, ClipboardList, Plus } from 'lucide-react'
 import type { CheckoutOrder } from '@/lib/checkoutTypes'
 import type { Branch, Stylist } from '@/lib/types'
 import { formatNTD, ROLE_LABELS, useCheckoutSession } from '@/components/checkout/session'
-import { taipeiMonth, taipeiToday } from '@/lib/dateTW'
+import { taipeiBusinessDate, taipeiBusinessMonth } from '@/lib/dateTW'
 
 // Revenue/業績 only count orders the store manager has confirmed. Unconfirmed
 // orders are still surfaced (count + amount) but flagged as not yet counted.
@@ -20,6 +20,11 @@ function summarize(orders: CheckoutOrder[]) {
     count: orders.length,
     pending: unconfirmed.length,
     pendingRevenue: unconfirmed.reduce((s, o) => s + (o.revenue || 0), 0),
+    cash: orders.filter((o) => o.payment_method === 'cash').length,
+    transfer: orders.filter((o) => o.payment_method === 'transfer').length,
+    // Drafts can still be missing a method (it's only enforced on submit), so
+    // surface them rather than letting 現金 + 匯款 silently undershoot 訂單數.
+    unsetPayment: orders.filter((o) => o.payment_method !== 'cash' && o.payment_method !== 'transfer').length,
   }
 }
 
@@ -32,8 +37,8 @@ export default function CheckoutHome() {
   const [branches, setBranches] = useState<Branch[]>([])
   const [selectedBranchId, setSelectedBranchId] = useState('')
   const [mode, setMode] = useState<'day' | 'month'>('day')
-  const [day, setDay] = useState(taipeiToday())
-  const [month, setMonth] = useState(taipeiMonth())
+  const [day, setDay] = useState(taipeiBusinessDate())
+  const [month, setMonth] = useState(taipeiBusinessMonth())
   const [dutyToday, setDutyToday] = useState<string | null>(null)
 
   const rangeQuery = mode === 'day' ? `date=${day}` : `month=${month}`
@@ -55,7 +60,7 @@ export default function CheckoutHome() {
   // manager never has to assign or announce it manually.
   useEffect(() => {
     if (!session || session.role === 'owner') return
-    fetch(`/api/checkout/cleaning?from=${taipeiToday()}&to=${taipeiToday()}`, { cache: 'no-store' })
+    fetch(`/api/checkout/cleaning?from=${taipeiBusinessDate()}&to=${taipeiBusinessDate()}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : []))
       .then((rows) => setDutyToday(rows[0]?.stylist_name_snapshot ?? null))
       .catch(() => setDutyToday(null))
@@ -101,7 +106,7 @@ export default function CheckoutHome() {
       {/* Today's cleaning duty — auto-assigned, shown to everyone at the branch. */}
       {session.role !== 'owner' && dutyToday && (
         <div className="rounded-xl border border-rose/30 bg-rose/5 px-4 py-3 text-sm">
-          <span className="text-warmgray">今日值日生（{taipeiToday()}）：</span>
+          <span className="text-warmgray">今日值日生（{taipeiBusinessDate()}）：</span>
           <span className="font-semibold text-rose-dark ml-1">{dutyToday}</span>
         </div>
       )}
@@ -126,11 +131,14 @@ export default function CheckoutHome() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label={`${scopeWord}${rangeWord}營業額`} value={formatNTD(stats.revenue)} />
-        <StatCard label={`${rangeWord}業績${session.role === 'stylist' ? '' : '總額'}`} value={formatNTD(stats.income)} />
-        <StatCard label="訂單數" value={String(stats.count)} />
-        <StatCard label="待確認" value={String(stats.pending)} />
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard label={`${scopeWord}${rangeWord}營業額`} value={formatNTD(stats.revenue)} />
+          <StatCard label={`${rangeWord}業績${session.role === 'stylist' ? '' : '總額'}`} value={formatNTD(stats.income)} />
+          <StatCard label="訂單數" value={String(stats.count)} />
+          <StatCard label="待確認" value={String(stats.pending)} />
+        </div>
+        <PaymentRow stats={stats} />
       </div>
 
       <p className="text-xs text-warmgray -mt-2">
@@ -159,12 +167,15 @@ export default function CheckoutHome() {
             </select>
           </div>
           {selectedBranchId ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard label={`${rangeWord}營業額`} value={formatNTD(branchStats.revenue)} />
-              <StatCard label={`${rangeWord}業績總額`} value={formatNTD(branchStats.income)} />
-              <StatCard label="訂單數" value={String(branchStats.count)} />
-              <StatCard label="待確認" value={String(branchStats.pending)} />
-            </div>
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatCard label={`${rangeWord}營業額`} value={formatNTD(branchStats.revenue)} />
+                <StatCard label={`${rangeWord}業績總額`} value={formatNTD(branchStats.income)} />
+                <StatCard label="訂單數" value={String(branchStats.count)} />
+                <StatCard label="待確認" value={String(branchStats.pending)} />
+              </div>
+              <PaymentRow stats={branchStats} />
+            </>
           ) : (
             <p className="text-sm text-warmgray">選擇分店以查看其{rangeWord}業績。</p>
           )}
@@ -188,12 +199,15 @@ export default function CheckoutHome() {
             </select>
           </div>
           {selectedStylistId ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard label={`${rangeWord}營業額`} value={formatNTD(individual.revenue)} />
-              <StatCard label={`${rangeWord}業績`} value={formatNTD(individual.income)} />
-              <StatCard label="訂單數" value={String(individual.count)} />
-              <StatCard label="待確認" value={String(individual.pending)} />
-            </div>
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatCard label={`${rangeWord}營業額`} value={formatNTD(individual.revenue)} />
+                <StatCard label={`${rangeWord}業績`} value={formatNTD(individual.income)} />
+                <StatCard label="訂單數" value={String(individual.count)} />
+                <StatCard label="待確認" value={String(individual.pending)} />
+              </div>
+              <PaymentRow stats={individual} />
+            </>
           ) : (
             <p className="text-sm text-warmgray">選擇美甲師以查看其{rangeWord}業績。</p>
           )}
@@ -210,6 +224,18 @@ export default function CheckoutHome() {
         )}
         <ActionCard href="/checkout/orders" icon={<ClipboardList size={18} />} title="今日訂單" desc="查看與管理訂單" />
       </div>
+    </div>
+  )
+}
+
+// Order counts split by payment method. Same 4-column track as the stat grid
+// above so the cards line up as a continuation of it rather than a new block.
+function PaymentRow({ stats }: { stats: ReturnType<typeof summarize> }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <StatCard label="現金訂單" value={String(stats.cash)} />
+      <StatCard label="匯款訂單" value={String(stats.transfer)} />
+      {stats.unsetPayment > 0 && <StatCard label="未填付款方式" value={String(stats.unsetPayment)} />}
     </div>
   )
 }
