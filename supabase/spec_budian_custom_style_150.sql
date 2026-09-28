@@ -3,6 +3,9 @@
 --   1) 美甲師「點點」renamed to「不點」
 --   2) 自帶圖款式 estimated duration 120 → 150 minutes (2.5 hours)
 --
+-- SUPERSEDED by spec_custom_style_120_except_budian.sql, which moves every
+-- stylist but 不點 to 120 minutes. Run that one after this.
+--
 -- Run in Supabase SQL Editor AFTER schema.sql / seed.sql. Safe to re-run.
 --
 -- The app also carries these values in code:

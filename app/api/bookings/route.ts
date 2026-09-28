@@ -10,7 +10,7 @@ import {
 } from '@/lib/lineNotify'
 import { BRANCHES, SERVICES, Booking, SelectedServiceItem, Service, Stylist } from '@/lib/types'
 import { getMinRequiredGrade, stylistMeetsGrade } from '@/lib/serviceGrades'
-import { UNIVERSAL_DURATIONS } from '@/lib/serviceDurations'
+import { durationForStylist, StylistRef } from '@/lib/serviceDurations'
 import {
   calculateEndTime,
   defaultWorkingHoursByDay,
@@ -101,15 +101,15 @@ function normalizeSelectedServices(raw: unknown): SelectedServiceItem[] {
 }
 
 function enrichServiceDurationsForStylist(args: {
-  stylistId: string
+  stylist: StylistRef
   category: 'hand' | 'foot'
   services: SelectedServiceItem[]
 }): { total: number; items: SelectedServiceItem[] } {
-  const { category, services } = args
+  const { stylist, category, services } = args
 
   const items = services.map((item) => ({
     ...item,
-    duration_minutes: UNIVERSAL_DURATIONS[item.service_id]?.[category] ?? item.duration_minutes ?? 120,
+    duration_minutes: durationForStylist(item.service_id, category, stylist) ?? item.duration_minutes ?? 120,
     is_pending: false,
   }))
 
@@ -462,7 +462,7 @@ export async function POST(request: NextRequest) {
 
     for (const stylist of stylists) {
       const durationResult = enrichServiceDurationsForStylist({
-        stylistId: stylist.id,
+        stylist,
         category: bookingCategory,
         services: selectedServices,
       })
