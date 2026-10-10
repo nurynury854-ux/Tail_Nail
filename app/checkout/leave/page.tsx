@@ -7,6 +7,7 @@ import type { Branch, Stylist } from '@/lib/types'
 import type { StylistLeave } from '@/lib/checkoutTypes'
 import { useCheckoutSession } from '@/components/checkout/session'
 import { taipeiToday } from '@/lib/dateTW'
+import { useBookingEvents } from '@/lib/useBookingEvents'
 
 export default function LeavePage() {
   const { session } = useCheckoutSession()
@@ -71,6 +72,11 @@ export default function LeavePage() {
   useEffect(() => {
     load()
   }, [load])
+
+  // Leave can also be set/removed from elsewhere (另一位店長, or Kenny via
+  // /admin), so this list needs the same live-refresh the calendar has —
+  // without it, a concurrent change here goes stale with no self-correction.
+  const liveStatus = useBookingEvents(branchId || undefined, load)
 
   const add = async () => {
     if (!stylistId) {
@@ -187,7 +193,12 @@ export default function LeavePage() {
       </div>
 
       <div className="rounded-2xl border border-blush bg-white p-5">
-        <h2 className="font-playfair text-lg text-charcoal mb-3">未來排休</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-playfair text-lg text-charcoal">未來排休</h2>
+          <span className="text-xs text-warmgray">
+            {liveStatus === 'live' ? '● 即時更新中' : liveStatus === 'polling' ? '○ 自動更新（每分鐘）' : ''}
+          </span>
+        </div>
         {loading ? (
           <p className="text-warmgray text-sm">載入中…</p>
         ) : grouped.length === 0 ? (

@@ -48,18 +48,26 @@ function canRemove(session: CheckoutSession, createdByRole: string | null | unde
   return createdByRole === 'manager'
 }
 
-/** Confirmed appointments per `stylistId:date`, for the "this day is booked" warning. */
+/**
+ * Confirmed appointments per `stylistId:date`, for the "this day is booked"
+ * warning. Takes the roster's stylist ids rather than a branch_id: a
+ * booking's branch_id is a permanent creation-time snapshot, not the
+ * stylist's current branch, so a transferred stylist's pre-transfer
+ * bookings would be invisible to a `branch_id = this branch` filter even
+ * though they're hers and very much still confirmed (the same class of bug
+ * fixed in app/api/checkout/bookings/route.ts's individual-view scoping).
+ */
 async function bookingCounts(
   admin: ReturnType<typeof createAdminClient>,
-  branchId: string,
+  stylistIds: string[],
   from: string,
   to: string,
 ): Promise<Record<string, number>> {
-  if (!admin) return {}
+  if (!admin || stylistIds.length === 0) return {}
   const { data } = await admin
     .from('bookings')
     .select('stylist_id, date')
-    .eq('branch_id', branchId)
+    .in('stylist_id', stylistIds)
     .eq('status', 'confirmed')
     .gte('date', from)
     .lte('date', to)
@@ -117,7 +125,7 @@ export async function GET(request: NextRequest) {
     .order('date', { ascending: true })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const counts = await bookingCounts(admin, branchId, from, to)
+  const counts = await bookingCounts(admin, Array.from(nameById.keys()), from, to)
 
   const leaves: StylistLeave[] = (rows || []).map((row) => ({
     id: String(row.id),
@@ -208,11 +216,14 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Leave does not cancel anything. If the day is already booked the manager
-  // has to call those customers, so hand back the count and say so.
+  // has to call those customers, so hand back the count and say so. Scoped by
+  // stylist_id alone — `stylist` above already confirmed she's on this
+  // branch's current roster, and a booking's own branch_id is a permanent
+  // creation-time snapshot that a transferred stylist's older confirmed
+  // bookings may no longer carry.
   const { count } = await admin
     .from('bookings')
     .select('id', { count: 'exact', head: true })
-    .eq('branch_id', branchId)
     .eq('stylist_id', stylistId)
     .eq('date', date)
     .eq('status', 'confirmed')

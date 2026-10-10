@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hasSupabaseConfig, supabase, createAdminClient } from '@/lib/supabase'
 import { isAdminRequest } from '@/lib/adminAuth'
+import { emitBookingEvent } from '@/lib/bookingEvents'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+// Working hours and day overrides change what every open calendar should be
+// showing, so they ride the same realtime channel as a booking change (see
+// lib/bookingEvents.ts). Carries no booking id — subscribers just re-fetch.
+async function emitScheduleChange(admin: SupabaseClient, branchId: string | null) {
+  await emitBookingEvent(admin, { bookingId: null, branchId, action: 'updated' })
+}
+
+async function branchIdForStylist(admin: SupabaseClient, stylistId: string): Promise<string | null> {
+  const { data } = await admin.from('stylists').select('branch_id').eq('id', stylistId).maybeSingle()
+  return data?.branch_id ?? null
+}
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -122,6 +136,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    await emitScheduleChange(admin, branch_id)
     return NextResponse.json(data)
   }
 
@@ -151,6 +166,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    await emitScheduleChange(admin, await branchIdForStylist(admin, stylist_id))
     return NextResponse.json(data)
   }
 
@@ -182,6 +198,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    await emitScheduleChange(admin, branch_id)
     return NextResponse.json(data)
   }
 
@@ -216,6 +233,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    await emitScheduleChange(admin, await branchIdForStylist(admin, stylist_id))
     return NextResponse.json(data)
   }
 
@@ -241,14 +259,26 @@ export async function DELETE(request: NextRequest) {
   }
 
   if (type === 'branch_override') {
-    const { error } = await admin.from('branch_day_overrides').delete().eq('id', id)
+    const { data: deleted, error } = await admin
+      .from('branch_day_overrides')
+      .delete()
+      .eq('id', id)
+      .select('branch_id')
+      .maybeSingle()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    await emitScheduleChange(admin, deleted?.branch_id ?? null)
     return NextResponse.json({ success: true })
   }
 
   if (type === 'stylist_override') {
-    const { error } = await admin.from('stylist_day_overrides').delete().eq('id', id)
+    const { data: deleted, error } = await admin
+      .from('stylist_day_overrides')
+      .delete()
+      .eq('id', id)
+      .select('stylist_id')
+      .maybeSingle()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    await emitScheduleChange(admin, deleted?.stylist_id ? await branchIdForStylist(admin, deleted.stylist_id) : null)
     return NextResponse.json({ success: true })
   }
 

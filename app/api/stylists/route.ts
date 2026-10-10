@@ -49,12 +49,14 @@ export async function POST(request: NextRequest) {
   // confirmation, looks completely normal. Block the accidental case; a
   // genuine same-name coincidence can still opt in with `force`.
   if (!force) {
-    const { data: existing } = await admin
-      .from('stylists')
-      .select('id, branch_id')
-      .ilike('name', name.trim())
-      .eq('is_active', true)
-    if (existing && existing.length > 0) {
+    // Compare case-insensitively in JS rather than `.ilike()`: ILIKE treats a
+    // literal `%` or `_` in the name as a wildcard, which would both falsely
+    // flag an unrelated name as a duplicate and fail to match one that
+    // genuinely is, depending on where the wildcard-like character falls.
+    const trimmedName = name.trim().toLowerCase()
+    const { data: activeStylists } = await admin.from('stylists').select('id, name, branch_id').eq('is_active', true)
+    const existing = (activeStylists || []).filter((s) => s.name?.trim().toLowerCase() === trimmedName)
+    if (existing.length > 0) {
       return NextResponse.json(
         {
           error: '已有同名美甲師存在，如果是分店異動請改用「帳號管理」的分店轉移功能，不要新增——否則她的行事曆將對不上她本人帳號看到的預約。若確定是不同的人，請重新提交並加上 force。',
