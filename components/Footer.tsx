@@ -42,11 +42,22 @@ export default function Footer() {
           <div>
             <h3 className="font-playfair text-white text-lg mb-4">分店資訊</h3>
             <div className="space-y-3 text-sm">
-              {['內壢店', '中壢店', '中原店'].map((name) => (
-                <div key={name} className="group">
-                  <p className="font-semibold text-white/90 group-hover:text-rose-light transition-colors text-xs tracking-wide">
-                    {name}
-                  </p>
+              {[
+                { name: '內壢店', href: 'https://www.ttailnail.com/neili-nail/' },
+                { name: '中壢店', href: 'https://www.ttailnail.com/zhongli-nail/' },
+                { name: '中原店', href: 'https://www.ttailnail.com/zhongyuan-nail/' },
+                { name: '平鎮店', href: 'https://www.ttailnail.com/pingzhen-nail/' },
+                { name: '八德興仁店', href: 'http://ttailnail.com/bade-nail/' },
+              ].map((branch) => (
+                <div key={branch.name} className="group">
+                  <a
+                    href={branch.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-white/90 group-hover:text-rose-light transition-colors text-xs tracking-wide"
+                  >
+                    {branch.name}
+                  </a>
                 </div>
               ))}
             </div>
