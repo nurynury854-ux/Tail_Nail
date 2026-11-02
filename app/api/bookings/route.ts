@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
+import { hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { getBranchLineConfig } from '@/lib/lineConfig'
 import { emitBookingEvent } from '@/lib/bookingEvents'
 import {
@@ -8,28 +8,23 @@ import {
   sendCustomerPush,
   sendLinePushMessage,
 } from '@/lib/lineNotify'
-import { BRANCHES, SERVICES, Booking, SelectedServiceItem, Service, Stylist } from '@/lib/types'
-import { getMinRequiredGrade, stylistMeetsGrade } from '@/lib/serviceGrades'
-import { durationForStylist, StylistRef } from '@/lib/serviceDurations'
+import { BRANCHES, SERVICES, Booking, SelectedServiceItem, Service } from '@/lib/types'
 import {
   calculateEndTime,
   defaultWorkingHoursByDay,
   formatSelectedServicesLine,
   generateConfirmationMessage,
   isValidTaiwanMobile,
-  minutesToTime,
   timeToMinutes,
 } from '@/lib/bookingUtils'
-import {
-  buildStylistOverrideMap,
-  chooseWeightedStylist,
-  effectiveBranchClose,
-  getAvailableStylistsForSlot,
-  resolveBranchWindow,
-  resolveStylistWindow,
-} from '@/lib/scheduleUtils'
+import { chooseWeightedStylist } from '@/lib/scheduleUtils'
+import { evaluateStylistsForSlot } from '@/lib/bookingAvailability'
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
 import { isAdminRequest } from '@/lib/adminAuth'
+
+// Service-role client: the anon key ships in the browser bundle, so tables are
+// closed to it by RLS and every server read/write goes through this instead.
+const db = createAdminClient()
 
 type BookingRequestBody = {
   branch_id?: string
@@ -100,23 +95,6 @@ function normalizeSelectedServices(raw: unknown): SelectedServiceItem[] {
     .filter((item): item is SelectedServiceItem => Boolean(item))
 }
 
-function enrichServiceDurationsForStylist(args: {
-  stylist: StylistRef
-  category: 'hand' | 'foot'
-  services: SelectedServiceItem[]
-}): { total: number; items: SelectedServiceItem[] } {
-  const { stylist, category, services } = args
-
-  const items = services.map((item) => ({
-    ...item,
-    duration_minutes: durationForStylist(item.service_id, category, stylist) ?? item.duration_minutes ?? 120,
-    is_pending: false,
-  }))
-
-  const total = items.reduce((sum, item) => sum + item.duration_minutes, 0)
-  return { total, items }
-}
-
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
@@ -129,7 +107,7 @@ export async function GET(request: NextRequest) {
   const date = searchParams.get('date')
   const status = searchParams.get('status')
 
-  if (!hasSupabaseConfig || !supabase) {
+  if (!hasSupabaseConfig || !db) {
     return NextResponse.json([])
   }
 
@@ -144,7 +122,7 @@ export async function GET(request: NextRequest) {
     // `id` is the final tiebreaker to give a deterministic total order across pages.
     const PAGE_SIZE = 1000
     const buildQuery = () => {
-      let query = supabase!
+      let query = db!
         .from('bookings')
         .select(`
           *,
@@ -298,7 +276,7 @@ export async function POST(request: NextRequest) {
     let finalTotalDuration = defaultTotalDuration
     let finalEndTime = fallbackEndTime
 
-    if (!hasSupabaseConfig || !supabase) {
+    if (!hasSupabaseConfig || !db) {
       const hours = defaultWorkingHoursByDay(dateObj.getDay())
       if (!hours) {
         return NextResponse.json({ error: '分店當日未營業' }, { status: 400 })
@@ -366,47 +344,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: configError }, { status: 500 })
     }
 
-    const [
-      { data: dbBranch, error: branchError },
-      { data: branchHours, error: branchHoursError },
-      { data: branchOverride, error: branchOverrideError },
-    ] = await Promise.all([
-      supabase.from('branches').select('id, name').eq('id', branch_id).maybeSingle(),
-      supabase.from('branch_working_hours').select('*').eq('branch_id', branch_id).maybeSingle(),
-      supabase.from('branch_day_overrides').select('*').eq('branch_id', branch_id).eq('date', date).maybeSingle(),
-    ])
-
-    if (branchError || branchHoursError || branchOverrideError) {
-      const firstError = branchError || branchHoursError || branchOverrideError
-      return NextResponse.json({ error: normalizeSupabaseError(firstError?.message || 'Failed to validate booking') }, { status: 500 })
+    const evaluation = await evaluateStylistsForSlot(db, {
+      branchId: branch_id,
+      date,
+      startTime: start_time,
+      category: bookingCategory,
+      services: selectedServices,
+      stylistId: preferredStylistId,
+    })
+    if (!evaluation.ok) {
+      const message = evaluation.status === 500 ? normalizeSupabaseError(evaluation.error) : evaluation.error
+      return NextResponse.json({ error: message }, { status: evaluation.status })
     }
+    const dbBranch = { name: evaluation.branchName }
 
-    if (!dbBranch) {
-      return NextResponse.json({ error: 'Invalid branch' }, { status: 400 })
-    }
-
-    let stylistQuery = supabase
-      .from('stylists')
-      .select('id, branch_id, name, bio, is_active, grade, selection_weight')
-      .eq('branch_id', branch_id)
-      .eq('is_active', true)
-
-    if (preferredStylistId) {
-      stylistQuery = stylistQuery.eq('id', preferredStylistId)
-    }
-
-    const { data: stylistRows, error: stylistError } = await stylistQuery
-    if (stylistError) {
-      return NextResponse.json({ error: normalizeSupabaseError(stylistError.message) }, { status: 500 })
-    }
-
-    const allStylists = (stylistRows || []) as Stylist[]
-    const selectedServiceIds = selectedServices.map((s) => s.service_id)
-    const requiredGrade = getMinRequiredGrade(selectedServiceIds, bookingCategory)
-    const stylists = allStylists.filter((s) => stylistMeetsGrade(s.grade, requiredGrade))
-
-    if (stylists.length === 0) {
-      const noneInDB = allStylists.length === 0
+    const graded = evaluation.checks.filter((c) => c.meetsGrade)
+    if (graded.length === 0) {
+      const noneInDB = evaluation.checks.length === 0
       return NextResponse.json(
         {
           error: preferredStylistId
@@ -416,125 +370,15 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       )
     }
+    const stylists = graded.map((c) => c.stylist)
 
-    const stylistIds = stylists.map((stylist) => stylist.id)
-
-    const [{ data: weeklyRows, error: weeklyError }, { data: stylistOverrides, error: stylistOverridesError }] = await Promise.all([
-      supabase.from('stylist_weekly_hours').select('*').in('stylist_id', stylistIds),
-      supabase.from('stylist_day_overrides').select('*').in('stylist_id', stylistIds).eq('date', date),
-    ])
-
-    if (weeklyError || stylistOverridesError) {
-      const firstError = weeklyError || stylistOverridesError
-      return NextResponse.json({ error: normalizeSupabaseError(firstError?.message || 'Failed to resolve stylist schedule') }, { status: 500 })
-    }
-
-    const weeklyMap: Record<string, Array<{ day_of_week: number; start_time?: string | null; end_time?: string | null; is_working: boolean }>> = {}
-    for (const row of weeklyRows || []) {
-      if (!weeklyMap[row.stylist_id]) weeklyMap[row.stylist_id] = []
-      weeklyMap[row.stylist_id].push(row)
-    }
-
-    const overrideMap = buildStylistOverrideMap(stylistOverrides || [])
-
-    const rawBranchWindow = resolveBranchWindow(dateObj, branchHours, branchOverride)
-    if (!rawBranchWindow) {
+    if (!evaluation.branchOpen) {
       return NextResponse.json({ error: '所選日期分店休息' }, { status: 400 })
-    }
-    const branchWindow = {
-      open: rawBranchWindow.open,
-      close: effectiveBranchClose(rawBranchWindow),
-    }
-
-    const dayOfWeek = dateObj.getDay()
-    const stylistWindows: Record<string, { open: number; close: number } | null> = {}
-    for (const stylist of stylists) {
-      const w = resolveStylistWindow(dayOfWeek, weeklyMap[stylist.id] || [], overrideMap[stylist.id])
-      if (!w) {
-        stylistWindows[stylist.id] = null
-      } else {
-        const effectiveClose = w.close >= rawBranchWindow.close
-          ? Math.max(w.close, branchWindow.close)
-          : w.close
-        stylistWindows[stylist.id] = { open: w.open, close: effectiveClose }
-      }
     }
 
     const availabilityByStylist: Record<string, { total: number; items: SelectedServiceItem[]; endTime: string }> = {}
-
-    for (const stylist of stylists) {
-      const durationResult = enrichServiceDurationsForStylist({
-        stylist,
-        category: bookingCategory,
-        services: selectedServices,
-      })
-
-      const endMin = startMin + durationResult.total
-      if (startMin < branchWindow.open || endMin > branchWindow.close) {
-        continue
-      }
-
-      const window = stylistWindows[stylist.id]
-      if (!window || startMin < window.open || endMin > window.close) {
-        continue
-      }
-
-      const endTime = minutesToTime(endMin)
-
-      // Foot services: one equipment per branch — block if any foot booking overlaps.
-      // Hand services: per-stylist check — different stylists can work simultaneously.
-      let conflictQuery = supabase
-        .from('bookings')
-        .select('id, stylist_id')
-        .eq('branch_id', branch_id)
-        .eq('date', date)
-        .eq('status', 'confirmed')
-        .lt('start_time', endTime)
-        .gt('end_time', start_time)
-
-      if (bookingCategory === 'foot') {
-        conflictQuery = conflictQuery.eq('category', 'foot')
-      } else {
-        conflictQuery = conflictQuery.eq('stylist_id', stylist.id)
-      }
-
-      const { data: conflicts, error: conflictError } = await conflictQuery
-
-      if (conflictError) {
-        return NextResponse.json({ error: normalizeSupabaseError(conflictError.message) }, { status: 500 })
-      }
-
-      if ((conflicts || []).length > 0) {
-        continue
-      }
-
-      // For foot bookings the equipment check above only looks at other foot bookings.
-      // Also verify the stylist isn't already occupied by a hand booking in this window.
-      if (bookingCategory === 'foot') {
-        const { data: stylistConflicts, error: stylistConflictError } = await supabase
-          .from('bookings')
-          .select('id')
-          .eq('branch_id', branch_id)
-          .eq('date', date)
-          .eq('status', 'confirmed')
-          .eq('stylist_id', stylist.id)
-          .lt('start_time', endTime)
-          .gt('end_time', start_time)
-
-        if (stylistConflictError) {
-          return NextResponse.json({ error: normalizeSupabaseError(stylistConflictError.message) }, { status: 500 })
-        }
-
-        if ((stylistConflicts || []).length > 0) {
-          continue
-        }
-      }
-
-      availabilityByStylist[stylist.id] = {
-        total: durationResult.total,
-        items: durationResult.items,
-        endTime,
-      }
+    for (const check of evaluation.checks) {
+      if (check.ok) availabilityByStylist[check.stylist.id] = { total: check.total, items: check.items, endTime: check.endTime }
     }
 
     const availableStylistIds = Object.keys(availabilityByStylist)
@@ -543,15 +387,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (!preferredStylistId) {
-      const { data: dayBookings } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('branch_id', branch_id)
-        .eq('date', date)
-        .eq('status', 'confirmed')
-
       const bookingsByStylist: Record<string, Booking[]> = {}
-      for (const booking of (dayBookings || []) as Booking[]) {
+      for (const booking of evaluation.dayBookings) {
         if (!booking.stylist_id) continue
         if (!bookingsByStylist[booking.stylist_id]) bookingsByStylist[booking.stylist_id] = []
         bookingsByStylist[booking.stylist_id].push(booking)
@@ -600,7 +437,7 @@ export async function POST(request: NextRequest) {
       note: note?.trim() || null,
     }
 
-    const admin = createAdminClient() ?? supabase!
+    const admin = db!
 
     // Final conflict re-check immediately before insert to close the race window.
     // The earlier check runs during stylist selection (potentially seconds earlier);

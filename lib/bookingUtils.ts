@@ -141,6 +141,27 @@ export function generateConfirmationMessage(booking: {
   )
 }
 
+export function generateChangeMessage(booking: {
+  branchName: string
+  serviceLine: string
+  date: string
+  startTime: string
+  endTime: string
+  stylistName?: string
+}): string {
+  return (
+    `🔄 預約變更通知 | 小尾巴美甲\n\n` +
+    `您的預約已更新為：\n` +
+    `📍 分店：${booking.branchName}\n` +
+    `💅 服務項目：${booking.serviceLine}\n` +
+    (booking.stylistName ? `👩‍🎨 美甲師：${booking.stylistName}\n` : '') +
+    `📅 日期：${formatDisplayDate(booking.date)}\n` +
+    `⏰ 時間：${booking.startTime} – ${booking.endTime}\n\n` +
+    `如有疑問，請直接聯繫我們 🙏\n` +
+    `小尾巴美甲 Ttail Nail`
+  )
+}
+
 export function generateCancellationMessage(booking: {
   branchName: string
   date: string

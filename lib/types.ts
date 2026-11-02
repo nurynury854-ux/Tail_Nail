@@ -111,6 +111,8 @@ export interface Booking {
   branch_id: string
   service_id?: string | null
   stylist_id?: string | null
+  /** true = customer chose this stylist, false = 不指定, null/absent = not recorded (older bookings). */
+  stylist_requested?: boolean | null
   customer_name: string
   line_id: string
   phone?: string | null

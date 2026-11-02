@@ -20,10 +20,13 @@ import {
   Scissors,
   Settings,
   Trash2,
+  AlertTriangle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Booking, BRANCHES, SERVICES, Branch, Service, Stylist, StylistGrade, StylistWeight } from '@/lib/types'
 import { formatPrice, formatDuration, calculateEndTime } from '@/lib/bookingUtils'
+import { taipeiToday } from '@/lib/dateTW'
+import ReassignBookingModal, { preferenceHint } from '@/components/admin/ReassignBookingModal'
 
 type FilterState = {
   branch_id: string
@@ -151,6 +154,8 @@ export default function AdminPage() {
   })
   const [statsBranch, setStatsBranch] = useState('') // '' = all branches
   const [showAddModal, setShowAddModal] = useState(false)
+  const [reassignTarget, setReassignTarget] = useState<Booking | null>(null)
+  const [onlyNeedsReassign, setOnlyNeedsReassign] = useState(false)
   const [addForm, setAddForm] = useState<ManualBooking>({
     branch_id: '',
     service_id: '',
@@ -819,7 +824,18 @@ export default function AdminPage() {
     fetchAllOverrides()
   }
 
+  // An upcoming booking whose stylist has left (deactivated, or lost entirely
+  // before stylist deletion was fixed) has nobody to serve the customer.
+  const todayTW = taipeiToday()
+  const needsReassign = (b: Booking) => {
+    if (b.status !== 'confirmed' || b.date < todayTW || stylists.length === 0) return false
+    const stylist = stylists.find((s) => s.id === b.stylist_id)
+    return !stylist || !stylist.is_active
+  }
+  const needsReassignCount = bookings.filter(needsReassign).length
+
   const filteredBookings = bookings.filter((b) => {
+    if (onlyNeedsReassign && !needsReassign(b)) return false
     if (!filters.search) return true
     const q = filters.search.toLowerCase()
     return (
@@ -1490,6 +1506,21 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {needsReassignCount > 0 && (
+            <div className="mx-6 mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex flex-wrap items-center justify-between gap-2">
+              <span className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                有 {needsReassignCount} 筆未來預約的美甲師已離職，需要改派
+              </span>
+              <button
+                onClick={() => setOnlyNeedsReassign((v) => !v)}
+                className="text-xs font-semibold underline underline-offset-2"
+              >
+                {onlyNeedsReassign ? '顯示全部預約' : '只看需要改派的'}
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-24">
               <Loader2 className="w-8 h-8 text-rose animate-spin" />
@@ -1546,7 +1577,15 @@ export default function AdminPage() {
                             </p>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-charcoal">{stylist?.name || '系統自動指派'}</td>
+                        <td className="px-6 py-4 text-sm text-charcoal">
+                          <p>{stylist?.name || '—'}</p>
+                          {needsReassign(booking) && (
+                            <p className="mt-1 text-xs text-amber-700 flex items-start gap-1">
+                              <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                              <span>美甲師已離職，需改派<br />{preferenceHint(booking).text}</span>
+                            </p>
+                          )}
+                        </td>
                         <td className="px-6 py-4">
                           <p className="text-sm text-charcoal font-medium">{booking.date}</p>
                           <p className="text-xs text-warmgray mt-0.5 flex items-center gap-1">
@@ -1563,6 +1602,14 @@ export default function AdminPage() {
                           <div className="flex items-center justify-end gap-2">
                             {booking.status === 'confirmed' ? (
                               <>
+                                <button
+                                  onClick={() => setReassignTarget(booking)}
+                                  className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                                    needsReassign(booking) ? 'bg-amber-500 text-white hover:bg-amber-600' : 'text-charcoal hover:bg-blush'
+                                  }`}
+                                >
+                                  改派
+                                </button>
                                 <button
                                   onClick={() => handleComplete(booking.id)}
                                   className="text-xs text-blue-600 hover:text-blue-700 font-medium px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
@@ -1597,6 +1644,19 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      {reassignTarget && (
+        <ReassignBookingModal
+          booking={reassignTarget}
+          currentStylistName={stylists.find((s) => s.id === reassignTarget.stylist_id)?.name}
+          needsReassign={needsReassign(reassignTarget)}
+          onClose={() => setReassignTarget(null)}
+          onDone={() => {
+            setReassignTarget(null)
+            fetchBookings({ silent: true })
+          }}
+        />
+      )}
 
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
