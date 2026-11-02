@@ -433,6 +433,9 @@ export async function POST(request: NextRequest) {
       start_time,
       end_time: finalEndTime,
       stylist_id: assignedStylistId,
+      // Whether the customer picked this stylist herself (vs 不指定), so that if
+      // the stylist later leaves, the admin knows whether to ask before reassigning.
+      stylist_requested: Boolean(preferredStylistId),
       status: status || 'confirmed',
       note: note?.trim() || null,
     }
