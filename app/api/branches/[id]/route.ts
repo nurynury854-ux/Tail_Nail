@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
+import { isAdminRequest } from '@/lib/adminAuth'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  if (!(await isAdminRequest(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const admin = createAdminClient()
   if (!hasSupabaseConfig || !admin) {
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })
@@ -27,7 +32,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   return NextResponse.json(data)
 }
 
-export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  if (!(await isAdminRequest(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const admin = createAdminClient()
   if (!hasSupabaseConfig || !admin) {
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })

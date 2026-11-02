@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hasSupabaseConfig, supabase, createAdminClient } from '@/lib/supabase'
+import { isAdminRequest } from '@/lib/adminAuth'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +24,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!(await isAdminRequest(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const admin = createAdminClient()
   if (!hasSupabaseConfig || !admin) {
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })

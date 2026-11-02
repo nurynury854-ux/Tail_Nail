@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   -- current assignment (referenced, NOT snapshotted): used for scoping views/login
   branch_id     TEXT REFERENCES branches(id) ON DELETE SET NULL,
   -- optional link to a technician row (managers & stylists who take clients)
-  stylist_id    TEXT REFERENCES stylists(id) ON DELETE SET NULL,
+  stylist_id    TEXT REFERENCES stylists(id) ON DELETE RESTRICT,
   display_name  TEXT NOT NULL,
   subtitle      TEXT,                           -- owner-editable one-line note under name
   is_active     BOOLEAN NOT NULL DEFAULT TRUE,

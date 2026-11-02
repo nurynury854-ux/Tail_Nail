@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hasSupabaseConfig, supabase } from '@/lib/supabase'
+import { isAdminRequest } from '@/lib/adminAuth'
 import { SERVICES } from '@/lib/types'
 
 export async function GET() {
@@ -41,6 +42,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  if (!(await isAdminRequest(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   if (!hasSupabaseConfig || !supabase) {
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })
   }

@@ -190,7 +190,7 @@ async function loadSummary(admin: SupabaseClient, from: string, to: string) {
   const bookingsByHour = new Map<string, number>()
   const bookingsByWeekday = new Map<string, number>()
   const bookingsByCategory = { hand: 0, foot: 0, unspecified: 0 }
-  let leadDaysTotal = 0, leadCount = 0, noPreference = 0, durationTotal = 0
+  let leadDaysTotal = 0, leadCount = 0, unassigned = 0, durationTotal = 0
 
   for (const bk of bookings) {
     bookingStatus[bk.status] = (bookingStatus[bk.status] || 0) + 1
@@ -206,7 +206,9 @@ async function loadSummary(admin: SupabaseClient, from: string, to: string) {
     if (bk.category === 'hand') bookingsByCategory.hand += 1
     else if (bk.category === 'foot') bookingsByCategory.foot += 1
     else bookingsByCategory.unspecified += 1
-    if (!bk.stylist_id) noPreference += 1
+    // 不指定 bookings are still assigned a technician at booking time, so a
+    // NULL here is a booking whose technician was lost, not a customer preference.
+    if (!bk.stylist_id) unassigned += 1
     durationTotal += bk.total_duration || 0
     if (bk.created_at) {
       leadDaysTotal += Math.max(0, dayDiff(taipeiToday(new Date(bk.created_at)), bk.date))
@@ -276,7 +278,7 @@ async function loadSummary(admin: SupabaseClient, from: string, to: string) {
       total: bookings.length,
       byStatus: bookingStatus,
       cancellationRate: bookings.length ? round(((bookingStatus.cancelled || 0) / bookings.length) * 100) : 0,
-      noPreferenceTechnicianShare: activeBookings ? round((noPreference / activeBookings) * 100) : 0,
+      unassignedTechnicianShare: activeBookings ? round((unassigned / activeBookings) * 100) : 0,
       avgLeadTimeDays: leadCount ? round(leadDaysTotal / leadCount) : 0,
       avgDurationMinutes: activeBookings ? Math.round(durationTotal / activeBookings) : 0,
       byCategory: bookingsByCategory,

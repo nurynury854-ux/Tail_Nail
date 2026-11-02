@@ -97,7 +97,7 @@ ALTER TABLE stylists
 ALTER TABLE bookings
   DROP CONSTRAINT IF EXISTS bookings_stylist_id_fkey,
   ADD CONSTRAINT bookings_stylist_id_fkey
-  FOREIGN KEY (stylist_id) REFERENCES stylists(id) ON DELETE SET NULL;
+  FOREIGN KEY (stylist_id) REFERENCES stylists(id) ON DELETE RESTRICT;
 
 -- ────────────────────────────────────────────────────────────
 -- SERVICE DURATIONS (per stylist + hand/foot)

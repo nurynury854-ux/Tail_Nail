@@ -586,7 +586,7 @@ export default function AdminPage() {
   }
 
   const handleDeleteStylist = async (id: string) => {
-    if (!confirm('確定刪除此設計師？')) return
+    if (!confirm('確定刪除此設計師？（若已有預約紀錄或帳號，將改為停用以保留紀錄）')) return
 
     const res = await fetch(`/api/stylists/${id}`, { method: 'DELETE' })
     if (!res.ok) {
@@ -595,7 +595,8 @@ export default function AdminPage() {
       return
     }
 
-    toast.success('設計師已移除')
+    const result = await res.json().catch(() => ({}))
+    toast.success(result.deactivated ? '設計師已有預約紀錄，已改為停用（紀錄保留）' : '設計師已移除')
     fetchMasterData()
   }
 
