@@ -585,10 +585,39 @@ export default function AdminPage() {
     fetchMasterData()
   }
 
-  const handleDeleteStylist = async (id: string) => {
-    if (!confirm('確定刪除此設計師？（若已有預約紀錄或帳號，將改為停用以保留紀錄）')) return
+  const handleDeleteStylist = async (stylist: Stylist) => {
+    // Show the admin everything removal touches before it happens: her logins
+    // go off with her, and upcoming customers still need someone to take them.
+    const impactRes = await fetch(`/api/stylists/${stylist.id}`)
+    if (!impactRes.ok) {
+      const err = await impactRes.json().catch(() => ({ error: '讀取設計師資料失敗' }))
+      toast.error(err.error || '讀取設計師資料失敗')
+      return
+    }
+    const impact = (await impactRes.json()) as {
+      bookingCount: number
+      accounts: Array<{ username: string; is_active: boolean }>
+      upcoming: Array<{ date: string; start_time: string; end_time: string; customer_name: string; phone?: string | null }>
+    }
 
-    const res = await fetch(`/api/stylists/${id}`, { method: 'DELETE' })
+    const hasHistory = impact.bookingCount > 0 || impact.accounts.length > 0
+    const lines = [`確定讓「${stylist.name}」離職／刪除？`, '']
+    if (hasHistory) {
+      lines.push(`• 設計師改為停用：客人不能再預約她，${impact.bookingCount} 筆歷史預約保留她的名字`)
+      const activeLogins = impact.accounts.filter((a) => a.is_active).map((a) => a.username)
+      if (activeLogins.length > 0) lines.push(`• 一併停用登入帳號：${activeLogins.join('、')}`)
+    } else {
+      lines.push('• 沒有任何預約或帳號，將直接刪除')
+    }
+    if (impact.upcoming.length > 0) {
+      lines.push('', `⚠️ 她還有 ${impact.upcoming.length} 筆未來預約，刪除後仍掛在她名下，需要聯絡客人改派或取消：`)
+      for (const b of impact.upcoming) {
+        lines.push(`  ${b.date.slice(5)} ${b.start_time.slice(0, 5)}–${b.end_time.slice(0, 5)}  ${b.customer_name}${b.phone ? ` ${b.phone}` : ''}`)
+      }
+    }
+    if (!confirm(lines.join('\n'))) return
+
+    const res = await fetch(`/api/stylists/${stylist.id}`, { method: 'DELETE' })
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: '刪除設計師失敗' }))
       toast.error(err.error || '刪除設計師失敗')
@@ -596,7 +625,10 @@ export default function AdminPage() {
     }
 
     const result = await res.json().catch(() => ({}))
-    toast.success(result.deactivated ? '設計師已有預約紀錄，已改為停用（紀錄保留）' : '設計師已移除')
+    toast.success(result.deactivated ? `${stylist.name} 已停用，紀錄保留` : '設計師已移除')
+    if (result.upcoming?.length > 0) {
+      toast(`記得處理 ${stylist.name} 的 ${result.upcoming.length} 筆未來預約`, { icon: '⚠️', duration: 10000 })
+    }
     fetchMasterData()
   }
 
@@ -991,12 +1023,15 @@ export default function AdminPage() {
                       <p className={`text-[11px] mt-0.5 ${s.is_active ? 'text-green-600' : 'text-gray-500'}`}>
                         {s.is_active ? '上班中' : '停用'}
                       </p>
+                      {s.is_active && !s.grade && (
+                        <p className="text-[11px] mt-0.5 text-red-500">未設定等級，客人無法預約她</p>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => handleToggleStylist(s)} className="text-xs px-2 py-1 rounded bg-blush text-charcoal">
-                        {s.is_active ? '刪除' : '啟用'}
+                        {s.is_active ? '停用' : '啟用'}
                       </button>
-                      <button onClick={() => handleDeleteStylist(s.id)} className="text-red-500 hover:text-red-700">
+                      <button onClick={() => handleDeleteStylist(s)} title="離職／刪除" className="text-red-500 hover:text-red-700">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
