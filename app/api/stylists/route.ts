@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hasSupabaseConfig, supabase, createAdminClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const branchId = searchParams.get('branch_id')

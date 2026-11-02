@@ -7,6 +7,7 @@ import { taipeiToday } from '@/lib/dateTW'
 import type { CheckoutSession, StylistLeave } from '@/lib/checkoutTypes'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 // Staff leave (排休) for a store manager's own technicians.
 //

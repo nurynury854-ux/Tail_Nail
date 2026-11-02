@@ -5,6 +5,7 @@ import { redactBooking } from '@/lib/checkoutPrivacy'
 import { monthRange } from '@/lib/monthRange'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 // GET /api/checkout/bookings?date=YYYY-MM-DD | ?month=YYYY-MM  [&branch_id=&stylist_id=]
 // Calendar appointments. Role scoping is enforced regardless of params:
