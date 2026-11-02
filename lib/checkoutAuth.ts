@@ -6,8 +6,16 @@ const SESSION_COOKIE_NAME = 'ttail_checkout_session'
 const SESSION_TTL_MS = 60 * 60 * 12 * 1000 // 12 hours
 const PBKDF2_ITERATIONS = 100_000
 
+// The signing key must be secret: the repo is public, so a constant fallback
+// let anyone forge an owner session (the owner-bootstrap session is trusted
+// without a DB lookup). Prefer a dedicated CHECKOUT_SESSION_SECRET; until one
+// is set, derive the key from the service-role key, which never leaves the server.
 function getSecret(): string {
-  return process.env.CHECKOUT_SESSION_SECRET || 'ttail-checkout-dev-secret-v1'
+  const dedicated = process.env.CHECKOUT_SESSION_SECRET
+  if (dedicated) return dedicated
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (serviceKey) return `checkout-session:${serviceKey}`
+  return 'ttail-checkout-dev-secret-v1' // local dev with no server secrets configured
 }
 
 export function getCheckoutSessionCookieName(): string {

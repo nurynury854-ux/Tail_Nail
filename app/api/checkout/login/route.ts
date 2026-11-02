@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { isValidAdminCredentials } from '@/lib/adminAuth'
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
+import { isLoginThrottled, recordLoginFailure } from '@/lib/loginThrottle'
 import {
   createSessionToken,
   getCheckoutSessionCookieName,
@@ -24,6 +25,10 @@ export async function POST(request: NextRequest) {
 
   if (!username || !password) {
     return NextResponse.json({ error: '請輸入帳號與密碼' }, { status: 400 })
+  }
+
+  if (await isLoginThrottled('checkout', ip, username)) {
+    return NextResponse.json({ error: '嘗試次數過多，請稍後再試' }, { status: 429 })
   }
 
   let session: CheckoutSession | null = null
@@ -67,6 +72,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!session) {
+    await recordLoginFailure('checkout', ip, username)
     return NextResponse.json({ error: '帳號或密碼錯誤' }, { status: 401 })
   }
 
