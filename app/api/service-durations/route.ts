@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, hasSupabaseConfig } from '@/lib/supabase'
+import { hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { durationMapForStylist } from '@/lib/serviceDurations'
+
+// Service-role client: the anon key ships in the browser bundle, so tables are
+// closed to it by RLS and every server read/write goes through this instead.
+const db = createAdminClient()
 
 // GET /api/service-durations?category=hand|foot&stylist_id=...
 // Returns the fixed durations, which are the same for every stylist apart from the
@@ -14,7 +18,7 @@ export async function GET(request: NextRequest) {
   const stylistId = searchParams.get('stylist_id')
 
   let stylistName: string | null = null
-  if (stylistId && hasSupabaseConfig && supabase) {
+  if (stylistId && hasSupabaseConfig && db) {
     // The name matters because an /admin-created 不點 has a UUID, not sty-budian.
     // A failed (not just empty) lookup must not silently fall through to the
     // universal/shorter duration: the booking page uses this response to size
@@ -23,7 +27,7 @@ export async function GET(request: NextRequest) {
     // row it already has — a slot checked as free for a too-short duration
     // can end up storing a longer end_time than what was actually validated
     // against other bookings, i.e. a real double-booking risk.
-    const { data, error } = await supabase.from('stylists').select('name').eq('id', stylistId).maybeSingle()
+    const { data, error } = await db.from('stylists').select('name').eq('id', stylistId).maybeSingle()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     stylistName = data?.name ?? null
   }

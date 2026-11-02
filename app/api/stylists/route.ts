@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasSupabaseConfig, supabase, createAdminClient } from '@/lib/supabase'
+import { hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { isAdminRequest } from '@/lib/adminAuth'
+
+// Service-role client: the anon key ships in the browser bundle, so tables are
+// closed to it by RLS and every server read/write goes through this instead.
+const db = createAdminClient()
 
 export const dynamic = 'force-dynamic'
 
@@ -9,11 +13,11 @@ export async function GET(request: NextRequest) {
   const branchId = searchParams.get('branch_id')
   const activeOnly = searchParams.get('active') !== 'false'
 
-  if (!hasSupabaseConfig || !supabase) {
+  if (!hasSupabaseConfig || !db) {
     return NextResponse.json([])
   }
 
-  let query = supabase.from('stylists').select('*').order('name', { ascending: true })
+  let query = db.from('stylists').select('*').order('name', { ascending: true })
   if (branchId) query = query.eq('branch_id', branchId)
   if (activeOnly) query = query.eq('is_active', true)
 

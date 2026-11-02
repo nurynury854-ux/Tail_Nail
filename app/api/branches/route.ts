@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { BRANCHES } from '@/lib/types'
-import { hasSupabaseConfig, supabase, createAdminClient } from '@/lib/supabase'
+import { hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { isAdminRequest } from '@/lib/adminAuth'
 
+// Service-role client: the anon key ships in the browser bundle, so tables are
+// closed to it by RLS and every server read/write goes through this instead.
+const db = createAdminClient()
+
 export async function GET() {
-  if (!hasSupabaseConfig || !supabase) {
+  if (!hasSupabaseConfig || !db) {
     return NextResponse.json(BRANCHES)
   }
 
-  const { data, error } = await supabase.from('branches').select('*').order('name', { ascending: true })
+  const { data, error } = await db.from('branches').select('*').order('name', { ascending: true })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json(data || [])

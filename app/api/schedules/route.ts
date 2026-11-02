@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasSupabaseConfig, supabase, createAdminClient } from '@/lib/supabase'
+import { hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { isAdminRequest } from '@/lib/adminAuth'
 import { emitBookingEvent } from '@/lib/bookingEvents'
 import type { SupabaseClient } from '@supabase/supabase-js'
+
+// Service-role client: the anon key ships in the browser bundle, so tables are
+// closed to it by RLS and every server read/write goes through this instead.
+const db = createAdminClient()
 
 // Working hours and day overrides change what every open calendar should be
 // showing, so they ride the same realtime channel as a booking change (see
@@ -28,7 +32,7 @@ function jsonNoStore(body: unknown, init?: ResponseInit) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!hasSupabaseConfig || !supabase) {
+  if (!hasSupabaseConfig || !db) {
     return jsonNoStore({ branchHours: null, stylistWeekly: [], branchOverrides: [], stylistOverrides: [] })
   }
 
@@ -37,16 +41,16 @@ export async function GET(request: NextRequest) {
   const stylistId = searchParams.get('stylist_id')
 
   const [branchHoursResult, stylistWeeklyResult, branchOverridesResult, stylistOverridesResult] = await Promise.all([
-    branchId ? supabase.from('branch_working_hours').select('*').eq('branch_id', branchId).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    branchId ? db.from('branch_working_hours').select('*').eq('branch_id', branchId).maybeSingle() : Promise.resolve({ data: null, error: null }),
     stylistId
-      ? supabase.from('stylist_weekly_hours').select('*').eq('stylist_id', stylistId).order('day_of_week', { ascending: true })
+      ? db.from('stylist_weekly_hours').select('*').eq('stylist_id', stylistId).order('day_of_week', { ascending: true })
       : Promise.resolve({ data: [], error: null }),
     branchId
-      ? supabase.from('branch_day_overrides').select('*').eq('branch_id', branchId).order('date', { ascending: false }).limit(500)
-      : supabase.from('branch_day_overrides').select('*').order('date', { ascending: false }).limit(500),
+      ? db.from('branch_day_overrides').select('*').eq('branch_id', branchId).order('date', { ascending: false }).limit(500)
+      : db.from('branch_day_overrides').select('*').order('date', { ascending: false }).limit(500),
     stylistId
-      ? supabase.from('stylist_day_overrides').select('*').eq('stylist_id', stylistId).order('date', { ascending: false }).limit(500)
-      : supabase.from('stylist_day_overrides').select('*').order('date', { ascending: false }).limit(500),
+      ? db.from('stylist_day_overrides').select('*').eq('stylist_id', stylistId).order('date', { ascending: false }).limit(500)
+      : db.from('stylist_day_overrides').select('*').order('date', { ascending: false }).limit(500),
   ])
 
   const error = branchHoursResult.error || stylistWeeklyResult.error || branchOverridesResult.error || stylistOverridesResult.error

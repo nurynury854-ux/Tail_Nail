@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasSupabaseConfig, supabase } from '@/lib/supabase'
+import { hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { isAdminRequest } from '@/lib/adminAuth'
 import { SERVICES } from '@/lib/types'
 
+// Service-role client: the anon key ships in the browser bundle, so tables are
+// closed to it by RLS and every server read/write goes through this instead.
+const db = createAdminClient()
+
 export async function GET() {
-  if (!hasSupabaseConfig || !supabase) {
+  if (!hasSupabaseConfig || !db) {
     return NextResponse.json(SERVICES)
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('services')
     .select('*')
     .order('service_type', { ascending: true })
@@ -46,7 +50,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (!hasSupabaseConfig || !supabase) {
+  if (!hasSupabaseConfig || !db) {
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })
   }
 
@@ -67,7 +71,7 @@ export async function POST(request: NextRequest) {
 
   const normalizedType = service_type || (is_addon ? 'addon' : 'main')
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('services')
     .insert({
       name: name.trim(),

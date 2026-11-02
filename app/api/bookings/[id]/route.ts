@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
+import { hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { buildCandidateBranchIds, lookupOaBranch, sendCustomerPush } from '@/lib/lineNotify'
 import { generateCancellationMessage } from '@/lib/bookingUtils'
 import { isAdminRequest } from '@/lib/adminAuth'
 import { emitBookingEvent } from '@/lib/bookingEvents'
+
+// Service-role client: the anon key ships in the browser bundle, so tables are
+// closed to it by RLS and every server read/write goes through this instead.
+const db = createAdminClient()
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   if (!(await isAdminRequest(request))) {
@@ -21,11 +25,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
-    if (!hasSupabaseConfig || !supabase) {
+    if (!hasSupabaseConfig || !db) {
       return NextResponse.json({ id, status, source: 'fallback' })
     }
 
-    const { data: currentBooking, error: currentError } = await supabase
+    const { data: currentBooking, error: currentError } = await db
       .from('bookings')
       .select('id, customer_name, line_id, date, start_time, branch_id, branches(name)')
       .eq('id', id)
@@ -35,7 +39,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
     }
 
-    const admin = createAdminClient() ?? supabase!
+    const admin = db!
     const { data, error } = await admin
       .from('bookings')
       .update({ status })
@@ -109,11 +113,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   const { id } = params
 
   try {
-    if (!hasSupabaseConfig || !supabase) {
+    if (!hasSupabaseConfig || !db) {
       return NextResponse.json({ success: true, id, source: 'fallback' })
     }
 
-    const admin = createAdminClient() ?? supabase!
+    const admin = db!
     // Return the deleted row so we know which branch's calendars to signal.
     const { data: deleted, error } = await admin
       .from('bookings')

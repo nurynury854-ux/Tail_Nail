@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, hasSupabaseConfig } from '@/lib/supabase'
+import { hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
 import { BRANCHES, SERVICES, Booking, Stylist, StylistGrade, TimeSlot } from '@/lib/types'
 import { defaultWorkingHoursByDay, timeToMinutes, minutesToTime } from '@/lib/bookingUtils'
 import { buildStylistOverrideMap, effectiveBranchClose, getAvailableStylistsForSlot, resolveBranchWindow, resolveStylistWindow } from '@/lib/scheduleUtils'
 import { stylistMeetsGrade } from '@/lib/serviceGrades'
+
+// Service-role client: the anon key ships in the browser bundle, so tables are
+// closed to it by RLS and every server read/write goes through this instead.
+const db = createAdminClient()
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -46,7 +50,7 @@ export async function GET(request: NextRequest) {
   const todayTW = `${nowTW.getFullYear()}-${String(nowTW.getMonth() + 1).padStart(2, '0')}-${String(nowTW.getDate()).padStart(2, '0')}`
   const nowMinutes = date === todayTW ? nowTW.getHours() * 60 + nowTW.getMinutes() : -1
 
-  if (!hasSupabaseConfig || !supabase) {
+  if (!hasSupabaseConfig || !db) {
     // Fallback path requires branch from the static list for staff_count
     const branch = BRANCHES.find((b) => b.id === branchId)
     if (!branch) return jsonNoStore({ error: 'Invalid branch' }, { status: 400 })
@@ -74,7 +78,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { data: existingBookings, error: bookingError } = await supabase
+    const { data: existingBookings, error: bookingError } = await db
       .from('bookings')
       .select('*')
       .eq('branch_id', branchId)
@@ -86,7 +90,7 @@ export async function GET(request: NextRequest) {
       return jsonNoStore({ error: bookingError.message }, { status: 500 })
     }
 
-    let stylistQuery = supabase
+    let stylistQuery = db
       .from('stylists')
       .select('id, branch_id, name, bio, is_active, grade')
       .eq('branch_id', branchId)
@@ -98,8 +102,8 @@ export async function GET(request: NextRequest) {
 
     const [{ data: stylists, error: stylistsError }, { data: branchHours, error: branchHoursError }, { data: branchOverride, error: branchOverrideError }] = await Promise.all([
       stylistQuery,
-      supabase.from('branch_working_hours').select('*').eq('branch_id', branchId).maybeSingle(),
-      supabase.from('branch_day_overrides').select('*').eq('branch_id', branchId).eq('date', date).maybeSingle(),
+      db.from('branch_working_hours').select('*').eq('branch_id', branchId).maybeSingle(),
+      db.from('branch_day_overrides').select('*').eq('branch_id', branchId).eq('date', date).maybeSingle(),
     ])
 
     if (stylistsError || branchHoursError || branchOverrideError) {
@@ -131,8 +135,8 @@ export async function GET(request: NextRequest) {
 
     const stylistIds = activeStylists.map((stylist) => stylist.id)
     const [{ data: weeklyRows, error: weeklyError }, { data: stylistOverrides, error: stylistOverrideError }] = await Promise.all([
-      supabase.from('stylist_weekly_hours').select('*').in('stylist_id', stylistIds),
-      supabase.from('stylist_day_overrides').select('*').in('stylist_id', stylistIds).eq('date', date),
+      db.from('stylist_weekly_hours').select('*').in('stylist_id', stylistIds),
+      db.from('stylist_day_overrides').select('*').in('stylist_id', stylistIds).eq('date', date),
     ])
 
     if (weeklyError || stylistOverrideError) {

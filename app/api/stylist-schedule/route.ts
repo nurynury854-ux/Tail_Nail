@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, hasSupabaseConfig } from '@/lib/supabase'
+import { hasSupabaseConfig, createAdminClient } from '@/lib/supabase'
+
+// Service-role client: the anon key ships in the browser bundle, so tables are
+// closed to it by RLS and every server read/write goes through this instead.
+const db = createAdminClient()
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -16,7 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'stylist_id required' }, { status: 400 })
   }
 
-  if (!hasSupabaseConfig || !supabase) {
+  if (!hasSupabaseConfig || !db) {
     return NextResponse.json({ weekly_off_days: [], full_off_dates: [] })
   }
 
@@ -33,11 +37,11 @@ export async function GET(request: NextRequest) {
   const toStr = toDateStr(until)
 
   const [{ data: weeklyRows }, { data: overrideRows }] = await Promise.all([
-    supabase
+    db
       .from('stylist_weekly_hours')
       .select('day_of_week, is_working')
       .eq('stylist_id', stylistId),
-    supabase
+    db
       .from('stylist_day_overrides')
       .select('date, is_off')
       .eq('stylist_id', stylistId)
