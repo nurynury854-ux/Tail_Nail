@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS bookings (
 );
 
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS stylist_id TEXT;
+-- true = customer chose this stylist, false = 不指定, NULL = made before this was recorded.
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS stylist_requested BOOLEAN;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS selected_services JSONB NOT NULL DEFAULT '[]'::JSONB;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS category TEXT;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS total_duration INTEGER NOT NULL DEFAULT 0;
@@ -217,76 +219,18 @@ CREATE INDEX IF NOT EXISTS idx_service_durations_lookup
 -- ────────────────────────────────────────────────────────────
 -- ROW LEVEL SECURITY
 -- ────────────────────────────────────────────────────────────
+-- RLS on, NO policies: closed to the public anon key (which ships in the
+-- browser bundle). API routes use the service-role client. See supabase/rls_lockdown.sql.
 
--- Branches: public read
 ALTER TABLE branches ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "branches_public_read" ON branches
-  FOR SELECT USING (true);
-
--- Services: public read
 ALTER TABLE services ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "services_public_read" ON services
-  FOR SELECT USING (true);
-
-CREATE POLICY "services_public_write" ON services
-  FOR ALL USING (true) WITH CHECK (true);
-
--- Bookings: public insert + read (demo mode - no auth needed)
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "bookings_public_insert" ON bookings
-  FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "bookings_public_read" ON bookings
-  FOR SELECT USING (true);
-
-CREATE POLICY "bookings_public_update" ON bookings
-  FOR UPDATE USING (true);
-
-CREATE POLICY "bookings_public_delete" ON bookings
-  FOR DELETE USING (true);
-
--- Stylists: public read/write (demo mode)
 ALTER TABLE stylists ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "stylists_public_read" ON stylists
-  FOR SELECT USING (true);
-CREATE POLICY "stylists_public_write" ON stylists
-  FOR ALL USING (true) WITH CHECK (true);
-
--- Service durations: public read/write (demo mode)
 ALTER TABLE service_durations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service_durations_public_read" ON service_durations
-  FOR SELECT USING (true);
-CREATE POLICY "service_durations_public_write" ON service_durations
-  FOR ALL USING (true) WITH CHECK (true);
-
--- Branch working hours: public read/write (demo mode)
 ALTER TABLE branch_working_hours ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "branch_hours_public_read" ON branch_working_hours
-  FOR SELECT USING (true);
-CREATE POLICY "branch_hours_public_write" ON branch_working_hours
-  FOR ALL USING (true) WITH CHECK (true);
-
--- Stylist weekly hours: public read/write (demo mode)
 ALTER TABLE stylist_weekly_hours ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "stylist_weekly_public_read" ON stylist_weekly_hours
-  FOR SELECT USING (true);
-CREATE POLICY "stylist_weekly_public_write" ON stylist_weekly_hours
-  FOR ALL USING (true) WITH CHECK (true);
-
--- Branch day overrides: public read/write (demo mode)
 ALTER TABLE branch_day_overrides ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "branch_override_public_read" ON branch_day_overrides
-  FOR SELECT USING (true);
-CREATE POLICY "branch_override_public_write" ON branch_day_overrides
-  FOR ALL USING (true) WITH CHECK (true);
-
--- Stylist day overrides: public read/write (demo mode)
 ALTER TABLE stylist_day_overrides ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "stylist_override_public_read" ON stylist_day_overrides
-  FOR SELECT USING (true);
-CREATE POLICY "stylist_override_public_write" ON stylist_day_overrides
-  FOR ALL USING (true) WITH CHECK (true);
 
 -- ────────────────────────────────────────────────────────────
 -- HELPER FUNCTION: check slot availability

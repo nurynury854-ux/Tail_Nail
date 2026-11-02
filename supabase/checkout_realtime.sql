@@ -23,8 +23,11 @@ CREATE TABLE IF NOT EXISTS booking_events (
 CREATE INDEX IF NOT EXISTS idx_booking_events_branch ON booking_events (branch_id, created_at);
 
 ALTER TABLE booking_events ENABLE ROW LEVEL SECURITY;
+-- Browsers only need to *receive* INSERTs over realtime (ids/branch/action, no
+-- customer data); writes come from the server's service-role client.
 DROP POLICY IF EXISTS booking_events_all ON booking_events;
-CREATE POLICY booking_events_all ON booking_events FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS booking_events_realtime_read ON booking_events;
+CREATE POLICY booking_events_realtime_read ON booking_events FOR SELECT USING (true);
 
 -- Publish to Supabase Realtime (guarded so re-running doesn't error).
 DO $$

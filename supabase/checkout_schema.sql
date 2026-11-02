@@ -2,8 +2,8 @@
 -- Tail & Nail — Checkout / POS system schema
 -- Separate from schema.sql so the booking app schema stays untouched.
 -- Money is stored as integers (NTD, no cents) to match services.price.
--- RLS is left permissive (true) to match the existing demo posture —
--- authorization is enforced in the API layer (lib/checkoutAuth.ts), NOT the DB.
+-- RLS is on with no policies (closed to the anon key); authorization is
+-- enforced in the API layer (lib/checkoutAuth.ts) using the service-role client.
 --
 -- CORE RULE: every order SNAPSHOTS branch/stylist/names at creation.
 -- All reporting groups by *_snapshot columns and NEVER joins to the live
@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS message_board (
 CREATE INDEX IF NOT EXISTS idx_message_board_branch ON message_board (branch_id, created_at);
 
 -- =====================================================================
--- Row Level Security — permissive to match existing demo posture.
+-- Row Level Security — closed; see supabase/rls_lockdown.sql.
 -- =====================================================================
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checkout_orders ENABLE ROW LEVEL SECURITY;
@@ -215,18 +215,8 @@ ALTER TABLE performance_bonuses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cleaning_duty ENABLE ROW LEVEL SECURITY;
 ALTER TABLE message_board ENABLE ROW LEVEL SECURITY;
 
-DO $$
-DECLARE t TEXT;
-BEGIN
-  FOREACH t IN ARRAY ARRAY[
-    'accounts', 'checkout_orders', 'checkout_order_items', 'order_edit_logs',
-    'actual_amount_adjustments', 'fixed_bonuses', 'performance_bonuses',
-    'cleaning_duty', 'message_board'
-  ] LOOP
-    EXECUTE format('DROP POLICY IF EXISTS %I_all ON %I;', t, t);
-    EXECUTE format('CREATE POLICY %I_all ON %I FOR ALL USING (true) WITH CHECK (true);', t, t);
-  END LOOP;
-END $$;
+-- RLS on, NO policies: closed to the public anon key (which ships in the
+-- browser bundle). API routes use the service-role client. See supabase/rls_lockdown.sql.
 
 -- =====================================================================
 -- Optional: seed an owner account.

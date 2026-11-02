@@ -39,10 +39,9 @@ ALTER TABLE checkout_order_items ADD COLUMN IF NOT EXISTS category    TEXT;
 ALTER TABLE checkout_order_items ADD COLUMN IF NOT EXISTS unit_count  INT;
 ALTER TABLE checkout_order_items ADD COLUMN IF NOT EXISTS tier_index  INT;
 
--- RLS (permissive, matches existing demo posture; auth enforced in API).
+-- RLS on, NO policies: closed to the public anon key (which ships in the
+-- browser bundle). API routes use the service-role client. See supabase/rls_lockdown.sql.
 ALTER TABLE checkout_service_prices ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS checkout_service_prices_all ON checkout_service_prices;
-CREATE POLICY checkout_service_prices_all ON checkout_service_prices FOR ALL USING (true) WITH CHECK (true);
 
 -- ---------------------------------------------------------------------
 -- Seed the catalog. ON CONFLICT DO NOTHING so re-running never clobbers
