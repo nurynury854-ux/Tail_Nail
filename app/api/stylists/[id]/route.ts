@@ -14,7 +14,7 @@ async function loadRemovalImpact(admin: AdminClient, stylistId: string) {
     admin.from('accounts').select('id, username, display_name, is_active').eq('stylist_id', stylistId),
     admin
       .from('bookings')
-      .select('id, date, start_time, end_time, customer_name, phone')
+      .select('*')
       .eq('stylist_id', stylistId)
       .eq('status', 'confirmed')
       .gte('date', taipeiToday())
@@ -28,6 +28,16 @@ async function loadRemovalImpact(admin: AdminClient, stylistId: string) {
     accounts: accounts.data || [],
     upcoming: upcoming.data || [],
   }
+}
+
+function upcomingBlock(upcoming: unknown[]) {
+  return NextResponse.json(
+    {
+      error: `她名下還有 ${upcoming.length} 筆已預約的客人，請先逐筆改派給有空的美甲師，才能停用或刪除`,
+      upcoming,
+    },
+    { status: 409 },
+  )
 }
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -56,6 +66,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 
   const body = await request.json()
+
+  // Taking a stylist out of service strands her booked customers — they must be
+  // moved to someone with the time first (/api/bookings/[id]/reassign).
+  if (body.is_active === false) {
+    const impact = await loadRemovalImpact(admin, params.id)
+    if ('error' in impact) return NextResponse.json({ error: impact.error }, { status: 500 })
+    if (impact.upcoming.length > 0) return upcomingBlock(impact.upcoming)
+  }
+
   const validGrades = ['special', 'grade1', 'grade2']
   const validWeights = ['high', 'low']
   const updates = {
@@ -90,6 +109,38 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ error: 'Supabase is not configured' }, { status: 500 })
   }
 
+  // Permanent removal: the owner wants the name gone from the system. Her
+  // past bookings are handed to another technician first —
+  // the database refuses to delete a stylist that bookings still point at, and
+  // blanking them would orphan every one. Her checkout logins are deleted with
+  // her. Leave/hour rows cascade.
+  const impact = await loadRemovalImpact(admin, params.id)
+  if ('error' in impact) return NextResponse.json({ error: impact.error }, { status: 500 })
+  // Never remove someone who still has customers booked: each one has to be
+  // moved to a stylist who is actually free (checked by the reassign route).
+  if (impact.upcoming.length > 0) return upcomingBlock(impact.upcoming)
+
+  const url = new URL(request.url)
+  if (url.searchParams.get('permanent') === 'true') {
+    const reassignTo = url.searchParams.get('reassign_to')
+    // Only her past/finished bookings are left to hand over; they need a
+    // holder because the database refuses to orphan a booking.
+    if (impact.bookingCount > 0 && (!reassignTo || reassignTo === params.id)) {
+      return NextResponse.json({ error: '請選擇接手歷史預約的美甲師' }, { status: 400 })
+    }
+    if (impact.bookingCount > 0) {
+      const { data: target } = await admin.from('stylists').select('id').eq('id', reassignTo!).maybeSingle()
+      if (!target) return NextResponse.json({ error: '接手的美甲師不存在' }, { status: 400 })
+      const { error: moveError } = await admin.from('bookings').update({ stylist_id: reassignTo }).eq('stylist_id', params.id)
+      if (moveError) return NextResponse.json({ error: moveError.message }, { status: 500 })
+    }
+    const { error: accountError } = await admin.from('accounts').delete().eq('stylist_id', params.id)
+    if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 })
+    const { error: deleteError } = await admin.from('stylists').delete().eq('id', params.id)
+    if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
+    return NextResponse.json({ success: true, deactivated: false, permanent: true })
+  }
+
   // bookings.stylist_id and accounts.stylist_id were ON DELETE SET NULL, so a
   // hard delete silently wiped the technician off every booking she ever had
   // (they showed up as unassigned) and unlinked her checkout login. A
@@ -97,9 +148,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   // bookable but her bookings keep pointing at her — and her logins are
   // switched off with her, since she has left. Only a row nothing refers to
   // (e.g. one added by mistake) is actually removed.
-  const impact = await loadRemovalImpact(admin, params.id)
-  if ('error' in impact) return NextResponse.json({ error: impact.error }, { status: 500 })
-
   if (impact.bookingCount > 0 || impact.accounts.length > 0) {
     const { error } = await admin.from('stylists').update({ is_active: false }).eq('id', params.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

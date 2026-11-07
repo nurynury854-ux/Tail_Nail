@@ -156,6 +156,9 @@ export default function AdminPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [reassignTarget, setReassignTarget] = useState<Booking | null>(null)
   const [onlyNeedsReassign, setOnlyNeedsReassign] = useState(false)
+  // A stylist can't be stopped/removed while customers are still booked with
+  // her: this lists them so each can be moved to someone with the time.
+  const [removalBlock, setRemovalBlock] = useState<{ stylist: Stylist; bookings: Booking[] } | null>(null)
   const [addForm, setAddForm] = useState<ManualBooking>({
     branch_id: '',
     service_id: '',
@@ -582,11 +585,78 @@ export default function AdminPage() {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: '更新設計師狀態失敗' }))
+      if (res.status === 409 && Array.isArray(err.upcoming)) {
+        toast.error(err.error)
+        setRemovalBlock({ stylist, bookings: err.upcoming })
+        return
+      }
       toast.error(err.error || '更新設計師狀態失敗')
       return
     }
 
     toast.success(stylist.is_active ? '設計師已停用' : '設計師已啟用')
+    fetchMasterData()
+  }
+
+  // Load what removing a stylist touches. If customers are still booked with
+  // her, open the reassign list and report that removal must wait.
+  const loadImpactOrBlock = async (stylist: Stylist) => {
+    const res = await fetch(`/api/stylists/${stylist.id}`, { cache: 'no-store' })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: '讀取設計師資料失敗' }))
+      toast.error(err.error || '讀取設計師資料失敗')
+      return null
+    }
+    const impact = (await res.json()) as {
+      bookingCount: number
+      accounts: Array<{ username: string; is_active: boolean }>
+      upcoming: Booking[]
+    }
+    if (impact.upcoming.length > 0) {
+      toast.error(`${stylist.name} 還有 ${impact.upcoming.length} 筆已預約的客人，請先改派`)
+      setRemovalBlock({ stylist, bookings: impact.upcoming })
+      return null
+    }
+    return impact
+  }
+
+  // Erase a stylist's name entirely. Only possible once no customer is booked
+  // with her; her past bookings then need a holder (the database won't orphan
+  // them), and her logins are deleted with her.
+  const handlePermanentDeleteStylist = async (stylist: Stylist) => {
+    const impact = await loadImpactOrBlock(stylist)
+    if (!impact) return
+
+    let reassignQuery = ''
+    let holderName = ''
+    if (impact.bookingCount > 0) {
+      const others = stylists.filter((s) => s.id !== stylist.id && s.is_active)
+      const list = others
+        .map((s, i) => `${i + 1}. ${s.name}（${branches.find((b) => b.id === s.branch_id)?.name || '未知分店'}）`)
+        .join('\n')
+      const pick = prompt(
+        `永久刪除「${stylist.name}」：她的名字、登入帳號會從系統消失，無法復原。\n` +
+          `她的 ${impact.bookingCount} 筆過去預約紀錄會改掛到你選的美甲師名下。\n\n請輸入接手者的編號：\n${list}`,
+      )
+      if (!pick) return
+      const target = others[Number(pick) - 1]
+      if (!target) {
+        toast.error('編號不正確')
+        return
+      }
+      holderName = target.name
+      reassignQuery = `&reassign_to=${target.id}`
+    }
+    if (!confirm(`再次確認：永久刪除「${stylist.name}」${holderName ? `，過去預約紀錄改掛「${holderName}」` : ''}？無法復原。`)) return
+
+    const res = await fetch(`/api/stylists/${stylist.id}?permanent=true${reassignQuery}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: '刪除設計師失敗' }))
+      if (res.status === 409 && Array.isArray(err.upcoming)) setRemovalBlock({ stylist, bookings: err.upcoming })
+      toast.error(err.error || '刪除設計師失敗')
+      return
+    }
+    toast.success(`${stylist.name} 已永久刪除`)
     fetchMasterData()
   }
 
@@ -602,7 +672,13 @@ export default function AdminPage() {
     const impact = (await impactRes.json()) as {
       bookingCount: number
       accounts: Array<{ username: string; is_active: boolean }>
-      upcoming: Array<{ date: string; start_time: string; end_time: string; customer_name: string; phone?: string | null }>
+      upcoming: Booking[]
+    }
+    // Customers still booked with her must be moved first — no way past this.
+    if (impact.upcoming.length > 0) {
+      toast.error(`${stylist.name} 還有 ${impact.upcoming.length} 筆已預約的客人，請先改派`)
+      setRemovalBlock({ stylist, bookings: impact.upcoming })
+      return
     }
 
     const hasHistory = impact.bookingCount > 0 || impact.accounts.length > 0
@@ -614,26 +690,18 @@ export default function AdminPage() {
     } else {
       lines.push('• 沒有任何預約或帳號，將直接刪除')
     }
-    if (impact.upcoming.length > 0) {
-      lines.push('', `⚠️ 她還有 ${impact.upcoming.length} 筆未來預約，刪除後仍掛在她名下，需要聯絡客人改派或取消：`)
-      for (const b of impact.upcoming) {
-        lines.push(`  ${b.date.slice(5)} ${b.start_time.slice(0, 5)}–${b.end_time.slice(0, 5)}  ${b.customer_name}${b.phone ? ` ${b.phone}` : ''}`)
-      }
-    }
     if (!confirm(lines.join('\n'))) return
 
     const res = await fetch(`/api/stylists/${stylist.id}`, { method: 'DELETE' })
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: '刪除設計師失敗' }))
+      if (res.status === 409 && Array.isArray(err.upcoming)) setRemovalBlock({ stylist, bookings: err.upcoming })
       toast.error(err.error || '刪除設計師失敗')
       return
     }
 
     const result = await res.json().catch(() => ({}))
     toast.success(result.deactivated ? `${stylist.name} 已停用，紀錄保留` : '設計師已移除')
-    if (result.upcoming?.length > 0) {
-      toast(`記得處理 ${stylist.name} 的 ${result.upcoming.length} 筆未來預約`, { icon: '⚠️', duration: 10000 })
-    }
     fetchMasterData()
   }
 
@@ -1050,6 +1118,15 @@ export default function AdminPage() {
                       <button onClick={() => handleDeleteStylist(s)} title="離職／刪除" className="text-red-500 hover:text-red-700">
                         <Trash2 className="w-4 h-4" />
                       </button>
+                      {!s.is_active && (
+                        <button
+                          onClick={() => handlePermanentDeleteStylist(s)}
+                          title="永久刪除（名字從系統消失）"
+                          className="text-xs px-2 py-1 rounded bg-red-500 text-white"
+                        >
+                          永久刪除
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -1645,6 +1722,38 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {removalBlock && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-charcoal/60 backdrop-blur-sm" onClick={() => setRemovalBlock(null)} />
+          <div className="relative bg-white rounded-3xl shadow-medium w-full max-w-lg max-h-[90vh] overflow-y-auto p-7">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-playfair text-xl text-charcoal font-bold">先把客人轉給別的美甲師</h2>
+              <button onClick={() => setRemovalBlock(null)} className="p-2 hover:bg-blush rounded-full"><X className="w-5 h-5 text-warmgray" /></button>
+            </div>
+            <p className="text-sm text-charcoal mb-4">
+              「{removalBlock.stylist.name}」還有 {removalBlock.bookings.length} 筆已預約的客人。每一筆都要改派給有空的美甲師，全部轉完才能停用或刪除她。
+            </p>
+            <div className="space-y-2">
+              {removalBlock.bookings.map((b) => {
+                const hint = preferenceHint(b)
+                return (
+                  <div key={b.id} className="flex items-center justify-between gap-3 rounded-xl border border-blush px-4 py-3 text-sm">
+                    <div>
+                      <p className="font-semibold text-charcoal">{b.date} {b.start_time.slice(0, 5)}–{b.end_time.slice(0, 5)}</p>
+                      <p className="text-warmgray">{b.customer_name}{b.phone ? `　${b.phone}` : ''}</p>
+                      <p className={`text-xs mt-0.5 ${hint.askFirst ? 'text-amber-700' : 'text-green-700'}`}>{hint.text}</p>
+                    </div>
+                    <button onClick={() => setReassignTarget(b)} className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600">
+                      改派
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {reassignTarget && (
         <ReassignBookingModal
           booking={reassignTarget}
@@ -1652,7 +1761,19 @@ export default function AdminPage() {
           needsReassign={needsReassign(reassignTarget)}
           onClose={() => setReassignTarget(null)}
           onDone={() => {
+            const movedId = reassignTarget.id
             setReassignTarget(null)
+            // Drop it from the removal list (it's no longer hers); once the list
+            // is empty she can finally be stopped/removed.
+            setRemovalBlock((prev) => {
+              if (!prev) return prev
+              const left = prev.bookings.filter((b) => b.id !== movedId)
+              if (left.length === 0) {
+                toast.success(`${prev.stylist.name} 的客人都已轉出，現在可以停用或刪除她了`)
+                return null
+              }
+              return { ...prev, bookings: left }
+            })
             fetchBookings({ silent: true })
           }}
         />
