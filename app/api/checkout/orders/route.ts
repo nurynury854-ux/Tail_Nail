@@ -50,18 +50,30 @@ export async function GET(request: NextRequest) {
 
   query = query.order('created_at', { ascending: false })
 
-  const { data, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  query = query.order('id', { ascending: true }) // deterministic tiebreak across pages
 
-  // Attach line items in one extra round-trip.
-  const orders = data || []
+  // A whole month can exceed PostgREST's 1000-row response cap, which would
+  // silently drop the tail. Page through until a short batch comes back.
+  const PAGE_SIZE = 1000
+  const orders: Record<string, any>[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await query.range(from, from + PAGE_SIZE - 1)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    const batch = data || []
+    orders.push(...batch)
+    if (batch.length < PAGE_SIZE) break
+  }
+
+  // Attach line items. Chunked: a month of ids in one .in() blows past the
+  // URL length limit and the request fails.
   const ids = orders.map((o) => o.id)
   const itemsByOrder: Record<string, unknown[]> = {}
-  if (ids.length) {
-    const { data: items } = await admin
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data: items, error: itemsError } = await admin
       .from('checkout_order_items')
       .select('*')
-      .in('order_id', ids)
+      .in('order_id', ids.slice(i, i + 100))
+    if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 })
     for (const it of items || []) {
       ;(itemsByOrder[it.order_id] ||= []).push(it)
     }

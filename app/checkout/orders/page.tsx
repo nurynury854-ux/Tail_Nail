@@ -8,11 +8,14 @@ import type { CheckoutOrder } from '@/lib/checkoutTypes'
 import type { Branch, Stylist } from '@/lib/types'
 import OrderStatusBadge from '@/components/checkout/OrderStatusBadge'
 import { formatNTD, useCheckoutSession } from '@/components/checkout/session'
-import { taipeiBusinessDate } from '@/lib/dateTW'
+import { taipeiBusinessDate, taipeiBusinessMonth } from '@/lib/dateTW'
 
 export default function OrdersPage() {
   const { session } = useCheckoutSession()
+  // 單日 = one business day | 整個月 = a whole month of orders.
+  const [range, setRange] = useState<'day' | 'month'>('day')
   const [date, setDate] = useState(taipeiBusinessDate())
+  const [month, setMonth] = useState(taipeiBusinessMonth())
   const [orders, setOrders] = useState<CheckoutOrder[]>([])
   const [loading, setLoading] = useState(false)
   const [branches, setBranches] = useState<Branch[]>([])
@@ -58,14 +61,14 @@ export default function OrdersPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ date })
+      const params = new URLSearchParams(range === 'month' ? { month } : { date })
       if (branchId) params.set('branch_id', branchId)
       const res = await fetch(`/api/checkout/orders?${params.toString()}`, { cache: 'no-store' })
       setOrders(res.ok ? await res.json() : [])
     } finally {
       setLoading(false)
     }
-  }, [date, branchId])
+  }, [range, date, month, branchId])
 
   useEffect(() => {
     load()
@@ -125,7 +128,15 @@ export default function OrdersPage() {
 
       {/* View toggle + filters */}
       <div className="flex flex-wrap gap-2 items-center">
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={selectCls} />
+        <select value={range} onChange={(e) => setRange(e.target.value as 'day' | 'month')} className={selectCls}>
+          <option value="day">單日</option>
+          <option value="month">整個月</option>
+        </select>
+        {range === 'day' ? (
+          <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className={selectCls} />
+        ) : (
+          <input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} className={selectCls} />
+        )}
 
         {canFilter && (
           <div className="inline-flex rounded-lg border border-blush overflow-hidden">
@@ -169,6 +180,13 @@ export default function OrdersPage() {
         訂單需經店長確認後才會計入營業額與業績；未確認的訂單標示為「未計入」。
       </p>
 
+      {range === 'month' && !loading && !needsStylist && displayed.length > 0 && (
+        <p className="text-sm text-charcoal">
+          共 {displayed.length} 筆・已確認營業額{' '}
+          {formatNTD(displayed.filter((o) => o.status === 'confirmed').reduce((n, o) => n + (o.revenue || 0), 0))}
+        </p>
+      )}
+
       {loading ? (
         <p className="text-warmgray">載入中...</p>
       ) : needsStylist ? (
@@ -176,12 +194,13 @@ export default function OrdersPage() {
           {role === 'owner' && !branchId ? '請先選擇分店與美甲師以顯示訂單。' : '請先選擇美甲師以顯示訂單。'}
         </p>
       ) : displayed.length === 0 ? (
-        <p className="text-warmgray">此日期沒有訂單</p>
+        <p className="text-warmgray">{range === 'month' ? '此月份沒有訂單' : '此日期沒有訂單'}</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-blush bg-white">
           <table className="w-full text-sm">
             <thead className="text-warmgray border-b border-blush">
               <tr className="text-left">
+                {range === 'month' && <th className="px-3 py-2">日期</th>}
                 <th className="px-3 py-2">狀態</th>
                 <th className="px-3 py-2">客戶</th>
                 {role !== 'stylist' && <th className="px-3 py-2">美甲師</th>}
@@ -194,6 +213,9 @@ export default function OrdersPage() {
             <tbody>
               {displayed.map((o) => (
                 <tr key={o.id} className="border-b border-blush/60 last:border-0">
+                  {range === 'month' && (
+                    <td className="px-3 py-2 text-warmgray whitespace-nowrap">{o.business_date.slice(5)}</td>
+                  )}
                   <td className="px-3 py-2"><OrderStatusBadge status={o.status} /></td>
                   <td className="px-3 py-2 text-charcoal">{o.customer_name || '—'}</td>
                   {role !== 'stylist' && (
